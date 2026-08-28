@@ -1,8 +1,13 @@
 import { pgTable, text, timestamp, jsonb, uuid } from "drizzle-orm/pg-core";
 
+export type TemplateFieldType = "string" | "number" | "date" | "boolean" | "select";
+
 export type TemplateField = {
   key: string;
   label: string;
+  type: TemplateFieldType;
+  /** Type-specific arguments, e.g. a date format string or select options. */
+  params: string[];
 };
 
 export const templates = pgTable("templates", {

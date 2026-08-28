@@ -26,11 +26,29 @@ export async function POST(
   }
 
   const missing = templateRow.fields
+    .filter((f) => f.type !== "boolean")
     .map((f) => f.key)
     .filter((key) => !(key in data) || String(data[key]).trim() === "");
   if (missing.length > 0) {
     return NextResponse.json(
       { error: `Missing values for: ${missing.join(", ")}` },
+      { status: 400 }
+    );
+  }
+
+  const invalid: string[] = [];
+  for (const field of templateRow.fields) {
+    const value = String(data[field.key] ?? "");
+    if (field.type === "number" && value !== "" && Number.isNaN(Number(value))) {
+      invalid.push(field.key);
+    }
+    if (field.type === "select" && field.params.length > 0 && !field.params.includes(value)) {
+      invalid.push(field.key);
+    }
+  }
+  if (invalid.length > 0) {
+    return NextResponse.json(
+      { error: `Invalid value for: ${invalid.join(", ")}` },
       { status: 400 }
     );
   }
@@ -47,7 +65,7 @@ export async function POST(
     for (const field of templateRow.fields) {
       stringData[field.key] = String(data[field.key] ?? "");
     }
-    renderedDocx = renderDocx(originalDocx, stringData);
+    renderedDocx = renderDocx(originalDocx, templateRow.fields, stringData);
   } catch {
     return NextResponse.json({ error: "Failed to fill in the document" }, { status: 500 });
   }

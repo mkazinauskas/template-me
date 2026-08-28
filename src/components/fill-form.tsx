@@ -3,6 +3,100 @@
 import { useState } from "react";
 import type { TemplateField } from "@/db/schema";
 
+const inputClass =
+  "rounded-md border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/30";
+
+function defaultValueFor(field: TemplateField) {
+  if (field.type === "boolean") return "false";
+  return "";
+}
+
+function FieldInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: TemplateField;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  switch (field.type) {
+    case "number":
+      return (
+        <input
+          id={field.key}
+          type="number"
+          step="any"
+          required
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={inputClass}
+        />
+      );
+    case "date":
+      return (
+        <input
+          id={field.key}
+          type="date"
+          required
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={inputClass}
+        />
+      );
+    case "boolean":
+      return (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            id={field.key}
+            type="checkbox"
+            checked={value === "true"}
+            onChange={(e) => onChange(e.target.checked ? "true" : "false")}
+            className="h-4 w-4"
+          />
+          {field.params[0] && field.params[1]
+            ? value === "true"
+              ? field.params[0]
+              : field.params[1]
+            : value === "true"
+              ? "Yes"
+              : "No"}
+        </label>
+      );
+    case "select":
+      return (
+        <select
+          id={field.key}
+          required
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={inputClass}
+        >
+          <option value="" disabled>
+            Select…
+          </option>
+          {field.params.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      );
+    case "string":
+    default:
+      return (
+        <input
+          id={field.key}
+          type="text"
+          required
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={inputClass}
+        />
+      );
+  }
+}
+
 export function FillForm({
   templateId,
   fields,
@@ -13,7 +107,7 @@ export function FillForm({
   templateName: string;
 }) {
   const [values, setValues] = useState<Record<string, string>>(
-    Object.fromEntries(fields.map((f) => [f.key, ""]))
+    Object.fromEntries(fields.map((f) => [f.key, defaultValueFor(f)]))
   );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,18 +149,16 @@ export function FillForm({
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
       {fields.map((field) => (
         <div key={field.key} className="flex flex-col gap-1.5">
-          <label htmlFor={field.key} className="text-sm font-medium">
+          <label htmlFor={field.key} className="text-sm font-medium flex items-center gap-2">
             {field.label}
+            <span className="text-[10px] uppercase tracking-wide text-black/40 dark:text-white/40 font-normal">
+              {field.type}
+            </span>
           </label>
-          <input
-            id={field.key}
-            type="text"
-            required
+          <FieldInput
+            field={field}
             value={values[field.key] ?? ""}
-            onChange={(e) =>
-              setValues((prev) => ({ ...prev, [field.key]: e.target.value }))
-            }
-            className="rounded-md border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/30"
+            onChange={(value) => setValues((prev) => ({ ...prev, [field.key]: value }))}
           />
         </div>
       ))}

@@ -54,8 +54,25 @@ export function UploadForm() {
           <code className="px-1 py-0.5 rounded bg-black/5 dark:bg-white/10">
             {"{{field_name}}"}
           </code>{" "}
-          — fields are detected automatically.
+          — fields are detected automatically. Add a type after a pipe to
+          control the input: {" "}
+          <code className="px-1 py-0.5 rounded bg-black/5 dark:bg-white/10">
+            {'{{birthday|date("yyyy-mm-dd")}}'}
+          </code>
+          . Supported types: <code className="font-mono">string</code>,{" "}
+          <code className="font-mono">number(decimals)</code>,{" "}
+          <code className="font-mono">{'date("yyyy-mm-dd")'}</code>,{" "}
+          <code className="font-mono">boolean</code>, and{" "}
+          <code className="font-mono">{'select("A","B")'}</code>. Untyped
+          tags default to string.
         </p>
+        <a
+          href="/example-template.docx"
+          download
+          className="mt-2 inline-flex w-fit items-center gap-1.5 text-sm font-medium text-black dark:text-white underline underline-offset-2 hover:no-underline"
+        >
+          Download example template (.docx)
+        </a>
       </div>
 
       <div className="flex flex-col gap-1.5">
