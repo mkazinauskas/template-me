@@ -1,4 +1,5 @@
 import { Sandbox } from "@vercel/sandbox";
+import { after } from "next/server";
 
 const LO_VERSION = "26.8.0";
 const LO_DEPS = [
@@ -40,6 +41,8 @@ export async function convertDocxToPdf(docxBuffer: Buffer): Promise<Buffer> {
     ? await Sandbox.create({ source: { type: "snapshot", snapshotId }, timeout: 120_000 })
     : await Sandbox.create({ runtime: "node24", timeout: 300_000 });
 
+  const stopSandbox = () => sandbox.stop().catch(() => {});
+
   try {
     if (!snapshotId) {
       const install = await sandbox.runCommand("sh", ["-c", INSTALL_LIBREOFFICE_CMD]);
@@ -62,8 +65,14 @@ export async function convertDocxToPdf(docxBuffer: Buffer): Promise<Buffer> {
     if (!pdfBuffer) {
       throw new Error("Conversion produced no output PDF");
     }
+
+    // Stopping the VM takes ~10s on its own; shutting it down after the
+    // response is sent (instead of awaiting it here) is what actually makes
+    // this fast for the caller.
+    after(stopSandbox);
     return pdfBuffer;
-  } finally {
-    await sandbox.stop().catch(() => {});
+  } catch (err) {
+    await stopSandbox();
+    throw err;
   }
 }
