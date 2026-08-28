@@ -21,24 +21,28 @@ export async function POST(
 
   const body = await req.json().catch(() => null);
   const data = body?.data;
+  const preview = body?.preview === true;
   if (!data || typeof data !== "object") {
     return NextResponse.json({ error: "Missing field data" }, { status: 400 });
   }
 
-  const missing = templateRow.fields
-    .filter((f) => f.type !== "boolean")
-    .map((f) => f.key)
-    .filter((key) => !(key in data) || String(data[key]).trim() === "");
-  if (missing.length > 0) {
-    return NextResponse.json(
-      { error: `Missing values for: ${missing.join(", ")}` },
-      { status: 400 }
-    );
+  if (!preview) {
+    const missing = templateRow.fields
+      .filter((f) => f.type !== "boolean")
+      .map((f) => f.key)
+      .filter((key) => !(key in data) || String(data[key]).trim() === "");
+    if (missing.length > 0) {
+      return NextResponse.json(
+        { error: `Missing values for: ${missing.join(", ")}` },
+        { status: 400 }
+      );
+    }
   }
 
   const invalid: string[] = [];
   for (const field of templateRow.fields) {
     const value = String(data[field.key] ?? "");
+    if (preview && value === "") continue;
     if (field.type === "number" && value !== "" && Number.isNaN(Number(value))) {
       invalid.push(field.key);
     }
@@ -79,11 +83,12 @@ export async function POST(
   }
 
   const filename = `${templateRow.name.replace(/[^a-zA-Z0-9-_]+/g, "_")}.pdf`;
+  const disposition = preview ? "inline" : `attachment; filename="${filename}"`;
   return new NextResponse(new Uint8Array(pdfBuffer), {
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="${filename}"`,
+      "Content-Disposition": disposition,
     },
   });
 }

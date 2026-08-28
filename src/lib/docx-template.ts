@@ -91,6 +91,7 @@ function parseTag(raw: string): {
 function formatFieldValue(field: TemplateField, rawValue: string): string {
   switch (field.type) {
     case "number": {
+      if (rawValue.trim() === "") return "";
       const decimals = field.params[0] !== undefined ? parseInt(field.params[0], 10) : undefined;
       const num = Number(rawValue);
       if (Number.isNaN(num)) return rawValue;
