@@ -8,6 +8,10 @@ export type TemplateField = {
   type: TemplateFieldType;
   /** Type-specific arguments, e.g. a date format string or select options. */
   params: string[];
+  /** Raw group name, e.g. "person" for a "person.first_name" tag. Undefined if the key has no dot. */
+  group?: string;
+  /** Human-readable group label, e.g. "Person". */
+  groupLabel?: string;
 };
 
 export const templates = pgTable("templates", {

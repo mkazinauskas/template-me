@@ -11,6 +11,24 @@ function defaultValueFor(field: TemplateField) {
   return "";
 }
 
+/** Buckets fields by `group`, keeping each group's fields together (wherever
+ * they appear in the template) while preserving each bucket's first-seen order. */
+function groupFields(fields: TemplateField[]) {
+  const order: string[] = [];
+  const buckets = new Map<string, { groupLabel?: string; fields: TemplateField[] }>();
+  fields.forEach((field, i) => {
+    const bucketKey = field.group ?? `__ungrouped_${i}`;
+    let bucket = buckets.get(bucketKey);
+    if (!bucket) {
+      bucket = { groupLabel: field.groupLabel, fields: [] };
+      buckets.set(bucketKey, bucket);
+      order.push(bucketKey);
+    }
+    bucket.fields.push(field);
+  });
+  return order.map((bucketKey) => buckets.get(bucketKey)!);
+}
+
 function FieldInput({
   field,
   value,
@@ -147,21 +165,38 @@ export function FillForm({
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-      {fields.map((field) => (
-        <div key={field.key} className="flex flex-col gap-1.5">
-          <label htmlFor={field.key} className="text-sm font-medium flex items-center gap-2">
-            {field.label}
-            <span className="text-[10px] uppercase tracking-wide text-black/40 dark:text-white/40 font-normal">
-              {field.type}
-            </span>
-          </label>
-          <FieldInput
-            field={field}
-            value={values[field.key] ?? ""}
-            onChange={(value) => setValues((prev) => ({ ...prev, [field.key]: value }))}
-          />
-        </div>
-      ))}
+      {groupFields(fields).map((bucket, i) => {
+        const items = bucket.fields.map((field) => (
+          <div key={field.key} className="flex flex-col gap-1.5">
+            <label htmlFor={field.key} className="text-sm font-medium flex items-center gap-2">
+              {field.label}
+              <code className="text-[10px] normal-case tracking-normal text-black/40 dark:text-white/40 font-mono font-normal">
+                {field.key}
+              </code>
+              <span className="text-[10px] uppercase tracking-wide text-black/40 dark:text-white/40 font-normal">
+                {field.type}
+              </span>
+            </label>
+            <FieldInput
+              field={field}
+              value={values[field.key] ?? ""}
+              onChange={(value) => setValues((prev) => ({ ...prev, [field.key]: value }))}
+            />
+          </div>
+        ));
+
+        if (!bucket.groupLabel) return items;
+
+        return (
+          <fieldset
+            key={bucket.groupLabel + i}
+            className="flex flex-col gap-4 rounded-lg border border-black/10 dark:border-white/15 p-4"
+          >
+            <legend className="text-sm font-semibold px-1">{bucket.groupLabel}</legend>
+            {items}
+          </fieldset>
+        );
+      })}
 
       {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 

@@ -68,7 +68,16 @@ export function UploadForm() {
           <code className="font-mono">{'date("yyyy-mm-dd")'}</code>,{" "}
           <code className="font-mono">boolean</code>, and{" "}
           <code className="font-mono">{'select("A","B")'}</code>. Untyped
-          tags default to string.
+          tags default to string. Prefix a key with a group and a dot to
+          section related fields together on the form, e.g.{" "}
+          <code className="px-1 py-0.5 rounded bg-black/5 dark:bg-white/10">
+            {"{{person.first_name}}"}
+          </code>{" "}
+          and{" "}
+          <code className="px-1 py-0.5 rounded bg-black/5 dark:bg-white/10">
+            {'{{person.birthday|date("yyyy-mm-dd")}}'}
+          </code>{" "}
+          both appear under a &quot;Person&quot; section.
         </p>
         <a
           href="/example-template.docx"

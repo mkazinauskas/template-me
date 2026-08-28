@@ -7,11 +7,24 @@ const KNOWN_TYPES: TemplateFieldType[] = ["string", "number", "date", "boolean",
 
 function toLabel(key: string) {
   return key
-    .replace(/[_-]+/g, " ")
+    .replace(/[_.-]+/g, " ")
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/\s+/g, " ")
     .trim()
     .replace(/^./, (c) => c.toUpperCase());
+}
+
+/**
+ * Splits a tag key like `person.first_name` into its group ("person") and
+ * the remainder used for the field's own label ("first_name"). A key with
+ * no dot (or a dot at the very start/end) has no group.
+ */
+function splitGroup(key: string): { group?: string; localKey: string } {
+  const dotIndex = key.indexOf(".");
+  if (dotIndex <= 0 || dotIndex === key.length - 1) {
+    return { localKey: key };
+  }
+  return { group: key.slice(0, dotIndex), localKey: key.slice(dotIndex + 1) };
 }
 
 /** Splits `a, "b, c", 'd'` into ["a", "b, c", "d"], stripping quotes. */
@@ -146,7 +159,15 @@ export function extractFields(buffer: Buffer): { fields: TemplateField[]; warnin
   for (const match of matches) {
     const { key, type, params, unrecognized } = parseTag(match[1]);
     if (key && !seen.has(key)) {
-      seen.set(key, { key, label: toLabel(key), type, params });
+      const { group, localKey } = splitGroup(key);
+      seen.set(key, {
+        key,
+        label: toLabel(localKey),
+        type,
+        params,
+        group,
+        groupLabel: group ? toLabel(group) : undefined,
+      });
       if (unrecognized) {
         warnings.push(`Field "${key}": type "${unrecognized}" isn't recognized, so it's being treated as plain text.`);
       }
