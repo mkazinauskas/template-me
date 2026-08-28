@@ -41,10 +41,17 @@ function parseArgs(argsStr: string): string[] {
 /**
  * Parses a raw tag body like `birthday|date("yyyy-mm-dd")` into its field
  * key, type, and type arguments. A bare `{{key}}` (no `|type`) defaults to
- * "string". An unrecognized type name falls back to "string" so unknown
- * tags still render as plain text instead of breaking the upload.
+ * "string". An unrecognized type name (or unparsable type expression) falls
+ * back to "string" so the tag still renders as plain text instead of
+ * breaking the upload — `unrecognized` is set in that case so the caller can
+ * surface a warning about it.
  */
-function parseTag(raw: string): { key: string; type: TemplateFieldType; params: string[] } {
+function parseTag(raw: string): {
+  key: string;
+  type: TemplateFieldType;
+  params: string[];
+  unrecognized?: string;
+} {
   const trimmed = raw.trim();
   const pipeIndex = trimmed.indexOf("|");
   if (pipeIndex === -1) {
@@ -55,14 +62,16 @@ function parseTag(raw: string): { key: string; type: TemplateFieldType; params: 
   const typeExpr = trimmed.slice(pipeIndex + 1).trim();
   const match = typeExpr.match(/^([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\(([^]*)\))?$/);
   if (!match) {
-    return { key, type: "string", params: [] };
+    return { key, type: "string", params: [], unrecognized: typeExpr };
   }
 
   const [, typeName, argsStr] = match;
   const normalized = typeName.toLowerCase() as TemplateFieldType;
-  const type = KNOWN_TYPES.includes(normalized) ? normalized : "string";
   const params = argsStr ? parseArgs(argsStr) : [];
-  return { key, type, params };
+  if (!KNOWN_TYPES.includes(normalized)) {
+    return { key, type: "string", params, unrecognized: typeName };
+  }
+  return { key, type: normalized, params };
 }
 
 /** Formats a raw form value according to the field's type before injection. */
@@ -124,21 +133,26 @@ function loadDocxtemplater(buffer: Buffer) {
  * Reads `{{key}}` or `{{key|type(...)}}` placeholders out of a docx
  * template. Uses getFullText(), which docxtemplater reconstructs from the
  * document's XML runs, so tags split across formatting runs are still found
- * intact.
+ * intact. Tags with an unrecognized `|type` are still extracted (as
+ * "string") but reported in `warnings` so the caller can tell the user.
  */
-export function extractFields(buffer: Buffer): TemplateField[] {
+export function extractFields(buffer: Buffer): { fields: TemplateField[]; warnings: string[] } {
   const doc = loadDocxtemplater(buffer);
   const fullText = doc.getFullText();
   const matches = fullText.matchAll(/\{\{([^{}]+)\}\}/g);
 
   const seen = new Map<string, TemplateField>();
+  const warnings: string[] = [];
   for (const match of matches) {
-    const { key, type, params } = parseTag(match[1]);
+    const { key, type, params, unrecognized } = parseTag(match[1]);
     if (key && !seen.has(key)) {
       seen.set(key, { key, label: toLabel(key), type, params });
+      if (unrecognized) {
+        warnings.push(`Field "${key}": type "${unrecognized}" isn't recognized, so it's being treated as plain text.`);
+      }
     }
   }
-  return Array.from(seen.values());
+  return { fields: Array.from(seen.values()), warnings };
 }
 
 export function renderDocx(

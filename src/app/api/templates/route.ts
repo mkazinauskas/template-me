@@ -27,8 +27,9 @@ export async function POST(req: NextRequest) {
   const buffer = Buffer.from(arrayBuffer);
 
   let fields;
+  let warnings: string[];
   try {
-    fields = extractFields(buffer);
+    ({ fields, warnings } = extractFields(buffer));
   } catch {
     return NextResponse.json(
       { error: "Could not read this file as a Word document" },
@@ -61,5 +62,5 @@ export async function POST(req: NextRequest) {
     })
     .returning();
 
-  return NextResponse.json({ template: row }, { status: 201 });
+  return NextResponse.json({ template: row, warnings }, { status: 201 });
 }

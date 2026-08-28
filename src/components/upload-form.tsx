@@ -33,7 +33,11 @@ export function UploadForm() {
       }
       setName("");
       if (fileInputRef.current) fileInputRef.current.value = "";
-      router.push(`/templates/${json.template.id}`);
+      const warnings: string[] = json.warnings ?? [];
+      const query = warnings.length
+        ? `?warnings=${encodeURIComponent(JSON.stringify(warnings))}`
+        : "";
+      router.push(`/templates/${json.template.id}${query}`);
       router.refresh();
     } catch {
       setError("Upload failed");

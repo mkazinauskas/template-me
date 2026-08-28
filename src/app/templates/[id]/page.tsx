@@ -8,15 +8,28 @@ import { DeleteTemplateButton } from "@/components/delete-template-button";
 
 export default async function TemplatePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ warnings?: string }>;
 }) {
   const { id } = await params;
+  const { warnings: warningsParam } = await searchParams;
   const db = getDb();
   const [template] = await db.select().from(templates).where(eq(templates.id, id));
 
   if (!template) {
     notFound();
+  }
+
+  let warnings: string[] = [];
+  if (warningsParam) {
+    try {
+      const parsed = JSON.parse(warningsParam);
+      if (Array.isArray(parsed)) warnings = parsed.filter((w) => typeof w === "string");
+    } catch {
+      // ignore malformed query param
+    }
   }
 
   return (
@@ -37,6 +50,17 @@ export default async function TemplatePage({
             {template.originalFilename}
           </p>
         </div>
+
+        {warnings.length > 0 && (
+          <div className="rounded-xl border border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 p-4 text-sm text-amber-800 dark:text-amber-300">
+            <p className="font-medium">Some tags weren&apos;t fully understood</p>
+            <ul className="mt-1 list-disc list-inside space-y-0.5">
+              {warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         <div className="rounded-xl border border-black/10 dark:border-white/15 p-6">
           <FillForm
