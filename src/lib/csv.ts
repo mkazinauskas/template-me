@@ -1,3 +1,50 @@
+import type { TemplateField } from "@/db/schema";
+import { formatRawTag } from "@/lib/template-tag";
+
+/** Escapes a single CSV field per RFC 4180 (quotes when it contains a comma, quote, or newline). */
+function escapeCsvField(value: string): string {
+  if (/[",\n\r]/.test(value)) {
+    return `"${value.replace(/"/g, '""')}"`;
+  }
+  return value;
+}
+
+/** Produces a plausible dummy value for a field, matching its type, so a sample row is easy to understand. */
+function dummyValueFor(field: TemplateField): string {
+  switch (field.type) {
+    case "number": {
+      const decimals = Number(field.params[0] ?? 0);
+      return decimals > 0 ? (1234.5).toFixed(decimals) : "1234";
+    }
+    case "date":
+      return "2026-01-15";
+    case "boolean":
+      return field.params[0] || "true";
+    case "select":
+      return field.params[0] ?? "";
+    case "string":
+    default:
+      return `Sample ${field.label}`;
+  }
+}
+
+/**
+ * Builds a downloadable CSV template with one column per field — headed with
+ * the field's display label plus its raw `{{...}}` docx tag, so users can
+ * see exactly which template placeholder each column fills — and a sample
+ * row of dummy data matching each field's type.
+ */
+export function buildCsvTemplate(fields: TemplateField[]): string {
+  const headerRow = fields.map((f) => escapeCsvField(`${f.label} (${formatRawTag(f)})`)).join(",");
+  const exampleRow = fields.map((f) => escapeCsvField(dummyValueFor(f))).join(",");
+  return `${headerRow}\n${exampleRow}\n`;
+}
+
+/** Strips a trailing " ({{...}})" raw-tag hint from a header cell before fuzzy-matching it to a field. */
+export function stripHeaderHint(header: string): string {
+  return header.replace(/\s*\(\{\{[\s\S]*\}\}\)\s*$/, "").trim();
+}
+
 /**
  * Minimal RFC 4180 CSV parser (handles quoted fields, embedded commas,
  * escaped `""` quotes, and CRLF/LF line endings). The first row is treated

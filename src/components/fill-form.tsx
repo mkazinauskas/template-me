@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { TemplateField } from "@/db/schema";
 import { BulkFillForm } from "@/components/bulk-fill-form";
+import { formatRawTag } from "@/lib/template-tag";
 
 const PREVIEW_DEBOUNCE_MS = 700;
 const PREVIEW_DEBOUNCE_MS_FIRST = 150;
@@ -66,25 +67,36 @@ function FieldInput({
           className={inputClass}
         />
       );
-    case "boolean":
+    case "boolean": {
+      const checked = value === "true";
       return (
-        <label className="flex items-center gap-2 text-sm">
-          <input
+        <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+          <button
             id={field.key}
-            type="checkbox"
-            checked={value === "true"}
-            onChange={(e) => onChange(e.target.checked ? "true" : "false")}
-            className="h-4 w-4"
-          />
+            type="button"
+            role="switch"
+            aria-checked={checked}
+            onClick={() => onChange(checked ? "false" : "true")}
+            className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-black/30 dark:focus-visible:ring-white/40 ${
+              checked ? "bg-black dark:bg-white" : "bg-black/20 dark:bg-white/20"
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-black shadow transition-transform ${
+                checked ? "translate-x-4.5" : "translate-x-0.5"
+              }`}
+            />
+          </button>
           {field.params[0] && field.params[1]
-            ? value === "true"
+            ? checked
               ? field.params[0]
               : field.params[1]
-            : value === "true"
+            : checked
               ? "Yes"
               : "No"}
         </label>
       );
+    }
     case "select":
       return (
         <select
@@ -272,7 +284,7 @@ function SingleFillForm({
               <label htmlFor={field.key} className="text-sm font-medium flex items-center gap-2">
                 {field.label}
                 <code className="text-[10px] normal-case tracking-normal text-black/40 dark:text-white/40 font-mono font-normal">
-                  {field.key}
+                  {formatRawTag(field)}
                 </code>
                 <span className="text-[10px] uppercase tracking-wide text-black/40 dark:text-white/40 font-normal">
                   {field.type}

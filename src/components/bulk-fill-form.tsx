@@ -2,7 +2,8 @@
 
 import { useMemo, useRef, useState } from "react";
 import type { TemplateField } from "@/db/schema";
-import { parseCsv, normalizeForMatch } from "@/lib/csv";
+import { parseCsv, normalizeForMatch, buildCsvTemplate, stripHeaderHint } from "@/lib/csv";
+import { formatRawTag } from "@/lib/template-tag";
 
 const inputClass =
   "rounded-md border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/30";
@@ -29,9 +30,10 @@ function coerceValue(field: TemplateField, raw: string): string {
 function autoMapping(fields: TemplateField[], headers: string[]): Record<string, string> {
   const mapping: Record<string, string> = {};
   for (const field of fields) {
-    const match = headers.find(
-      (h) => normalizeForMatch(h) === normalizeForMatch(field.key) || normalizeForMatch(h) === normalizeForMatch(field.label)
-    );
+    const match = headers.find((h) => {
+      const normalizedHeader = normalizeForMatch(stripHeaderHint(h));
+      return normalizedHeader === normalizeForMatch(field.key) || normalizedHeader === normalizeForMatch(field.label);
+    });
     mapping[field.key] = match ?? NOT_MAPPED;
   }
   return mapping;
@@ -69,6 +71,19 @@ export function BulkFillForm({
       data[field.key] = header ? coerceValue(field, row[header] ?? "") : field.type === "boolean" ? "false" : "";
     }
     return data;
+  }
+
+  function handleDownloadTemplate() {
+    const csv = buildCsvTemplate(fields);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${templateName.replace(/[^a-zA-Z0-9-_]+/g, "_")}_template.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -173,9 +188,18 @@ export function BulkFillForm({
     <div className="flex h-full min-h-0 flex-col lg:flex-row">
       <div className="flex flex-col gap-4 p-6 overflow-y-auto lg:w-[420px] lg:shrink-0 border-b lg:border-b-0 lg:border-r border-black/10 dark:border-white/15">
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="csv-file" className="text-sm font-medium">
-            Spreadsheet (.csv, one row per document)
-          </label>
+          <div className="flex items-center justify-between gap-2">
+            <label htmlFor="csv-file" className="text-sm font-medium">
+              Spreadsheet (.csv, one row per document)
+            </label>
+            <button
+              type="button"
+              onClick={handleDownloadTemplate}
+              className="shrink-0 text-xs font-medium underline underline-offset-2 text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white"
+            >
+              Download CSV template
+            </button>
+          </div>
           <input
             id="csv-file"
             ref={fileInputRef}
@@ -201,7 +225,7 @@ export function BulkFillForm({
                   <label htmlFor={`map-${field.key}`} className="text-sm font-medium flex items-center gap-2">
                     {field.label}
                     <code className="text-[10px] normal-case tracking-normal text-black/40 dark:text-white/40 font-mono font-normal">
-                      {field.key}
+                      {formatRawTag(field)}
                     </code>
                   </label>
                   <select
