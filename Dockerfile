@@ -46,7 +46,10 @@ ENV NODE_ENV=production
 # which shells out to `soffice` instead of booting a Vercel Sandbox.
 # font-noto-cjk is required too — without it, LibreOffice has no glyphs for
 # CJK templates and renders that text as tofu boxes in the generated PDF.
-RUN apk add --no-cache libreoffice font-noto-cjk
+# font-noto covers everything else Times New Roman falls back to when it's
+# not installed (e.g. Lithuanian/Baltic ogonek letters į, ų), which
+# otherwise render as tofu boxes the same way.
+RUN apk add --no-cache libreoffice font-noto-cjk font-noto
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static

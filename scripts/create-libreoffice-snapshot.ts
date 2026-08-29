@@ -12,6 +12,9 @@ const LO_DEPS = [
   "dbus-libs",
   "nss",
   "nspr",
+  // Broad-coverage fallback font: without it, glyphs Times New Roman lacks
+  // (e.g. Lithuanian/Baltic ogonek letters į, ų) render as tofu boxes.
+  "google-noto-sans-fonts",
 ];
 
 async function main() {
