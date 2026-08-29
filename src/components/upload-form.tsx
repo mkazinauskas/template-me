@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PlaceholderTypes } from "@/components/placeholder-types";
 
 export function UploadForm() {
   const router = useRouter();
@@ -58,11 +59,7 @@ export function UploadForm() {
           <code className="px-1 py-0.5 rounded bg-black/5 dark:bg-white/10">
             {"{{field_name}}"}
           </code>{" "}
-          — fields are detected automatically. Add a type after a pipe, e.g.{" "}
-          <code className="px-1 py-0.5 rounded bg-black/5 dark:bg-white/10">
-            {'{{birthday|date("yyyy-mm-dd")}}'}
-          </code>
-          , to control the input — see the placeholder types table below.
+          — fields are detected automatically.
         </p>
         <a
           href="/example-template.docx"
@@ -72,6 +69,8 @@ export function UploadForm() {
           Download example template (.docx)
         </a>
       </div>
+
+      <PlaceholderTypes />
 
       <div className="flex flex-col gap-1.5">
         <label htmlFor="name" className="text-sm font-medium">

@@ -7,6 +7,7 @@ import { getDb } from "@/db";
 import { templates } from "@/db/schema";
 import { FillForm } from "@/components/fill-form";
 import { DeleteTemplateButton } from "@/components/delete-template-button";
+import { Logo } from "@/components/logo";
 
 const getTemplate = cache(async (id: string) => {
   const db = getDb();
@@ -59,13 +60,18 @@ export default async function TemplatePage({
   return (
     <div className="h-screen flex flex-col bg-zinc-50 dark:bg-black overflow-hidden">
       <header className="shrink-0 px-6 py-4 border-b border-black/10 dark:border-white/15">
-        <Link
-          href="/"
-          className="text-sm text-black/50 dark:text-white/50 hover:underline"
-        >
-          ← All templates
-        </Link>
-        <div className="flex items-center justify-between mt-1">
+        <div className="flex items-center justify-between">
+          <Link href="/" className="transition-transform hover:scale-[1.03]">
+            <Logo size="sm" animated={false} />
+          </Link>
+          <Link
+            href="/dashboard"
+            className="text-sm text-black/50 dark:text-white/50 hover:underline"
+          >
+            ← All templates
+          </Link>
+        </div>
+        <div className="flex items-center justify-between mt-2">
           <h1 className="text-xl font-semibold tracking-tight">{template.name}</h1>
           <DeleteTemplateButton templateId={template.id} />
         </div>

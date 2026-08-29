@@ -1,14 +1,36 @@
+<div align="center">
+
 # Template Me
 
-Turn a `.docx` file with `{{placeholder}}` tags into a web form, then fill it
-in — one document at a time or in bulk from a spreadsheet — and get back a
-finished PDF.
+**Turn a `.docx` with `{{placeholders}}` into a web form — fill it in, get back a PDF.**
 
-Upload a Word template, and the app scans it for tags like `{{first_name}}`,
+One document at a time, or hundreds at once from a spreadsheet.
+
+[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js&logoColor=white)](https://nextjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)](https://react.dev)
+[![Neon Postgres](https://img.shields.io/badge/Database-Neon_Postgres-00E599?logo=postgresql&logoColor=white)](https://neon.tech)
+[![Deployed on Vercel](https://img.shields.io/badge/Deployed_on-Vercel-black?logo=vercel&logoColor=white)](https://vercel.com)
+
+</div>
+
+---
+
+Upload a Word template and the app scans it for tags like `{{first_name}}`,
 builds a form with the right input for each one (text, number, date, a
 yes/no switch, a dropdown), and renders a live PDF preview as you type. When
 you're happy with it, download the filled-in PDF — or upload a CSV to
 generate dozens of them at once, packaged into a `.zip`.
+
+## Contents
+
+- [How it works](#how-it-works)
+- [Supported field types](#supported-field-types)
+- [Stack](#stack)
+- [Local development](#local-development)
+- [Running locally with Docker Compose](#running-locally-with-docker-compose)
+- [LibreOffice sandbox snapshot](#libreoffice-sandbox-snapshot)
+- [Database schema changes](#database-schema-changes)
 
 ## How it works
 
@@ -65,15 +87,13 @@ upload so you know it wasn't silently mis-rendered.
 
 ## Stack
 
-- **Next.js** (App Router) — UI + API routes
-- **Neon Postgres** (via Vercel Marketplace, `drizzle-orm`) — template
-  metadata and detected fields ([schema.ts](src/db/schema.ts))
-- **Vercel Blob** (private) — stores uploaded `.docx` files
-- **docxtemplater** — extracts `{{field}}` placeholders and renders the
-  final document ([docx-template.ts](src/lib/docx-template.ts))
-- **Vercel Sandbox** running headless LibreOffice — converts rendered
-  `.docx` to PDF, one at a time or in bulk
-  ([docx-to-pdf.ts](src/lib/docx-to-pdf.ts))
+| Layer | Technology |
+| --- | --- |
+| Framework | [Next.js](https://nextjs.org) (App Router) — UI + API routes |
+| Database | [Neon Postgres](https://neon.tech) (via Vercel Marketplace, `drizzle-orm`) — template metadata and detected fields ([schema.ts](src/db/schema.ts)) |
+| File storage | [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) (private) — stores uploaded `.docx` files |
+| Templating | [docxtemplater](https://docxtemplater.com) — extracts `{{field}}` placeholders and renders the final document ([docx-template.ts](src/lib/docx-template.ts)) |
+| PDF conversion | [Vercel Sandbox](https://vercel.com/docs/vercel-sandbox) running headless LibreOffice — converts rendered `.docx` to PDF, one at a time or in bulk ([docx-to-pdf.ts](src/lib/docx-to-pdf.ts)) |
 
 ## Local development
 

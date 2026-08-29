@@ -13,7 +13,7 @@ export function DeleteTemplateButton({ templateId }: { templateId: string }) {
     try {
       const res = await fetch(`/api/templates/${templateId}`, { method: "DELETE" });
       if (res.ok) {
-        router.push("/");
+        router.push("/dashboard");
         router.refresh();
       }
     } finally {

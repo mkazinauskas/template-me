@@ -62,7 +62,20 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       lang="en"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        <div className="flex-1 flex flex-col">{children}</div>
+        <footer className="py-6 text-center text-xs text-black/40 dark:text-white/40">
+          Made by{" "}
+          <a
+            href="https://modakoda.com"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-black/60 dark:hover:text-white/60"
+          >
+            modakoda.com
+          </a>
+        </footer>
+      </body>
     </html>
   );
 }
