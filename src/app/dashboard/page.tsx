@@ -43,6 +43,14 @@ export default async function DashboardPage({
             >
               Browse templates
             </Link>
+            {session?.user.role === "admin" && (
+              <Link
+                href="/admin"
+                className="shrink-0 text-sm text-black/50 dark:text-white/50 hover:underline"
+              >
+                Admin
+              </Link>
+            )}
             <Link
               href="/"
               className="shrink-0 text-sm text-black/50 dark:text-white/50 hover:underline"

@@ -44,7 +44,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 # Only needed for LOCAL_MODE's docx->pdf conversion (see src/lib/docx-to-pdf.ts),
 # which shells out to `soffice` instead of booting a Vercel Sandbox.
-RUN apk add --no-cache libreoffice
+# font-noto-cjk is required too — without it, LibreOffice has no glyphs for
+# CJK templates and renders that text as tofu boxes in the generated PDF.
+RUN apk add --no-cache libreoffice font-noto-cjk
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static

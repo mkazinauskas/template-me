@@ -19,6 +19,14 @@ export const auth = betterAuth({
   emailAndPassword: {
     enabled: process.env.LOCAL_MODE === "true",
   },
+  user: {
+    additionalFields: {
+      // `input: false` keeps this out of sign-up/update request bodies —
+      // promoting a user to admin is a DB-side action (see scripts/set-admin.ts),
+      // never something a client can set on itself.
+      role: { type: "string", input: false, defaultValue: "user" },
+    },
+  },
   plugins: [
     emailOTP({
       async sendVerificationOTP({ email, otp }) {
