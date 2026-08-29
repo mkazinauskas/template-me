@@ -227,7 +227,7 @@ export function FillForm({
   }
 
   return (
-    <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
+    <div className="flex h-full min-h-0 flex-col lg:flex-row">
       <form
         onSubmit={handleSubmit}
         className="flex flex-col gap-4 p-6 overflow-y-auto lg:w-[420px] lg:shrink-0 border-b lg:border-b-0 lg:border-r border-black/10 dark:border-white/15"

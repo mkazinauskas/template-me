@@ -25,6 +25,20 @@ vercel env pull --yes   # syncs DATABASE_URL, BLOB_READ_WRITE_TOKEN, etc.
 npm run dev
 ```
 
+### Local development with Docker Compose
+
+```bash
+vercel env pull --yes   # syncs .env.local if you haven't already
+docker compose up --build
+```
+
+This builds and runs the app in a container, hot-reloading against your
+local source (bind-mounted) on http://localhost:3000. It still talks to the
+real Neon Postgres, Vercel Blob, and Vercel Sandbox services using the
+credentials in `.env.local` — those are cloud services with no local/offline
+equivalent, so Docker Compose here only containerizes the Next.js app itself,
+not the database or sandbox.
+
 ### LibreOffice sandbox snapshot
 
 PDF conversion boots a Vercel Sandbox from a pre-built snapshot
