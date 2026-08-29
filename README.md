@@ -166,3 +166,14 @@ Then update `LIBREOFFICE_SANDBOX_SNAPSHOT_ID` locally and with
 ```bash
 npx dotenv -e .env.local -- npx drizzle-kit push
 ```
+
+## Admin panel
+
+Signed-in users with `role: "admin"` on their `user` row can see every user
+and template in the app at `/admin` — everyone else gets a 404, same as
+requesting another user's template. New users default to `role: "user"`;
+promote one to admin with:
+
+```bash
+npx dotenv -e .env.local -- npm run set-admin -- someone@example.com
+```
