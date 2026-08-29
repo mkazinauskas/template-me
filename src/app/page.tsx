@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import { UploadForm } from "@/components/upload-form";
 import { TemplateList } from "@/components/template-list";
+import { PlaceholderTypes } from "@/components/placeholder-types";
 
 export const dynamic = "force-dynamic";
 
@@ -19,6 +20,8 @@ export default function Home() {
         </div>
 
         <UploadForm />
+
+        <PlaceholderTypes />
 
         <div className="flex flex-col gap-3">
           <h2 className="text-lg font-semibold">Templates</h2>

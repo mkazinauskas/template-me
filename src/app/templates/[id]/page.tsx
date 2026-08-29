@@ -1,10 +1,35 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { eq } from "drizzle-orm";
+import { cache } from "react";
+import type { Metadata } from "next";
 import { getDb } from "@/db";
 import { templates } from "@/db/schema";
 import { FillForm } from "@/components/fill-form";
 import { DeleteTemplateButton } from "@/components/delete-template-button";
+
+const getTemplate = cache(async (id: string) => {
+  const db = getDb();
+  const [template] = await db.select().from(templates).where(eq(templates.id, id));
+  return template;
+});
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const template = await getTemplate(id);
+
+  return {
+    title: template ? template.name : "Template not found",
+    description: template
+      ? `Fill in "${template.name}" and download it as a PDF.`
+      : undefined,
+    robots: { index: false, follow: false },
+  };
+}
 
 export default async function TemplatePage({
   params,
@@ -15,8 +40,7 @@ export default async function TemplatePage({
 }) {
   const { id } = await params;
   const { warnings: warningsParam } = await searchParams;
-  const db = getDb();
-  const [template] = await db.select().from(templates).where(eq(templates.id, id));
+  const template = await getTemplate(id);
 
   if (!template) {
     notFound();

@@ -1,23 +1,81 @@
-## Docx Template → PDF
+# Template Me
 
-Upload a `.docx` file containing `{{field_name}}` placeholders. The app reads
-the placeholders straight out of the document, builds a form for them
-automatically, and lets you fill it in and download a rendered PDF.
+Turn a `.docx` file with `{{placeholder}}` tags into a web form, then fill it
+in — one document at a time or in bulk from a spreadsheet — and get back a
+finished PDF.
 
-### Stack
+Upload a Word template, and the app scans it for tags like `{{first_name}}`,
+builds a form with the right input for each one (text, number, date, a
+yes/no switch, a dropdown), and renders a live PDF preview as you type. When
+you're happy with it, download the filled-in PDF — or upload a CSV to
+generate dozens of them at once, packaged into a `.zip`.
+
+## How it works
+
+1. **Upload** — You upload a `.docx` file on the home page. The server reads
+   the document's raw XML text (via `docxtemplater`) and regex-matches every
+   `{{...}}` tag, regardless of what Word formatting run it landed in.
+   Each tag is parsed into a field: a key, an optional type, and optional
+   type arguments (`{{birthday|date("dd/mm/yyyy")}}`,
+   `{{active|boolean("Yes", "No")}}`, `{{plan|select("Basic","Pro")}}`). The
+   original `.docx` goes to **Vercel Blob** (private); the parsed field list
+   and template metadata go to **Neon Postgres** via `drizzle-orm`
+   ([schema.ts](src/db/schema.ts)).
+2. **Fill** — The template's page builds a form from its field list — one
+   input per field, grouped into fieldsets when keys share a dot-prefix
+   (`person.first_name` + `person.last_name` → a "Person" group). Every
+   keystroke debounces a request to render a live PDF preview in an iframe,
+   so you see the real output before committing to a download.
+3. **Render** — On submit, the server re-fetches the original `.docx` from
+   Blob storage, injects your values into the `{{...}}` tags with
+   `docxtemplater` (formatting each value per its field type — see below),
+   and hands the rendered `.docx` to a **Vercel Sandbox** microVM running
+   headless LibreOffice, which converts it to PDF. There's no pure-Node
+   docx→PDF renderer with acceptable fidelity, so this shells out to
+   `soffice` inside an ephemeral, disposable VM. To keep this fast, the
+   sandbox boots from a pre-built snapshot that already has LibreOffice
+   installed (~1-2s) rather than installing it from scratch (~60s).
+4. **Bulk generation** — Instead of filling one form, you can download a
+   ready-made CSV template (one column per field, headed with the field's
+   raw `{{tag}}` so it's unambiguous which column fills what), fill it in a
+   spreadsheet app, and upload it back. Columns are auto-matched to fields
+   by name; you can remap them and preview any row before generating. All
+   rows are rendered and converted to PDF in a single LibreOffice
+   invocation, then zipped together for download — much cheaper than
+   booting a sandbox per document.
+
+## Supported field types
+
+The type comes from a `|type(...)` suffix on the tag; a bare `{{key}}` is
+treated as `string`.
+
+| Tag syntax | Form input | Notes |
+| --- | --- | --- |
+| `{{key}}` | Text field | Plain string, inserted as-is. |
+| `{{key\|number(2)}}` | Number field | The argument is the decimal places to round/pad to (`(1234.5).toFixed(2)` → `1234.50`); omit it to insert the number as typed. |
+| `{{key\|date("yyyy-mm-dd")}}` | Date picker | The argument is the output format, using `yyyy`/`mm`/`dd` tokens in any arrangement (e.g. `"dd/mm/yyyy"`). Defaults to `yyyy-mm-dd`. |
+| `{{key\|boolean("Yes","No")}}` | Toggle switch | Renders the first argument when on, the second when off. Defaults to `"Yes"` / `"No"`. Unlike other types, boolean fields are never "required" — an unset toggle just renders as false. |
+| `{{key\|select("A","B","C")}}` | Dropdown | Arguments are the selectable options; the submitted value must be one of them. |
+
+A tag key with a dot, like `person.first_name`, is split into a group
+(`person`) and its own label (`first_name`) — fields sharing a group are
+rendered together under one heading in the fill form. Any `\|type` the app
+doesn't recognize falls back to plain text, with a warning shown after
+upload so you know it wasn't silently mis-rendered.
+
+## Stack
 
 - **Next.js** (App Router) — UI + API routes
-- **Neon Postgres** (via Vercel Marketplace, `drizzle-orm`) — stores template
-  metadata and the detected field list (`src/db/schema.ts`)
-- **Vercel Blob** (private) — stores the uploaded `.docx` files
-- **docxtemplater** — extracts `{{field}}` placeholders and renders the final
-  document with submitted values (`src/lib/docx-template.ts`)
-- **Vercel Sandbox** running headless LibreOffice — converts the rendered
-  `.docx` to PDF (`src/lib/docx-to-pdf.ts`); there is no pure-Node docx→pdf
-  renderer with acceptable fidelity, so this shells out to `soffice` inside
-  an ephemeral microVM
+- **Neon Postgres** (via Vercel Marketplace, `drizzle-orm`) — template
+  metadata and detected fields ([schema.ts](src/db/schema.ts))
+- **Vercel Blob** (private) — stores uploaded `.docx` files
+- **docxtemplater** — extracts `{{field}}` placeholders and renders the
+  final document ([docx-template.ts](src/lib/docx-template.ts))
+- **Vercel Sandbox** running headless LibreOffice — converts rendered
+  `.docx` to PDF, one at a time or in bulk
+  ([docx-to-pdf.ts](src/lib/docx-to-pdf.ts))
 
-### Local development
+## Local development
 
 ```bash
 npm install
@@ -25,25 +83,39 @@ vercel env pull --yes   # syncs DATABASE_URL, BLOB_READ_WRITE_TOKEN, etc.
 npm run dev
 ```
 
-### Running locally with Docker Compose
+## Running locally with Docker Compose
 
 ```bash
 vercel env pull --yes   # syncs .env.local if you haven't already
 docker compose up --build
 ```
 
-This builds a production (`next build` + `next start`-equivalent standalone
-server) image and runs it on http://localhost:3000 — no hot reload, no
-bind-mounted source; it's meant as a self-contained local setup rather than
-a dev loop (use `npm run dev` for that). Rebuild the image (`docker compose
-up --build`) after changing source or dependencies.
+This builds a production (`next build` + standalone server) image and runs
+it at [http://localhost:3000](http://localhost:3000) — no hot reload, no
+bind-mounted source; it's a self-contained local setup rather than a dev
+loop (use `npm run dev` for that). Rebuild the image (`docker compose up
+--build`) after changing source or dependencies.
 
 It still talks to the real Neon Postgres, Vercel Blob, and Vercel Sandbox
 services using the credentials in `.env.local` — those are cloud services
 with no local/offline equivalent, so Docker Compose only containerizes the
-Next.js app itself, not the database or sandbox.
+Next.js app itself, not the database or sandbox. `docker-compose.yml` just
+builds the [Dockerfile](Dockerfile) and loads `.env.local` as the
+container's environment:
 
-### LibreOffice sandbox snapshot
+```yaml
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+```
+
+## LibreOffice sandbox snapshot
 
 PDF conversion boots a Vercel Sandbox from a pre-built snapshot
 (`LIBREOFFICE_SANDBOX_SNAPSHOT_ID` env var) with LibreOffice already
@@ -58,7 +130,7 @@ npx dotenv -e .env.local -- npx tsx scripts/create-libreoffice-snapshot.ts
 Then update `LIBREOFFICE_SANDBOX_SNAPSHOT_ID` locally and with
 `vercel env add LIBREOFFICE_SANDBOX_SNAPSHOT_ID`.
 
-### Database schema changes
+## Database schema changes
 
 ```bash
 npx dotenv -e .env.local -- npx drizzle-kit push
