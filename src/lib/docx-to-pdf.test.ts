@@ -1,4 +1,7 @@
+// @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { writeFileSync } from "node:fs";
+import path from "node:path";
 
 const runCommand = vi.fn();
 const writeFiles = vi.fn();
@@ -6,12 +9,17 @@ const readFileToBuffer = vi.fn();
 const stop = vi.fn();
 const sandboxCreate = vi.fn();
 const after = vi.fn((cb: () => void) => cb());
+const execFileMock = vi.fn();
 
 vi.mock("@vercel/sandbox", () => ({
   Sandbox: { create: (...args: unknown[]) => sandboxCreate(...args) },
 }));
 
 vi.mock("next/server", () => ({ after: (cb: () => void) => after(cb) }));
+
+vi.mock("node:child_process", () => ({
+  execFile: (...args: unknown[]) => execFileMock(...args),
+}));
 
 function makeSandbox() {
   return {
@@ -42,8 +50,20 @@ describe("docx-to-pdf", () => {
     stop.mockReset().mockResolvedValue(undefined);
     sandboxCreate.mockReset();
     after.mockClear();
+    execFileMock.mockReset();
+    execFileMock.mockImplementation((_cmd: string, args: string[], _options: unknown, callback: (err: unknown) => void) => {
+      const outdirIndex = args.indexOf("--outdir");
+      const dir = args[outdirIndex + 1];
+      const inputPaths = args.slice(outdirIndex + 2);
+      for (const inputPath of inputPaths) {
+        const base = path.basename(inputPath, ".docx");
+        writeFileSync(path.join(dir, `${base}.pdf`), `pdf-for-${base}`);
+      }
+      callback(null);
+    });
     process.env = { ...originalEnv };
     delete process.env.LIBREOFFICE_SANDBOX_SNAPSHOT_ID;
+    delete process.env.LOCAL_MODE;
   });
 
   afterEach(() => {
@@ -189,6 +209,53 @@ describe("docx-to-pdf", () => {
       await expect(
         convertDocxBuffersToPdf([Buffer.from("a"), Buffer.from("b")], Promise.resolve(sandbox as never))
       ).rejects.toThrow("Conversion produced no output PDF for document 2");
+    });
+  });
+
+  describe("LOCAL_MODE", () => {
+    beforeEach(() => {
+      process.env.LOCAL_MODE = "true";
+    });
+
+    it("createPdfSandbox resolves to null instead of booting a Vercel Sandbox", async () => {
+      const { createPdfSandbox } = await import("@/lib/docx-to-pdf");
+
+      const sandbox = await createPdfSandbox();
+
+      expect(sandbox).toBeNull();
+      expect(sandboxCreate).not.toHaveBeenCalled();
+    });
+
+    it("convertDocxToPdf shells out to a local soffice binary instead of using a sandbox", async () => {
+      const { convertDocxToPdf } = await import("@/lib/docx-to-pdf");
+
+      const result = await convertDocxToPdf(Buffer.from("docx-bytes"));
+
+      expect(result.toString()).toBe("pdf-for-input-0");
+      expect(execFileMock).toHaveBeenCalledTimes(1);
+      expect(sandboxCreate).not.toHaveBeenCalled();
+    });
+
+    it("convertDocxBuffersToPdf converts multiple buffers in one soffice invocation", async () => {
+      const { convertDocxBuffersToPdf } = await import("@/lib/docx-to-pdf");
+
+      const result = await convertDocxBuffersToPdf([Buffer.from("a"), Buffer.from("b")]);
+
+      expect(result.map((b) => b.toString())).toEqual(["pdf-for-input-0", "pdf-for-input-1"]);
+      expect(execFileMock).toHaveBeenCalledTimes(1);
+    });
+
+    it("throws when the local soffice conversion fails", async () => {
+      execFileMock.mockImplementation(
+        (_cmd: string, _args: string[], _options: unknown, callback: (err: unknown) => void) => {
+          callback(Object.assign(new Error("boom"), { stderr: "soffice crashed" }));
+        }
+      );
+      const { convertDocxToPdf } = await import("@/lib/docx-to-pdf");
+
+      await expect(convertDocxToPdf(Buffer.from("docx-bytes"))).rejects.toThrow(
+        /soffice conversion failed.*soffice crashed/
+      );
     });
   });
 });

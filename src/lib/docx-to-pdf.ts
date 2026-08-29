@@ -1,5 +1,13 @@
 import { Sandbox } from "@vercel/sandbox";
 import { after } from "next/server";
+import { execFile } from "node:child_process";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
+const LOCAL_MODE = process.env.LOCAL_MODE === "true";
 
 const LO_VERSION = "26.8.0";
 const LO_DEPS = [
@@ -30,8 +38,13 @@ const INSTALL_LIBREOFFICE_CMD = [
  * need to fetch/render the docx first can kick this off in parallel via
  * `convertDocxToPdf`'s `sandboxPromise` param, overlapping the ~500ms VM
  * boot with that other work instead of paying for it serially.
+ *
+ * In LOCAL_MODE there is no sandbox at all — conversion shells out to a
+ * `soffice` binary installed directly in the container — so this resolves
+ * to `null` and callers must treat the sandbox as optional.
  */
-export function createPdfSandbox(): Promise<Sandbox> {
+export function createPdfSandbox(): Promise<Sandbox | null> {
+  if (LOCAL_MODE) return Promise.resolve(null);
   const snapshotId = process.env.LIBREOFFICE_SANDBOX_SNAPSHOT_ID;
   return snapshotId
     ? Sandbox.create({ source: { type: "snapshot", snapshotId }, timeout: 120_000 })
@@ -43,6 +56,45 @@ async function ensureLibreOffice(sandbox: Sandbox) {
   const install = await sandbox.runCommand("sh", ["-c", INSTALL_LIBREOFFICE_CMD]);
   if (install.exitCode !== 0) {
     throw new Error(`Failed to install LibreOffice in sandbox: ${await install.stderr()}`);
+  }
+}
+
+/**
+ * Converts docx buffers to PDF with a `soffice` binary installed directly in
+ * the container (see the Dockerfile's `apk add libreoffice`), used instead
+ * of the Vercel Sandbox in LOCAL_MODE. Returns PDFs in the same order as
+ * `docxBuffers`.
+ */
+async function convertLocally(docxBuffers: Buffer[]): Promise<Buffer[]> {
+  const dir = await mkdtemp(path.join(tmpdir(), "docx-to-pdf-"));
+  try {
+    const names = docxBuffers.map((_, i) => `input-${i}.docx`);
+    await Promise.all(
+      docxBuffers.map((buffer, i) => writeFile(path.join(dir, names[i]), buffer))
+    );
+
+    try {
+      await execFileAsync(
+        "soffice",
+        ["--headless", "--convert-to", "pdf", "--outdir", dir, ...names.map((name) => path.join(dir, name))],
+        { timeout: 120_000 }
+      );
+    } catch (err) {
+      const stderr = err && typeof err === "object" && "stderr" in err ? String(err.stderr) : String(err);
+      throw new Error(`soffice conversion failed: ${stderr}`);
+    }
+
+    return await Promise.all(
+      names.map(async (name, i) => {
+        try {
+          return await readFile(path.join(dir, name.replace(/\.docx$/, ".pdf")));
+        } catch {
+          throw new Error(`Conversion produced no output PDF for document ${i + 1}`);
+        }
+      })
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
   }
 }
 
@@ -61,9 +113,15 @@ async function ensureLibreOffice(sandbox: Sandbox) {
  */
 export async function convertDocxToPdf(
   docxBuffer: Buffer,
-  sandboxPromise: Promise<Sandbox> = createPdfSandbox()
+  sandboxPromise: Promise<Sandbox | null> = createPdfSandbox()
 ): Promise<Buffer> {
+  if (LOCAL_MODE) {
+    const [pdfBuffer] = await convertLocally([docxBuffer]);
+    return pdfBuffer;
+  }
+
   const sandbox = await sandboxPromise;
+  if (!sandbox) throw new Error("No PDF sandbox available");
   const stopSandbox = () => sandbox.stop().catch(() => {});
 
   try {
@@ -103,9 +161,14 @@ export async function convertDocxToPdf(
  */
 export async function convertDocxBuffersToPdf(
   docxBuffers: Buffer[],
-  sandboxPromise: Promise<Sandbox> = createPdfSandbox()
+  sandboxPromise: Promise<Sandbox | null> = createPdfSandbox()
 ): Promise<Buffer[]> {
+  if (LOCAL_MODE) {
+    return convertLocally(docxBuffers);
+  }
+
   const sandbox = await sandboxPromise;
+  if (!sandbox) throw new Error("No PDF sandbox available");
   const stopSandbox = () => sandbox.stop().catch(() => {});
 
   try {

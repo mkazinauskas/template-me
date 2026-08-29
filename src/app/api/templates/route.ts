@@ -58,11 +58,11 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const blob = await put(`templates/${crypto.randomUUID()}-${file.name}`, buffer, {
-    access: "private",
-    contentType:
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  });
+  const stored = await putFile(
+    `templates/${crypto.randomUUID()}-${file.name}`,
+    buffer,
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+  );
 
   const db = getDb();
   const [row] = await db
@@ -70,8 +70,8 @@ export async function POST(req: NextRequest) {
     .values({
       name: typeof name === "string" && name.trim() ? name.trim() : file.name.replace(/\.docx$/i, ""),
       originalFilename: file.name,
-      blobUrl: blob.url,
-      blobPathname: blob.pathname,
+      blobUrl: stored.url,
+      blobPathname: stored.pathname,
       fields,
       userId: session.user.id,
     })

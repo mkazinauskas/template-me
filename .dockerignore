@@ -5,3 +5,6 @@ node_modules
 *.tsbuildinfo
 npm-debug.log*
 .DS_Store
+# Never bake host secrets into the build context/image — Docker Compose
+# passes what the containers need via env_file/build args instead.
+.env*

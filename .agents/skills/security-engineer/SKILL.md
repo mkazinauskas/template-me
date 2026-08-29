@@ -1,1 +1,0 @@
-../../../.claude/agents/security-engineer.md

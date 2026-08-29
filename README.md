@@ -42,7 +42,8 @@ generate dozens of them at once, packaged into a `.zip`.
    `{{active|boolean("Yes", "No")}}`, `{{plan|select("Basic","Pro")}}`). The
    original `.docx` goes to **Vercel Blob** (private); the parsed field list
    and template metadata go to **Neon Postgres** via `drizzle-orm`
-   ([schema.ts](src/db/schema.ts)).
+   ([schema.ts](src/db/schema.ts)). Running via Docker Compose swaps both for
+   local equivalents — see [below](#running-locally-with-docker-compose).
 2. **Fill** — The template's page builds a form from its field list — one
    input per field, grouped into fieldsets when keys share a dot-prefix
    (`person.first_name` + `person.last_name` → a "Person" group). Every
@@ -106,34 +107,44 @@ npm run dev
 ## Running locally with Docker Compose
 
 ```bash
-vercel env pull --yes   # syncs .env.local if you haven't already
 docker compose up --build
 ```
 
-This builds a production (`next build` + standalone server) image and runs
-it at [http://localhost:3000](http://localhost:3000) — no hot reload, no
-bind-mounted source; it's a self-contained local setup rather than a dev
-loop (use `npm run dev` for that). Rebuild the image (`docker compose up
---build`) after changing source or dependencies.
+That's it — no Neon, Vercel Blob, Vercel Sandbox, or Resend account needed.
+`docker compose up` brings up three services:
 
-It still talks to the real Neon Postgres, Vercel Blob, and Vercel Sandbox
-services using the credentials in `.env.local` — those are cloud services
-with no local/offline equivalent, so Docker Compose only containerizes the
-Next.js app itself, not the database or sandbox. `docker-compose.yml` just
-builds the [Dockerfile](Dockerfile) and loads `.env.local` as the
-container's environment:
+- **`db`** — a plain `postgres:16-alpine` container with a persisted volume.
+- **`migrate`** — runs `drizzle-kit push` against it and seeds one static
+  account (see below), then exits.
+- **`app`** — the Next.js production build, at
+  [http://localhost:3000](http://localhost:3000).
 
-```yaml
-services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    env_file:
-      - .env.local
-```
+Sign in with the seeded account — `demo@example.com` /
+`localpassword123` by default (change them in `.env.docker`, which is
+created the first time you run this and gitignored like the other `.env*`
+files). The sign-in/sign-up pages swap their usual email-code flow for a
+plain password form whenever `LOCAL_MODE=true`, since there's no Resend
+account locally to send the OTP email through — see
+[`auth-form.tsx`](src/components/auth-form.tsx).
+
+`LOCAL_MODE=true` (set in `.env.docker`) is what switches the app into this
+fully offline mode everywhere it would otherwise reach a cloud service:
+
+| Concern | Cloud (default) | `LOCAL_MODE=true` |
+| --- | --- | --- |
+| Database | Neon Postgres over `@neondatabase/serverless` | The `db` container over plain `node-postgres` ([db/index.ts](src/db/index.ts)) |
+| File storage | Vercel Blob | Local disk under `LOCAL_STORAGE_DIR`, in the `blob-data` volume ([storage.ts](src/lib/storage.ts)) |
+| PDF conversion | Headless LibreOffice in a Vercel Sandbox microVM | Headless LibreOffice installed directly in the image (`apk add libreoffice`), invoked with `child_process` ([docx-to-pdf.ts](src/lib/docx-to-pdf.ts)) |
+| Sign-in | Email OTP via Resend | Static email/password, seeded by [`scripts/seed-local-user.ts`](scripts/seed-local-user.ts) |
+
+This is a self-contained local setup rather than a dev loop — no hot reload,
+no bind-mounted source (use `npm run dev` for that). Rebuild
+(`docker compose up --build`) after changing source or dependencies.
+
+To point Docker Compose at the real cloud services instead (e.g. to test
+against production data), remove `LOCAL_MODE` from `.env.docker` and fill in
+`DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, `RESEND_API_KEY`, etc. from
+`vercel env pull`.
 
 ## LibreOffice sandbox snapshot
 

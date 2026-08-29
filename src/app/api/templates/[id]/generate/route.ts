@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { and, eq } from "drizzle-orm";
-import { get } from "@vercel/blob";
+import { getFile } from "@/lib/storage";
 import PizZip from "pizzip";
 import { getDb } from "@/db";
 import { templates, type Template } from "@/db/schema";
@@ -90,14 +90,13 @@ export async function POST(
   // instead of only starting it once convertDocxToPdf is called.
   const sandboxPromise = createPdfSandbox();
   sandboxPromise.catch(() => {});
-  const stopUnusedSandbox = () => after(() => sandboxPromise.then((s) => s.stop()).catch(() => {}));
+  const stopUnusedSandbox = () => after(() => sandboxPromise.then((s) => s?.stop()).catch(() => {}));
 
-  const blobFile = await get(templateRow.blobUrl, { access: "private" });
-  if (!blobFile || blobFile.statusCode !== 200) {
+  const originalDocx = await getFile(templateRow.blobUrl);
+  if (!originalDocx) {
     stopUnusedSandbox();
     return NextResponse.json({ error: "Template file is missing from storage" }, { status: 500 });
   }
-  const originalDocx = Buffer.from(await new Response(blobFile.stream).arrayBuffer());
 
   let renderedDocx: Buffer;
   try {
@@ -158,14 +157,13 @@ async function handleBulk(templateRow: Template, rows: unknown[]) {
 
   const sandboxPromise = createPdfSandbox();
   sandboxPromise.catch(() => {});
-  const stopUnusedSandbox = () => after(() => sandboxPromise.then((s) => s.stop()).catch(() => {}));
+  const stopUnusedSandbox = () => after(() => sandboxPromise.then((s) => s?.stop()).catch(() => {}));
 
-  const blobFile = await get(templateRow.blobUrl, { access: "private" });
-  if (!blobFile || blobFile.statusCode !== 200) {
+  const originalDocx = await getFile(templateRow.blobUrl);
+  if (!originalDocx) {
     stopUnusedSandbox();
     return NextResponse.json({ error: "Template file is missing from storage" }, { status: 500 });
   }
-  const originalDocx = Buffer.from(await new Response(blobFile.stream).arrayBuffer());
 
   let renderedDocxBuffers: Buffer[];
   try {

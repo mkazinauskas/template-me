@@ -10,7 +10,9 @@
     "lint": "eslint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "db:push": "drizzle-kit push",
+    "seed:local": "tsx scripts/seed-local-user.ts"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
@@ -21,6 +23,7 @@
     "drizzle-orm": "^0.45.2",
     "nanoid": "^6.0.1",
     "next": "16.3.3",
+    "pg": "^8.16.3",
     "pizzip": "^3.2.0",
     "react": "19.2.8",
     "react-dom": "19.2.8"
@@ -32,6 +35,7 @@
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.6",
     "@types/node": "^20",
+    "@types/pg": "^8.15.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^4.7.0",

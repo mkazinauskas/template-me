@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { and, eq } from "drizzle-orm";
-import { del } from "@vercel/blob";
+import { deleteFile } from "@/lib/storage";
 import { getDb } from "@/db";
 import { templates } from "@/db/schema";
 import { auth } from "@/lib/auth";
@@ -42,7 +42,7 @@ export async function DELETE(
   if (!row) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
-  await del(row.blobUrl).catch(() => {});
+  await deleteFile(row.blobUrl).catch(() => {});
   await db.delete(templates).where(eq(templates.id, id));
   return NextResponse.json({ ok: true });
 }

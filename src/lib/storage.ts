@@ -9,7 +9,12 @@ const LOCAL_URL_PREFIX = "local://";
 export type StoredFile = { url: string; pathname: string };
 
 function localPath(pathname: string) {
-  return path.join(LOCAL_STORAGE_DIR, pathname);
+  // LOCAL_STORAGE_DIR only varies at runtime (an env var, not a literal), so
+  // Turbopack can't scope this statically — it would otherwise trace and
+  // bundle the entire project as a precaution. This path is never used in
+  // production (only when LOCAL_MODE is set for local Docker Compose), so
+  // that tracing buys nothing.
+  return path.join(/* turbopackIgnore: true */ LOCAL_STORAGE_DIR, pathname);
 }
 
 /**
@@ -36,7 +41,7 @@ export async function putFile(
 export async function getFile(url: string): Promise<Buffer | null> {
   if (LOCAL_MODE) {
     try {
-      return await readFile(localPath(url.slice(LOCAL_URL_PREFIX.length)));
+      return await readFile(/* turbopackIgnore: true */ localPath(url.slice(LOCAL_URL_PREFIX.length)));
     } catch {
       return null;
     }

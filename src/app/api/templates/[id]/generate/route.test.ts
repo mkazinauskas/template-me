@@ -13,16 +13,12 @@ const FIELDS: TemplateField[] = [
 
 const state = vi.hoisted(() => ({
   templateRow: null as Template | null,
-  blobGet: null as null | { statusCode: number; stream: ReadableStream } | undefined,
+  storedFile: null as Buffer | null,
   renderDocxError: null as Error | null,
   convertSingleError: null as Error | null,
   convertBulkError: null as Error | null,
   session: { user: { id: "user-1", email: "owner@example.com" } } as { user: { id: string; email: string } } | null,
 }));
-
-function streamOf(text: string): ReadableStream {
-  return new Response(text).body!;
-}
 
 vi.mock("@/db", () => ({
   getDb: () => ({
@@ -41,8 +37,8 @@ vi.mock("@/lib/auth", () => ({
   auth: { api: { getSession: () => Promise.resolve(state.session) } },
 }));
 
-vi.mock("@vercel/blob", () => ({
-  get: vi.fn(async () => state.blobGet),
+vi.mock("@/lib/storage", () => ({
+  getFile: vi.fn(async () => state.storedFile),
 }));
 
 vi.mock("@/lib/docx-template", () => ({
@@ -105,7 +101,7 @@ const VALID_DATA = {
 describe("POST /api/templates/[id]/generate", () => {
   beforeEach(() => {
     state.templateRow = makeTemplate();
-    state.blobGet = { statusCode: 200, stream: streamOf("original-docx-bytes") };
+    state.storedFile = Buffer.from("original-docx-bytes");
     state.renderDocxError = null;
     state.convertSingleError = null;
     state.convertBulkError = null;
@@ -219,7 +215,7 @@ describe("POST /api/templates/[id]/generate", () => {
   });
 
   it("returns 500 when the template file is missing from blob storage", async () => {
-    state.blobGet = undefined;
+    state.storedFile = null;
     const { POST } = await import("@/app/api/templates/[id]/generate/route");
 
     const res = await POST(postRequest({ data: VALID_DATA }), params());
@@ -255,7 +251,7 @@ describe("POST /api/templates/[id]/generate", () => {
 describe("POST /api/templates/[id]/generate (bulk)", () => {
   beforeEach(() => {
     state.templateRow = makeTemplate();
-    state.blobGet = { statusCode: 200, stream: streamOf("original-docx-bytes") };
+    state.storedFile = Buffer.from("original-docx-bytes");
     state.renderDocxError = null;
     state.convertSingleError = null;
     state.convertBulkError = null;

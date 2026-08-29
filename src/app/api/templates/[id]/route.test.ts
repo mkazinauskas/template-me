@@ -31,8 +31,8 @@ vi.mock("@/lib/auth", () => ({
   auth: { api: { getSession: () => Promise.resolve(state.session) } },
 }));
 
-vi.mock("@vercel/blob", () => ({
-  del: vi.fn(async (url: string) => {
+vi.mock("@/lib/storage", () => ({
+  deleteFile: vi.fn(async (url: string) => {
     if (state.delShouldThrow) throw new Error("blob delete failed");
     state.deletedBlobUrls.push(url);
   }),

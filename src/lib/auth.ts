@@ -13,6 +13,12 @@ const siteUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
 
 export const auth = betterAuth({
   database: drizzleAdapter(getDb(), { provider: "pg", schema }),
+  // Local Docker Compose has no Resend account to send OTP emails with, so
+  // it seeds one static account (see scripts/seed-local-user.ts) and signs
+  // in with a plain password instead — see AuthForm's LOCAL_MODE branch.
+  emailAndPassword: {
+    enabled: process.env.LOCAL_MODE === "true",
+  },
   plugins: [
     emailOTP({
       async sendVerificationOTP({ email, otp }) {

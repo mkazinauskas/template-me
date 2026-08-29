@@ -37,8 +37,8 @@ vi.mock("@/lib/auth", () => ({
   auth: { api: { getSession: () => Promise.resolve(state.session) } },
 }));
 
-vi.mock("@vercel/blob", () => ({
-  put: vi.fn(async () => state.putResult),
+vi.mock("@/lib/storage", () => ({
+  putFile: vi.fn(async () => state.putResult),
 }));
 
 vi.mock("@/lib/docx-template", () => ({
