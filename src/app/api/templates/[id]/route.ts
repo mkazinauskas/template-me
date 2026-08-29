@@ -1,16 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { del } from "@vercel/blob";
 import { getDb } from "@/db";
 import { templates } from "@/db/schema";
+import { auth } from "@/lib/auth";
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const { id } = await params;
   const db = getDb();
-  const [row] = await db.select().from(templates).where(eq(templates.id, id));
+  const [row] = await db
+    .select()
+    .from(templates)
+    .where(and(eq(templates.id, id), eq(templates.userId, session.user.id)));
   if (!row) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
@@ -18,12 +26,19 @@ export async function GET(
 }
 
 export async function DELETE(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const { id } = await params;
   const db = getDb();
-  const [row] = await db.select().from(templates).where(eq(templates.id, id));
+  const [row] = await db
+    .select()
+    .from(templates)
+    .where(and(eq(templates.id, id), eq(templates.userId, session.user.id)));
   if (!row) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }

@@ -17,6 +17,7 @@ const state = vi.hoisted(() => ({
   renderDocxError: null as Error | null,
   convertSingleError: null as Error | null,
   convertBulkError: null as Error | null,
+  session: { user: { id: "user-1", email: "owner@example.com" } } as { user: { id: string; email: string } } | null,
 }));
 
 function streamOf(text: string): ReadableStream {
@@ -27,10 +28,17 @@ vi.mock("@/db", () => ({
   getDb: () => ({
     select: () => ({
       from: () => ({
-        where: () => Promise.resolve(state.templateRow ? [state.templateRow] : []),
+        where: () =>
+          Promise.resolve(
+            state.templateRow && state.templateRow.userId === state.session?.user.id ? [state.templateRow] : []
+          ),
       }),
     }),
   }),
+}));
+
+vi.mock("@/lib/auth", () => ({
+  auth: { api: { getSession: () => Promise.resolve(state.session) } },
 }));
 
 vi.mock("@vercel/blob", () => ({
@@ -69,6 +77,7 @@ function makeTemplate(overrides: Partial<Template> = {}): Template {
     blobUrl: "https://blob/offer.docx",
     blobPathname: "templates/offer.docx",
     fields: FIELDS,
+    userId: "user-1",
     createdAt: new Date("2026-01-01T00:00:00Z"),
     ...overrides,
   };
@@ -100,6 +109,18 @@ describe("POST /api/templates/[id]/generate", () => {
     state.renderDocxError = null;
     state.convertSingleError = null;
     state.convertBulkError = null;
+    state.session = { user: { id: "user-1", email: "owner@example.com" } };
+  });
+
+  it("returns 401 when there is no session", async () => {
+    state.session = null;
+    const { POST } = await import("@/app/api/templates/[id]/generate/route");
+
+    const res = await POST(postRequest({ data: VALID_DATA }), params());
+    const json = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(json.error).toBe("Unauthorized");
   });
 
   it("returns 404 when the template does not exist", async () => {
@@ -107,6 +128,17 @@ describe("POST /api/templates/[id]/generate", () => {
     const { POST } = await import("@/app/api/templates/[id]/generate/route");
 
     const res = await POST(postRequest({ data: VALID_DATA }), params("missing"));
+    const json = await res.json();
+
+    expect(res.status).toBe(404);
+    expect(json.error).toBe("Template not found");
+  });
+
+  it("returns 404 when the template belongs to a different user", async () => {
+    state.templateRow = makeTemplate({ userId: "someone-else" });
+    const { POST } = await import("@/app/api/templates/[id]/generate/route");
+
+    const res = await POST(postRequest({ data: VALID_DATA }), params());
     const json = await res.json();
 
     expect(res.status).toBe(404);
@@ -227,6 +259,7 @@ describe("POST /api/templates/[id]/generate (bulk)", () => {
     state.renderDocxError = null;
     state.convertSingleError = null;
     state.convertBulkError = null;
+    state.session = { user: { id: "user-1", email: "owner@example.com" } };
   });
 
   it("returns 400 when no rows are provided", async () => {

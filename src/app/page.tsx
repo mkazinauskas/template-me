@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/logo";
+import { DocumentExample } from "@/components/document-example";
 
 const steps = [
   {
@@ -36,6 +37,11 @@ const features = [
     title: "No installs",
     description: "Runs entirely in the browser. Nothing to install, nothing to configure.",
   },
+  {
+    title: "Free & open source",
+    description:
+      "Source is public on GitHub. Clone it and run it on your own machine — no account or subscription required.",
+  },
 ];
 
 export default function LandingPage() {
@@ -45,12 +51,28 @@ export default function LandingPage() {
         <Link href="/" className="transition-transform hover:scale-[1.03]">
           <Logo />
         </Link>
-        <Link
-          href="/dashboard"
-          className="rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium hover:opacity-90 hover:scale-[1.03] transition-all"
-        >
-          Dashboard
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link
+            href="/templates"
+            className="text-sm font-medium text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white"
+          >
+            Browse templates
+          </Link>
+          <a
+            href="https://github.com/mkazinauskas/template-me"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-sm font-medium text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white"
+          >
+            GitHub
+          </a>
+          <Link
+            href="/dashboard"
+            className="rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium hover:opacity-90 hover:scale-[1.03] transition-all"
+          >
+            Dashboard
+          </Link>
+        </div>
       </header>
 
       <main>
@@ -63,6 +85,14 @@ export default function LandingPage() {
             aria-hidden="true"
             className="pointer-events-none absolute top-10 -right-10 h-56 w-56 rounded-full bg-gradient-to-br from-zinc-300/30 to-transparent dark:from-white/5 blur-3xl animate-float-slow"
           />
+          <a
+            href="https://github.com/mkazinauskas/template-me"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="animate-fade-in-up inline-flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/15 bg-white dark:bg-white/[0.04] px-3 py-1 text-xs font-medium text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white hover:scale-[1.03] transition-all"
+          >
+            100% free &amp; open source — self-host on your own machine
+          </a>
           <h1 className="animate-fade-in-up text-4xl sm:text-5xl font-semibold tracking-tight text-balance">
             Turn Word docs into fillable PDF templates
           </h1>
@@ -92,7 +122,16 @@ export default function LandingPage() {
               Download example template
             </a>
           </div>
+          <p
+            className="animate-fade-in-up text-xs text-black/40 dark:text-white/40"
+            style={{ animationDelay: "0.25s" }}
+          >
+            No account needed to run it locally — clone the repo and it&apos;s
+            yours, free forever.
+          </p>
         </section>
+
+        <DocumentExample />
 
         <section className="mx-auto max-w-5xl px-6 pb-20">
           <div className="grid sm:grid-cols-3 gap-4">
@@ -111,6 +150,31 @@ export default function LandingPage() {
                 </p>
               </div>
             ))}
+          </div>
+        </section>
+
+        <section className="mx-auto max-w-3xl px-6 pb-20 text-center flex flex-col items-center">
+          <div
+            className="animate-fade-in-up w-full max-w-md rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-white/[0.02] p-4 text-left"
+            style={{ animationDelay: "0.3s" }}
+          >
+            <p className="text-xs font-medium text-black/50 dark:text-white/50 mb-2">
+              Run it locally with Docker Compose
+            </p>
+            <pre className="overflow-x-auto rounded-md bg-zinc-900 dark:bg-black px-3 py-2.5 text-xs text-zinc-100 font-mono">
+              <code>
+                git clone https://github.com/mkazinauskas/template-me.git
+                {"\n"}cd template-me
+                {"\n"}docker compose up
+              </code>
+            </pre>
+            <p className="mt-2 text-xs text-black/40 dark:text-white/40">
+              Then open{" "}
+              <span className="font-mono text-black/60 dark:text-white/60">
+                localhost:3000
+              </span>{" "}
+              — no cloud account required.
+            </p>
           </div>
         </section>
 

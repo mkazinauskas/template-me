@@ -5,6 +5,18 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 
+vi.mock("@/lib/auth", () => ({
+  auth: {
+    api: {
+      getSession: () => Promise.resolve({ user: { id: "user-1", email: "owner@example.com" } }),
+    },
+  },
+}));
+
+vi.mock("next/headers", () => ({
+  headers: () => Promise.resolve(new Headers()),
+}));
+
 // TemplateList is an async Server Component; React's client renderer (used by
 // RTL/jsdom) can't render a component that returns a Promise, so it's mocked
 // here the way Next's own testing docs recommend for async Server Component

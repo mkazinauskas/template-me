@@ -1,17 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
-import { put } from "@vercel/blob";
+import { putFile } from "@/lib/storage";
 import { getDb } from "@/db";
 import { templates } from "@/db/schema";
 import { extractFields } from "@/lib/docx-template";
-import { desc } from "drizzle-orm";
+import { auth } from "@/lib/auth";
+import { desc, eq } from "drizzle-orm";
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
   const db = getDb();
-  const rows = await db.select().from(templates).orderBy(desc(templates.createdAt));
+  const rows = await db
+    .select()
+    .from(templates)
+    .where(eq(templates.userId, session.user.id))
+    .orderBy(desc(templates.createdAt));
   return NextResponse.json({ templates: rows });
 }
 
 export async function POST(req: NextRequest) {
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const formData = await req.formData();
   const file = formData.get("file");
   const name = formData.get("name");
@@ -59,6 +73,7 @@ export async function POST(req: NextRequest) {
       blobUrl: blob.url,
       blobPathname: blob.pathname,
       fields,
+      userId: session.user.id,
     })
     .returning();
 

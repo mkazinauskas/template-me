@@ -77,11 +77,40 @@ body {
   animation: float 9s ease-in-out infinite;
 }
 
+@keyframes reveal-wipe {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes caret-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.animate-reveal-wipe {
+  animation: reveal-wipe 0.6s cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+.animate-caret {
+  animation: caret-blink 0.85s step-end infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-logo-in,
   .animate-fade-in-up,
   .animate-float,
-  .animate-float-slow {
+  .animate-float-slow,
+  .animate-reveal-wipe,
+  .animate-caret {
     animation: none;
   }
 }

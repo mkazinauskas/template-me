@@ -9,13 +9,16 @@ const state = vi.hoisted(() => ({
   extractFieldsResult: { fields: [] as unknown[], warnings: [] as string[] },
   extractFieldsError: null as Error | null,
   putResult: { url: "https://blob.example/templates/abc.docx", pathname: "templates/abc.docx" },
+  session: { user: { id: "user-1", email: "owner@example.com" } } as { user: { id: string; email: string } } | null,
 }));
 
 vi.mock("@/db", () => ({
   getDb: () => ({
     select: () => ({
       from: () => ({
-        orderBy: () => Promise.resolve(state.rows),
+        where: () => ({
+          orderBy: () => Promise.resolve(state.rows),
+        }),
       }),
     }),
     insert: () => ({
@@ -28,6 +31,10 @@ vi.mock("@/db", () => ({
       }),
     }),
   }),
+}));
+
+vi.mock("@/lib/auth", () => ({
+  auth: { api: { getSession: () => Promise.resolve(state.session) } },
 }));
 
 vi.mock("@vercel/blob", () => ({
@@ -47,9 +54,25 @@ function docxFile(name = "template.docx", content = "dummy") {
   });
 }
 
+function getRequest() {
+  return new NextRequest("http://localhost/api/templates");
+}
+
 describe("GET /api/templates", () => {
   beforeEach(() => {
     state.rows = [];
+    state.session = { user: { id: "user-1", email: "owner@example.com" } };
+  });
+
+  it("returns 401 when there is no session", async () => {
+    state.session = null;
+    const { GET } = await import("@/app/api/templates/route");
+
+    const res = await GET(getRequest());
+    const json = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(json.error).toBe("Unauthorized");
   });
 
   it("returns the list of templates from the database", async () => {
@@ -61,12 +84,13 @@ describe("GET /api/templates", () => {
         blobUrl: "https://blob/offer.docx",
         blobPathname: "templates/offer.docx",
         fields: [],
+        userId: "user-1",
         createdAt: new Date("2026-01-01T00:00:00Z"),
       },
     ];
     const { GET } = await import("@/app/api/templates/route");
 
-    const res = await GET();
+    const res = await GET(getRequest());
     const json = await res.json();
 
     expect(res.status).toBe(200);
@@ -76,7 +100,7 @@ describe("GET /api/templates", () => {
 
   it("returns an empty array when there are no templates", async () => {
     const { GET } = await import("@/app/api/templates/route");
-    const res = await GET();
+    const res = await GET(getRequest());
     const json = await res.json();
     expect(json.templates).toEqual([]);
   });
@@ -85,11 +109,26 @@ describe("GET /api/templates", () => {
 describe("POST /api/templates", () => {
   beforeEach(() => {
     state.insertedRow = null;
+    state.session = { user: { id: "user-1", email: "owner@example.com" } };
     state.extractFieldsError = null;
     state.extractFieldsResult = {
       fields: [{ key: "name", label: "Name", type: "string", params: [] }],
       warnings: [],
     };
+  });
+
+  it("returns 401 when there is no session", async () => {
+    state.session = null;
+    const formData = new FormData();
+    formData.set("file", docxFile());
+    const req = new NextRequest("http://localhost/api/templates", { method: "POST", body: formData });
+    const { POST } = await import("@/app/api/templates/route");
+
+    const res = await POST(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(401);
+    expect(json.error).toBe("Unauthorized");
   });
 
   it("rejects a request with no file", async () => {
@@ -163,6 +202,17 @@ describe("POST /api/templates", () => {
     expect(json.template.name).toBe("Offer Letter");
     expect(json.template.originalFilename).toBe("offer.docx");
     expect(json.warnings).toEqual(['Field "x": type "foo" is unrecognized']);
+  });
+
+  it("stores the uploaded template under the current user's id", async () => {
+    const formData = new FormData();
+    formData.set("file", docxFile("offer.docx"));
+    const req = new NextRequest("http://localhost/api/templates", { method: "POST", body: formData });
+    const { POST } = await import("@/app/api/templates/route");
+
+    await POST(req);
+
+    expect(state.insertedRow?.userId).toBe("user-1");
   });
 
   it("derives the template name from the filename when none is given", async () => {

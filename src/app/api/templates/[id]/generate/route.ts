@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse, after } from "next/server";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { get } from "@vercel/blob";
 import PizZip from "pizzip";
 import { getDb } from "@/db";
 import { templates, type Template } from "@/db/schema";
 import { renderDocx } from "@/lib/docx-template";
 import { convertDocxToPdf, convertDocxBuffersToPdf, createPdfSandbox } from "@/lib/docx-to-pdf";
+import { auth } from "@/lib/auth";
 
 export const maxDuration = 300;
 
@@ -52,9 +53,17 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const session = await auth.api.getSession({ headers: req.headers });
+  if (!session) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const { id } = await params;
   const db = getDb();
-  const [templateRow] = await db.select().from(templates).where(eq(templates.id, id));
+  const [templateRow] = await db
+    .select()
+    .from(templates)
+    .where(and(eq(templates.id, id), eq(templates.userId, session.user.id)));
   if (!templateRow) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }

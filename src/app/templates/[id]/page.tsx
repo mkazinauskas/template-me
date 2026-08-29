@@ -1,17 +1,24 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { eq } from "drizzle-orm";
+import { headers } from "next/headers";
+import { and, eq } from "drizzle-orm";
 import { cache } from "react";
 import type { Metadata } from "next";
 import { getDb } from "@/db";
 import { templates } from "@/db/schema";
+import { auth } from "@/lib/auth";
 import { FillForm } from "@/components/fill-form";
 import { DeleteTemplateButton } from "@/components/delete-template-button";
 import { Logo } from "@/components/logo";
 
 const getTemplate = cache(async (id: string) => {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session) return undefined;
   const db = getDb();
-  const [template] = await db.select().from(templates).where(eq(templates.id, id));
+  const [template] = await db
+    .select()
+    .from(templates)
+    .where(and(eq(templates.id, id), eq(templates.userId, session.user.id)));
   return template;
 });
 

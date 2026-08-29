@@ -4,16 +4,28 @@ import type { Template } from "@/db/schema";
 
 const state = vi.hoisted(() => ({
   template: null as Template | null,
+  session: { user: { id: "user-1", email: "owner@example.com" } } as { user: { id: string; email: string } } | null,
 }));
 
 vi.mock("@/db", () => ({
   getDb: () => ({
     select: () => ({
       from: () => ({
-        where: () => Promise.resolve(state.template ? [state.template] : []),
+        where: () =>
+          Promise.resolve(
+            state.template && state.template.userId === state.session?.user.id ? [state.template] : []
+          ),
       }),
     }),
   }),
+}));
+
+vi.mock("@/lib/auth", () => ({
+  auth: { api: { getSession: () => Promise.resolve(state.session) } },
+}));
+
+vi.mock("next/headers", () => ({
+  headers: () => Promise.resolve(new Headers()),
 }));
 
 const notFound = vi.hoisted(() => vi.fn(() => {
@@ -46,6 +58,7 @@ function makeTemplate(overrides: Partial<Template> = {}): Template {
     blobUrl: "https://blob/offer.docx",
     blobPathname: "templates/offer.docx",
     fields: [{ key: "full_name", label: "Full name", type: "string", params: [] }],
+    userId: "user-1",
     createdAt: new Date("2026-01-01T00:00:00Z"),
     ...overrides,
   };
@@ -63,11 +76,25 @@ async function renderTemplatePage(id: string, searchParams: { warnings?: string 
 describe("TemplatePage", () => {
   beforeEach(() => {
     state.template = null;
+    state.session = { user: { id: "user-1", email: "owner@example.com" } };
     notFound.mockClear();
   });
 
   it("calls notFound() when the template does not exist", async () => {
     await expect(renderTemplatePage("missing")).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(notFound).toHaveBeenCalled();
+  });
+
+  it("calls notFound() when there is no session", async () => {
+    state.template = makeTemplate();
+    state.session = null;
+    await expect(renderTemplatePage("t1")).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(notFound).toHaveBeenCalled();
+  });
+
+  it("calls notFound() when the template belongs to a different user", async () => {
+    state.template = makeTemplate({ userId: "someone-else" });
+    await expect(renderTemplatePage("t1")).rejects.toThrow("NEXT_NOT_FOUND");
     expect(notFound).toHaveBeenCalled();
   });
 
