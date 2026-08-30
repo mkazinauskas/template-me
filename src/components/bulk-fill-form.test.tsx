@@ -285,4 +285,70 @@ describe("BulkFillForm", () => {
 
     expect(await screen.findByText("Too many rows")).toBeInTheDocument();
   });
+
+  it("persists uploaded rows and edits to localStorage and restores them on remount", async () => {
+    const user = userEvent.setup();
+    const { unmount } = render(<BulkFillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+
+    await user.upload(
+      screen.getByLabelText(/Spreadsheet \(\.csv/),
+      csvFile("Full name ({{full_name}}),Relocation ({{relocation|boolean}})\nJane Doe,true\n")
+    );
+    await screen.findByText("data.csv — 1 row");
+
+    const nameInput = screen.getByDisplayValue("Jane Doe");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Jane Updated");
+
+    await waitFor(() =>
+      expect(
+        JSON.parse(localStorage.getItem("bulkFillState:t1")!).csvRows[0]["Full name ({{full_name}})"]
+      ).toBe("Jane Updated")
+    );
+
+    unmount();
+    render(<BulkFillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+
+    expect(await screen.findByText("data.csv — 1 row")).toBeInTheDocument();
+    expect(await screen.findByDisplayValue("Jane Updated")).toBeInTheDocument();
+  });
+
+  it("downloads the current (possibly edited) CSV rows", async () => {
+    const user = userEvent.setup();
+    render(<BulkFillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+
+    await user.upload(
+      screen.getByLabelText(/Spreadsheet \(\.csv/),
+      csvFile("Full name ({{full_name}}),Relocation ({{relocation|boolean}})\nJane Doe,true\n")
+    );
+    await screen.findByText("data.csv — 1 row");
+
+    const nameInput = screen.getByDisplayValue("Jane Doe");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Jane Updated");
+
+    await user.click(screen.getByRole("button", { name: "Download rows as CSV" }));
+
+    const createObjectURL = globalThis.URL.createObjectURL as ReturnType<typeof vi.fn>;
+    const blob = createObjectURL.mock.calls.at(-1)?.[0] as Blob;
+    expect(await blob.text()).toBe(
+      "Full name ({{full_name}}),Relocation ({{relocation|boolean}})\nJane Updated,true\n"
+    );
+  });
+
+  it("downloads manually entered rows as CSV, headed by each field's raw tag", async () => {
+    const user = userEvent.setup();
+    render(<BulkFillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+
+    await user.click(screen.getByRole("button", { name: "Edit in page" }));
+    await user.type(screen.getByRole("textbox", { name: "Full name" }), "Jane Doe");
+
+    await user.click(screen.getByRole("button", { name: "Download rows as CSV" }));
+
+    const createObjectURL = globalThis.URL.createObjectURL as ReturnType<typeof vi.fn>;
+    const blob = createObjectURL.mock.calls.at(-1)?.[0] as Blob;
+    expect(await blob.text()).toBe(
+      '{{full_name}},"{{relocation|boolean(""Yes"", ""No"")}}"\nJane Doe,false\n'
+    );
+  });
 });

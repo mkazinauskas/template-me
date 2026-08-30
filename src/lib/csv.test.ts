@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCsvTemplate, normalizeForMatch, parseCsv, stripHeaderHint } from "@/lib/csv";
+import { buildCsvTemplate, normalizeForMatch, parseCsv, rowsToCsv, stripHeaderHint } from "@/lib/csv";
 import type { TemplateField } from "@/db/schema";
 
 describe("buildCsvTemplate", () => {
@@ -45,6 +45,29 @@ describe("buildCsvTemplate", () => {
     const [headerLine, exampleLine] = csv.split("\n");
     expect(headerLine).toBe("{{note}}");
     expect(exampleLine).toBe('"Sample Note, ""special"""');
+  });
+});
+
+describe("rowsToCsv", () => {
+  it("serializes headers and rows back into CSV text in the given header order", () => {
+    const csv = rowsToCsv(
+      ["Full name", "Salary"],
+      [
+        { "Full name": "Jane Doe", Salary: "1234" },
+        { "Full name": "John Roe", Salary: "5678" },
+      ]
+    );
+    expect(csv).toBe("Full name,Salary\nJane Doe,1234\nJohn Roe,5678\n");
+  });
+
+  it("escapes header and cell values that contain commas or quotes", () => {
+    const csv = rowsToCsv(["Note"], [{ Note: 'has, "quotes"' }]);
+    expect(csv).toBe('Note\n"has, ""quotes"""\n');
+  });
+
+  it("fills in a blank cell for a row missing one of the headers", () => {
+    const csv = rowsToCsv(["A", "B"], [{ A: "1" }]);
+    expect(csv).toBe("A,B\n1,\n");
   });
 });
 
