@@ -9,6 +9,7 @@ import { formatRawTag } from "@/lib/template-tag";
 const PREVIEW_DEBOUNCE_MS = 700;
 const PREVIEW_DEBOUNCE_MS_FIRST = 150;
 const FORM_WIDTH_STORAGE_KEY = "fillFormPaneWidth";
+const FORM_VALUES_STORAGE_PREFIX = "fillFormValues:";
 const FORM_WIDTH_MIN = 280;
 const FORM_WIDTH_MAX = 800;
 const FORM_WIDTH_DEFAULT = 420;
@@ -178,6 +179,7 @@ function SingleFillForm({
   fields: TemplateField[];
   templateName: string;
 }) {
+  const valuesStorageKey = FORM_VALUES_STORAGE_PREFIX + templateId;
   const [values, setValues] = useState<Record<string, string>>(
     Object.fromEntries(fields.map((f) => [f.key, defaultValueFor(f)]))
   );
@@ -194,11 +196,34 @@ function SingleFillForm({
   const [formWidth, setFormWidth] = useState(FORM_WIDTH_DEFAULT);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const isResizing = useRef(false);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     const stored = Number(localStorage.getItem(FORM_WIDTH_STORAGE_KEY));
     if (stored >= FORM_WIDTH_MIN && stored <= FORM_WIDTH_MAX) setFormWidth(stored);
   }, []);
+
+  // Restore previously entered values for this template, so a reload or a
+  // trip back to the template list doesn't lose what was typed in.
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(valuesStorageKey);
+      if (!stored) return;
+      const parsed = JSON.parse(stored) as Record<string, string>;
+      setValues((prev) => ({ ...prev, ...parsed }));
+    } catch {
+      // Ignore malformed/unavailable storage and fall back to defaults.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [valuesStorageKey]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(valuesStorageKey, JSON.stringify(values));
+    } catch {
+      // Ignore storage failures (e.g. private browsing quota).
+    }
+  }, [valuesStorageKey, values]);
 
   const handleResizeMove = useCallback((e: PointerEvent) => {
     if (!isResizing.current || !containerRef.current) return;
@@ -335,6 +360,40 @@ function SingleFillForm({
     }
   }
 
+  function handleExportValues() {
+    const data = Object.fromEntries(fields.map((f) => [f.key, values[f.key] ?? ""]));
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${templateName.replace(/[^a-zA-Z0-9-_]+/g, "_")}.values.json`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImportValues(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text());
+      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+        throw new Error("Invalid file");
+      }
+      const fieldKeys = new Set(fields.map((f) => f.key));
+      const imported: Record<string, string> = {};
+      for (const [key, value] of Object.entries(parsed)) {
+        if (fieldKeys.has(key) && typeof value === "string") imported[key] = value;
+      }
+      setValues((prev) => ({ ...prev, ...imported }));
+      setError(null);
+    } catch {
+      setError("Failed to import values: not a valid values file");
+    }
+  }
+
   return (
     <div ref={containerRef} className="flex h-full min-h-0 flex-col lg:flex-row">
       <form
@@ -394,6 +453,30 @@ function SingleFillForm({
             <option value="pdf">PDF</option>
             <option value="docx">Word (.docx)</option>
           </select>
+        </div>
+
+        <div className="flex items-center gap-3 text-sm">
+          <button
+            type="button"
+            onClick={handleExportValues}
+            className="text-black/60 dark:text-white/60 underline-offset-2 hover:underline"
+          >
+            Export values
+          </button>
+          <button
+            type="button"
+            onClick={() => importInputRef.current?.click()}
+            className="text-black/60 dark:text-white/60 underline-offset-2 hover:underline"
+          >
+            Import values
+          </button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept="application/json"
+            onChange={handleImportValues}
+            className="hidden"
+          />
         </div>
       </form>
 

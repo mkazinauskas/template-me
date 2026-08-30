@@ -159,6 +159,74 @@ describe("FillForm / SingleFillForm", () => {
     expect(await screen.findByText("Missing values for: full_name")).toBeInTheDocument();
   }, 10000);
 
+  it("persists entered values to localStorage and restores them on remount", async () => {
+    const user = userEvent.setup();
+    localStorage.clear();
+    const { unmount } = render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+
+    await user.type(screen.getByLabelText(/Full name/), "Jane Doe");
+    await waitFor(() =>
+      expect(JSON.parse(localStorage.getItem("fillFormValues:t1")!).full_name).toBe("Jane Doe")
+    );
+
+    unmount();
+
+    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+    expect(await screen.findByLabelText(/Full name/)).toHaveValue("Jane Doe");
+  });
+
+  it("exports the current values as a downloadable JSON file", async () => {
+    const user = userEvent.setup();
+    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+
+    await user.type(screen.getByLabelText(/Full name/), "Jane Doe");
+
+    const clickSpy = vi.fn();
+    const originalCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
+      const el = originalCreateElement(tag);
+      if (tag === "a") el.click = clickSpy;
+      return el;
+    });
+
+    await user.click(screen.getByRole("button", { name: "Export values" }));
+
+    expect(clickSpy).toHaveBeenCalled();
+    expect(URL.createObjectURL).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "application/json" })
+    );
+
+    vi.restoreAllMocks();
+  });
+
+  it("imports values from a JSON file, ignoring unknown keys", async () => {
+    const user = userEvent.setup();
+    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+
+    const file = new File(
+      [JSON.stringify({ full_name: "Jane Doe", unknown_key: "nope" })],
+      "values.json",
+      { type: "application/json" }
+    );
+
+    await user.click(screen.getByRole("button", { name: "Import values" }));
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, file);
+
+    expect(await screen.findByLabelText(/Full name/)).toHaveValue("Jane Doe");
+  });
+
+  it("shows an error when importing an invalid values file", async () => {
+    const user = userEvent.setup();
+    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+
+    const file = new File(["not json"], "values.json", { type: "application/json" });
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    await user.upload(input, file);
+
+    expect(await screen.findByText(/Failed to import values/)).toBeInTheDocument();
+  });
+
   it("switches to the bulk-fill tab", async () => {
     const user = userEvent.setup();
     render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
