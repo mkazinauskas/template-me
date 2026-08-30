@@ -1,12 +1,15 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { TemplateField } from "@/db/schema";
 import { parseCsv, normalizeForMatch, buildCsvTemplate, stripHeaderHint } from "@/lib/csv";
 import { formatRawTag } from "@/lib/template-tag";
 
 const inputClass =
   "rounded-md border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/30";
+
+const cellInputClass =
+  "w-full min-w-[140px] rounded-md border border-black/10 dark:border-white/15 bg-transparent px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/30";
 
 const NOT_MAPPED = "";
 
@@ -39,6 +42,175 @@ function autoMapping(fields: TemplateField[], headers: string[]): Record<string,
   return mapping;
 }
 
+function emptyEditRow(fields: TemplateField[]): Record<string, string> {
+  return Object.fromEntries(fields.map((f) => [f.key, f.type === "boolean" ? "false" : ""]));
+}
+
+function BulkCellInput({
+  field,
+  value,
+  onChange,
+}: {
+  field: TemplateField;
+  value: string;
+  onChange: (value: string) => void;
+}) {
+  switch (field.type) {
+    case "number":
+      return (
+        <input
+          type="number"
+          step="any"
+          aria-label={field.label}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={cellInputClass}
+        />
+      );
+    case "date":
+      return (
+        <input
+          type="date"
+          aria-label={field.label}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={cellInputClass}
+        />
+      );
+    case "boolean": {
+      const checked = value === "true";
+      return (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={checked}
+          aria-label={field.label}
+          onClick={() => onChange(checked ? "false" : "true")}
+          className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-black/30 dark:focus-visible:ring-white/40 ${
+            checked ? "bg-black dark:bg-white" : "bg-black/20 dark:bg-white/20"
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-black shadow transition-transform ${
+              checked ? "translate-x-4.5" : "translate-x-0.5"
+            }`}
+          />
+        </button>
+      );
+    }
+    case "select":
+      return (
+        <select
+          aria-label={field.label}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={cellInputClass}
+        >
+          <option value="">—</option>
+          {field.params.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      );
+    case "string":
+    default:
+      return (
+        <input
+          type="text"
+          aria-label={field.label}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={cellInputClass}
+        />
+      );
+  }
+}
+
+function EditableRowsTable({
+  fields,
+  rows,
+  onRowsChange,
+}: {
+  fields: TemplateField[];
+  rows: Record<string, string>[];
+  onRowsChange: (rows: Record<string, string>[]) => void;
+}) {
+  function updateCell(rowIndex: number, key: string, value: string) {
+    onRowsChange(rows.map((row, i) => (i === rowIndex ? { ...row, [key]: value } : row)));
+  }
+  function removeRow(rowIndex: number) {
+    onRowsChange(rows.filter((_, i) => i !== rowIndex));
+  }
+  function addRow() {
+    onRowsChange([...rows, emptyEditRow(fields)]);
+  }
+
+  return (
+    <div className="h-full overflow-auto p-4">
+      <table className="border-collapse text-xs">
+        <thead>
+          <tr>
+            <th className="text-left border-b border-black/10 dark:border-white/15 px-2 py-1.5 font-semibold w-8">
+              #
+            </th>
+            {fields.map((field) => (
+              <th
+                key={field.key}
+                className="text-left border-b border-black/10 dark:border-white/15 px-2 py-1.5 font-semibold whitespace-nowrap"
+              >
+                <div className="flex items-center gap-1.5">
+                  {field.label}
+                  <code className="text-[10px] normal-case tracking-normal text-black/40 dark:text-white/40 font-mono font-normal">
+                    {formatRawTag(field)}
+                  </code>
+                </div>
+              </th>
+            ))}
+            <th className="border-b border-black/10 dark:border-white/15 px-2 py-1.5 w-8" />
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i} className="odd:bg-black/[0.02] dark:odd:bg-white/[0.03]">
+              <td className="px-2 py-1.5 border-b border-black/5 dark:border-white/10 text-black/40 dark:text-white/40">
+                {i + 1}
+              </td>
+              {fields.map((field) => (
+                <td key={field.key} className="px-2 py-1.5 border-b border-black/5 dark:border-white/10">
+                  <BulkCellInput
+                    field={field}
+                    value={row[field.key] ?? ""}
+                    onChange={(value) => updateCell(i, field.key, value)}
+                  />
+                </td>
+              ))}
+              <td className="px-2 py-1.5 border-b border-black/5 dark:border-white/10">
+                <button
+                  type="button"
+                  onClick={() => removeRow(i)}
+                  aria-label={`Remove row ${i + 1}`}
+                  className="text-black/40 dark:text-white/40 hover:text-red-600 dark:hover:text-red-400"
+                >
+                  ✕
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <button
+        type="button"
+        onClick={addRow}
+        className="mt-3 rounded-md border border-dashed border-black/20 dark:border-white/25 px-3 py-1.5 text-xs font-medium text-black/60 dark:text-white/60 hover:border-black/40 dark:hover:border-white/40 hover:text-black dark:hover:text-white"
+      >
+        + Add row
+      </button>
+    </div>
+  );
+}
+
 export function BulkFillForm({
   templateId,
   fields,
@@ -49,10 +221,15 @@ export function BulkFillForm({
   templateName: string;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [source, setSource] = useState<"csv" | "edit">("csv");
+
   const [fileName, setFileName] = useState<string | null>(null);
   const [headers, setHeaders] = useState<string[]>([]);
-  const [rows, setRows] = useState<Record<string, string>[]>([]);
+  const [csvRows, setCsvRows] = useState<Record<string, string>[]>([]);
   const [mapping, setMapping] = useState<Record<string, string>>({});
+
+  const [editRows, setEditRows] = useState<Record<string, string>[]>(() => [emptyEditRow(fields)]);
+
   const [nameField, setNameField] = useState<string>(fields[0]?.key ?? "");
   const [parseError, setParseError] = useState<string | null>(null);
 
@@ -65,13 +242,38 @@ export function BulkFillForm({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [format, setFormat] = useState<"pdf" | "docx">("pdf");
 
+  const rows = source === "csv" ? csvRows : editRows;
+
+  useEffect(() => {
+    setPreviewRowIndex((prev) => Math.min(prev, Math.max(rows.length - 1, 0)));
+  }, [rows.length]);
+
+  function handleSourceChange(next: "csv" | "edit") {
+    if (next === source) return;
+    setSource(next);
+    setPreviewUrl(null);
+    setPreviewError(null);
+    setSubmitError(null);
+    setPreviewRowIndex(0);
+  }
+
   function buildRowData(row: Record<string, string>): Record<string, string> {
     const data: Record<string, string> = {};
     for (const field of fields) {
+      if (source === "edit") {
+        data[field.key] = coerceValue(field, row[field.key] ?? (field.type === "boolean" ? "false" : ""));
+        continue;
+      }
       const header = mapping[field.key];
       data[field.key] = header ? coerceValue(field, row[header] ?? "") : field.type === "boolean" ? "false" : "";
     }
     return data;
+  }
+
+  function getRawName(row: Record<string, string>): string | undefined {
+    if (source === "edit") return row[nameField]?.trim() || undefined;
+    const nameHeader = mapping[nameField];
+    return nameHeader ? row[nameHeader]?.trim() || undefined : undefined;
   }
 
   function handleDownloadTemplate() {
@@ -99,12 +301,12 @@ export function BulkFillForm({
       if (parsed.headers.length === 0 || parsed.rows.length === 0) {
         setParseError("Couldn't find any rows in that file. Make sure the first row has column headers.");
         setHeaders([]);
-        setRows([]);
+        setCsvRows([]);
         return;
       }
       setFileName(file.name);
       setHeaders(parsed.headers);
-      setRows(parsed.rows);
+      setCsvRows(parsed.rows);
       setMapping(autoMapping(fields, parsed.headers));
       setPreviewRowIndex(0);
     } catch {
@@ -145,12 +347,10 @@ export function BulkFillForm({
     setSubmitError(null);
     setIsSubmitting(true);
     try {
-      const payloadRows = rows.map((row) => {
-        const data = buildRowData(row);
-        const nameHeader = mapping[nameField];
-        const rawName = nameHeader ? row[nameHeader] : undefined;
-        return { data, filename: rawName?.trim() || undefined };
-      });
+      const payloadRows = rows.map((row) => ({
+        data: buildRowData(row),
+        filename: getRawName(row),
+      }));
 
       const res = await fetch(`/api/templates/${templateId}/generate`, {
         method: "POST",
@@ -188,65 +388,99 @@ export function BulkFillForm({
   return (
     <div className="flex h-full min-h-0 flex-col lg:flex-row">
       <div className="flex flex-col gap-4 p-6 overflow-y-auto lg:w-[420px] lg:shrink-0 border-b lg:border-b-0 lg:border-r border-black/10 dark:border-white/15">
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center justify-between gap-2">
-            <label htmlFor="csv-file" className="text-sm font-medium">
-              Spreadsheet (.csv, one row per document)
-            </label>
+        <div className="flex items-center gap-1 rounded-md bg-black/5 dark:bg-white/10 p-1 self-start">
+          {(
+            [
+              { value: "csv", label: "Upload CSV" },
+              { value: "edit", label: "Edit in page" },
+            ] as const
+          ).map((tab) => (
             <button
+              key={tab.value}
               type="button"
-              onClick={handleDownloadTemplate}
-              className="shrink-0 text-xs font-medium underline underline-offset-2 text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white"
+              onClick={() => handleSourceChange(tab.value)}
+              className={`rounded px-2.5 py-1 text-xs font-medium transition-colors ${
+                source === tab.value
+                  ? "bg-black text-white dark:bg-white dark:text-black"
+                  : "text-black/60 dark:text-white/60 hover:bg-black/10 dark:hover:bg-white/10"
+              }`}
             >
-              Download CSV template
+              {tab.label}
             </button>
-          </div>
-          <input
-            id="csv-file"
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,text/csv"
-            onChange={handleFileChange}
-            className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-black/90 file:text-white dark:file:bg-white dark:file:text-black file:px-3 file:py-2 file:text-sm file:font-medium file:cursor-pointer cursor-pointer"
-          />
-          {fileName && (
-            <p className="text-xs text-black/50 dark:text-white/50">
-              {fileName} — {rows.length} row{rows.length === 1 ? "" : "s"}
-            </p>
-          )}
-          {parseError && <p className="text-sm text-red-600 dark:text-red-400">{parseError}</p>}
+          ))}
         </div>
+
+        {source === "csv" ? (
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <label htmlFor="csv-file" className="text-sm font-medium">
+                Spreadsheet (.csv, one row per document)
+              </label>
+              <button
+                type="button"
+                onClick={handleDownloadTemplate}
+                className="shrink-0 text-xs font-medium underline underline-offset-2 text-black/60 dark:text-white/60 hover:text-black dark:hover:text-white"
+              >
+                Download CSV template
+              </button>
+            </div>
+            <input
+              id="csv-file"
+              ref={fileInputRef}
+              type="file"
+              accept=".csv,text/csv"
+              onChange={handleFileChange}
+              className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-black/90 file:text-white dark:file:bg-white dark:file:text-black file:px-3 file:py-2 file:text-sm file:font-medium file:cursor-pointer cursor-pointer"
+            />
+            {fileName && (
+              <p className="text-xs text-black/50 dark:text-white/50">
+                {fileName} — {csvRows.length} row{csvRows.length === 1 ? "" : "s"}
+              </p>
+            )}
+            {parseError && <p className="text-sm text-red-600 dark:text-red-400">{parseError}</p>}
+          </div>
+        ) : (
+          <div className="flex flex-col gap-1.5">
+            <p className="text-sm font-medium">Enter rows directly</p>
+            <p className="text-xs text-black/50 dark:text-white/50">
+              Edit values in the table and use “+ Add row” to add another document. {editRows.length} row
+              {editRows.length === 1 ? "" : "s"}.
+            </p>
+          </div>
+        )}
 
         {rows.length > 0 && (
           <>
-            <div className="flex flex-col gap-3">
-              <h3 className="text-sm font-semibold">Map columns to fields</h3>
-              {fields.map((field) => (
-                <div key={field.key} className="flex flex-col gap-1.5">
-                  <label htmlFor={`map-${field.key}`} className="text-sm font-medium flex items-center gap-2">
-                    {field.label}
-                    <code className="text-[10px] normal-case tracking-normal text-black/40 dark:text-white/40 font-mono font-normal">
-                      {formatRawTag(field)}
-                    </code>
-                  </label>
-                  <select
-                    id={`map-${field.key}`}
-                    value={mapping[field.key] ?? NOT_MAPPED}
-                    onChange={(e) =>
-                      setMapping((prev) => ({ ...prev, [field.key]: e.target.value }))
-                    }
-                    className={inputClass}
-                  >
-                    <option value={NOT_MAPPED}>— Not mapped —</option>
-                    {headers.map((header) => (
-                      <option key={header} value={header}>
-                        {header}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-            </div>
+            {source === "csv" && (
+              <div className="flex flex-col gap-3">
+                <h3 className="text-sm font-semibold">Map columns to fields</h3>
+                {fields.map((field) => (
+                  <div key={field.key} className="flex flex-col gap-1.5">
+                    <label htmlFor={`map-${field.key}`} className="text-sm font-medium flex items-center gap-2">
+                      {field.label}
+                      <code className="text-[10px] normal-case tracking-normal text-black/40 dark:text-white/40 font-mono font-normal">
+                        {formatRawTag(field)}
+                      </code>
+                    </label>
+                    <select
+                      id={`map-${field.key}`}
+                      value={mapping[field.key] ?? NOT_MAPPED}
+                      onChange={(e) =>
+                        setMapping((prev) => ({ ...prev, [field.key]: e.target.value }))
+                      }
+                      className={inputClass}
+                    >
+                      <option value={NOT_MAPPED}>— Not mapped —</option>
+                      {headers.map((header) => (
+                        <option key={header} value={header}>
+                          {header}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="flex flex-col gap-1.5">
               <label htmlFor="name-field" className="text-sm font-medium">
@@ -292,7 +526,7 @@ export function BulkFillForm({
               </button>
             </div>
 
-            {unmappedRequired.length > 0 && (
+            {source === "csv" && unmappedRequired.length > 0 && (
               <p className="text-xs text-amber-700 dark:text-amber-400">
                 Not mapped: {unmappedRequired.map((f) => f.label).join(", ")}. Those rows will need a value or generation will fail.
               </p>
@@ -326,7 +560,9 @@ export function BulkFillForm({
       <div className="relative flex-1 min-h-[60vh] lg:min-h-0 bg-zinc-100 dark:bg-zinc-950">
         {previewUrl ? (
           <iframe src={previewUrl} title="Document preview" className="w-full h-full border-0" />
-        ) : rows.length > 0 ? (
+        ) : source === "edit" ? (
+          <EditableRowsTable fields={fields} rows={editRows} onRowsChange={setEditRows} />
+        ) : csvRows.length > 0 ? (
           <div className="h-full overflow-auto p-4">
             <table className="w-full text-xs border-collapse">
               <thead>
@@ -342,7 +578,7 @@ export function BulkFillForm({
                 </tr>
               </thead>
               <tbody>
-                {rows.slice(0, 20).map((row, i) => (
+                {csvRows.slice(0, 20).map((row, i) => (
                   <tr key={i} className="odd:bg-black/[0.02] dark:odd:bg-white/[0.03]">
                     {headers.map((h) => (
                       <td key={h} className="px-2 py-1.5 whitespace-nowrap border-b border-black/5 dark:border-white/10">
@@ -353,9 +589,9 @@ export function BulkFillForm({
                 ))}
               </tbody>
             </table>
-            {rows.length > 20 && (
+            {csvRows.length > 20 && (
               <p className="mt-2 text-xs text-black/40 dark:text-white/40">
-                Showing 20 of {rows.length} rows.
+                Showing 20 of {csvRows.length} rows.
               </p>
             )}
           </div>

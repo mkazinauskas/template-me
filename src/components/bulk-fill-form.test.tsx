@@ -147,6 +147,50 @@ describe("BulkFillForm", () => {
     vi.restoreAllMocks();
   });
 
+  it("switches to the in-page edit view with one empty row and allows adding/removing rows", async () => {
+    const user = userEvent.setup();
+    render(<BulkFillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+
+    await user.click(screen.getByRole("button", { name: "Edit in page" }));
+
+    expect(screen.getByRole("button", { name: "Generate 1 document" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "+ Add row" }));
+    expect(screen.getByRole("button", { name: "Generate 2 documents" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Remove row 2" }));
+    expect(screen.getByRole("button", { name: "Generate 1 document" })).toBeInTheDocument();
+  });
+
+  it("generates documents from manually entered rows", async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(["zip"], { type: "application/zip" }),
+    });
+    const clickSpy = vi.fn();
+    const originalCreateElement = document.createElement.bind(document);
+    vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
+      const el = originalCreateElement(tag);
+      if (tag === "a") el.click = clickSpy;
+      return el;
+    });
+
+    const user = userEvent.setup();
+    render(<BulkFillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+
+    await user.click(screen.getByRole("button", { name: "Edit in page" }));
+    await user.type(screen.getByRole("textbox", { name: "Full name" }), "Jane Doe");
+
+    await user.click(screen.getByRole("button", { name: "Generate 1 document" }));
+
+    await waitFor(() => expect(clickSpy).toHaveBeenCalled());
+    const [, options] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(body.rows).toHaveLength(1);
+    expect(body.rows[0].data).toEqual({ full_name: "Jane Doe", relocation: "false" });
+    vi.restoreAllMocks();
+  });
+
   it("shows an error message when bulk generation fails", async () => {
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: false,
