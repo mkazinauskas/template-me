@@ -15,6 +15,10 @@ function csvFile(content: string, name = "data.csv") {
 
 describe("BulkFillForm", () => {
   beforeEach(() => {
+    // BulkFillForm persists rows/mapping to localStorage keyed by templateId
+    // and restores them on mount — clear between tests so one test's state
+    // doesn't leak into the next (all tests here share templateId "t1").
+    localStorage.clear();
     vi.stubGlobal("fetch", vi.fn());
     vi.stubGlobal(
       "URL",

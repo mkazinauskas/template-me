@@ -114,6 +114,17 @@ export function parseCsv(text: string): { headers: string[]; rows: Record<string
   return { headers, rows };
 }
 
+/**
+ * Serializes rows (keyed by header) back into CSV text in the given header
+ * order — the inverse of `parseCsv` — so edits made in the page can be
+ * downloaded as an updated spreadsheet.
+ */
+export function rowsToCsv(headers: string[], rows: Record<string, string>[]): string {
+  const headerRow = headers.map(escapeCsvField).join(",");
+  const dataRows = rows.map((row) => headers.map((h) => escapeCsvField(row[h] ?? "")).join(","));
+  return [headerRow, ...dataRows].join("\n") + "\n";
+}
+
 /** Normalizes a header/key for fuzzy matching: lowercase, strip non-alphanumerics. */
 export function normalizeForMatch(s: string): string {
   return s.toLowerCase().replace(/[^a-z0-9]/g, "");

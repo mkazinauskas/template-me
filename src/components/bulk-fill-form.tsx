@@ -1,11 +1,24 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { TemplateField } from "@/db/schema";
-import { parseCsv, normalizeForMatch, buildCsvTemplate, stripHeaderHint } from "@/lib/csv";
+import { parseCsv, normalizeForMatch, buildCsvTemplate, rowsToCsv, stripHeaderHint } from "@/lib/csv";
 import { formatRawTag } from "@/lib/template-tag";
 import { useResizablePaneWidth, ResizeHandle } from "@/hooks/use-resizable-pane-width";
+
+const BULK_STATE_STORAGE_PREFIX = "bulkFillState:";
+
+type PersistedBulkState = {
+  source: "csv" | "edit";
+  fileName: string | null;
+  headers: string[];
+  csvRows: Record<string, string>[];
+  mapping: Record<string, string>;
+  editRows: Record<string, string>[];
+  nameField: string;
+  format: "pdf" | "docx";
+};
 
 const inputClass =
   "rounded-md border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/30";
@@ -39,6 +52,14 @@ function coerceValue(field: TemplateField, raw: string): string {
   return value;
 }
 
+// Fields whose value only ever takes 2-3 distinct options (boolean, checkbox,
+// or a small select) make poor file names since many rows would collide.
+function isNameable(field: TemplateField): boolean {
+  if (field.type === "boolean" || field.type === "checkbox") return false;
+  if (field.type === "select" && field.params.length <= 3) return false;
+  return true;
+}
+
 function autoMapping(fields: TemplateField[], headers: string[]): Record<string, string> {
   const mapping: Record<string, string> = {};
   for (const field of fields) {
@@ -59,6 +80,18 @@ function emptyEditRow(fields: TemplateField[]): Record<string, string> {
 
 function emptyRowForHeaders(headers: string[]): Record<string, string> {
   return Object.fromEntries(headers.map((h) => [h, ""]));
+}
+
+function downloadTextFile(filename: string, content: string, mimeType: string) {
+  const blob = new Blob([content], { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 function BulkCellInput({
@@ -246,6 +279,7 @@ export function BulkFillForm({
   templateName: string;
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const storageKey = BULK_STATE_STORAGE_PREFIX + templateId;
   const [source, setSource] = useState<"csv" | "edit">("csv");
 
   const [fileName, setFileName] = useState<string | null>(null);
@@ -255,7 +289,12 @@ export function BulkFillForm({
 
   const [editRows, setEditRows] = useState<Record<string, string>[]>(() => [emptyEditRow(fields)]);
 
-  const [nameField, setNameField] = useState<string>(fields[0]?.key ?? "");
+  const nameableFields = useMemo(() => {
+    const filtered = fields.filter(isNameable);
+    return filtered.length > 0 ? filtered : fields;
+  }, [fields]);
+
+  const [nameField, setNameField] = useState<string>(nameableFields[0]?.key ?? "");
   const [parseError, setParseError] = useState<string | null>(null);
 
   const [previewRowIndex, setPreviewRowIndex] = useState(0);
@@ -268,6 +307,55 @@ export function BulkFillForm({
   const [format, setFormat] = useState<"pdf" | "docx">("pdf");
 
   const { width: paneWidth, containerRef, startResizing, resetWidth } = useResizablePaneWidth();
+
+  // Restore previously uploaded/edited rows for this template, so navigating
+  // away and back (or a reload) doesn't lose what was set up.
+  useEffect(() => {
+    // Deferred to after mount (rather than a lazy useState initializer) so the
+    // first client render matches the server-rendered defaults — reading
+    // localStorage during the initial render would cause a hydration mismatch.
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (!stored) return;
+      const parsed = JSON.parse(stored) as Partial<PersistedBulkState>;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (parsed.source) setSource(parsed.source);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (parsed.fileName !== undefined) setFileName(parsed.fileName);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (parsed.headers) setHeaders(parsed.headers);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (parsed.csvRows) setCsvRows(parsed.csvRows);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (parsed.mapping) setMapping(parsed.mapping);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (parsed.editRows && parsed.editRows.length > 0) setEditRows(parsed.editRows);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (parsed.nameField) setNameField(parsed.nameField);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      if (parsed.format) setFormat(parsed.format);
+    } catch {
+      // Ignore malformed/unavailable storage and fall back to defaults.
+    }
+  }, [storageKey]);
+
+  useEffect(() => {
+    const state: PersistedBulkState = {
+      source,
+      fileName,
+      headers,
+      csvRows,
+      mapping,
+      editRows,
+      nameField,
+      format,
+    };
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(state));
+    } catch {
+      // Ignore storage failures (e.g. private browsing quota).
+    }
+  }, [storageKey, source, fileName, headers, csvRows, mapping, editRows, nameField, format]);
 
   const rows = source === "csv" ? csvRows : editRows;
   // Clamp instead of storing the clamped value: rows can shrink (e.g. a row
@@ -333,16 +421,26 @@ export function BulkFillForm({
   }
 
   function handleDownloadTemplate() {
-    const csv = buildCsvTemplate(fields);
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${templateName.replace(/[^a-zA-Z0-9-_]+/g, "_")}_template.csv`;
-    document.body.appendChild(a);
-    a.click();
-    a.remove();
-    URL.revokeObjectURL(url);
+    downloadTextFile(
+      `${templateName.replace(/[^a-zA-Z0-9-_]+/g, "_")}_template.csv`,
+      buildCsvTemplate(fields),
+      "text/csv;charset=utf-8;"
+    );
+  }
+
+  function handleDownloadRows() {
+    const outHeaders = source === "edit" ? fields.map((f) => formatRawTag(f)) : headers;
+    const outRows =
+      source === "edit"
+        ? editRows.map((row) =>
+            Object.fromEntries(fields.map((f, i) => [outHeaders[i], row[f.key] ?? ""]))
+          )
+        : csvRows;
+    downloadTextFile(
+      `${templateName.replace(/[^a-zA-Z0-9-_]+/g, "_")}_rows.csv`,
+      rowsToCsv(outHeaders, outRows),
+      "text/csv;charset=utf-8;"
+    );
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -556,7 +654,7 @@ export function BulkFillForm({
                 onChange={(e) => setNameField(e.target.value)}
                 className={inputClass}
               >
-                {fields.map((field) => (
+                {nameableFields.map((field) => (
                   <option key={field.key} value={field.key}>
                     {field.label}
                   </option>
@@ -616,6 +714,13 @@ export function BulkFillForm({
                 <option value="pdf">PDF</option>
                 <option value="docx">Word (.docx)</option>
               </select>
+              <button
+                type="button"
+                onClick={handleDownloadRows}
+                className="rounded-md border border-black/15 dark:border-white/20 px-3 py-2 text-sm font-medium"
+              >
+                Download rows as CSV
+              </button>
             </div>
           </>
         )}

@@ -10,9 +10,11 @@ export function UploadForm() {
   const [name, setName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasFile, setHasFile] = useState(false);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
+    setHasFile(!!file);
     if (file && !name.trim()) {
       setName(file.name.replace(/\.docx$/i, ""));
     }
@@ -40,6 +42,7 @@ export function UploadForm() {
         return;
       }
       setName("");
+      setHasFile(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
       const warnings: string[] = json.warnings ?? [];
       const query = warnings.length
@@ -104,7 +107,7 @@ export function UploadForm() {
 
       <button
         type="submit"
-        disabled={isSubmitting}
+        disabled={isSubmitting || !hasFile}
         className="self-start rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium disabled:opacity-50"
       >
         {isSubmitting ? "Uploading…" : "Upload template"}
