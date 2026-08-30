@@ -227,6 +227,21 @@ describe("FillForm / SingleFillForm", () => {
     expect(await screen.findByText(/Failed to import values/)).toBeInTheDocument();
   });
 
+  it("clears all field values back to their defaults", async () => {
+    const user = userEvent.setup();
+    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+
+    await user.type(screen.getByLabelText(/Full name/), "Jane Doe");
+    await user.type(screen.getByLabelText(/Salary/), "1000");
+    await user.click(screen.getByRole("switch"));
+
+    await user.click(screen.getByRole("button", { name: "Clear values" }));
+
+    expect(screen.getByLabelText(/Full name/)).toHaveValue("");
+    expect(screen.getByLabelText(/Salary/)).toHaveValue(null);
+    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "false");
+  });
+
   it("switches to the bulk-fill tab", async () => {
     const user = userEvent.setup();
     render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
