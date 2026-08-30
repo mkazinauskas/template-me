@@ -47,7 +47,7 @@ describe("BulkFillForm", () => {
     expect(screen.getByDisplayValue("Jane Doe")).toBeInTheDocument();
     expect(screen.getByDisplayValue("John Roe")).toBeInTheDocument();
 
-    const fullNameMapping = screen.getByLabelText(/^Full name/) as HTMLSelectElement;
+    const fullNameMapping = screen.getByLabelText(/^Full name$/) as HTMLSelectElement;
     expect(fullNameMapping.value).toBe("Full name ({{full_name}})");
   });
 

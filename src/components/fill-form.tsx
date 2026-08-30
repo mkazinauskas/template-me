@@ -196,15 +196,18 @@ function SingleFillForm({
   // Restore previously entered values for this template, so a reload or a
   // trip back to the template list doesn't lose what was typed in.
   useEffect(() => {
+    // Deferred to after mount (rather than a lazy useState initializer) so the
+    // first client render matches the server-rendered defaults — reading
+    // localStorage during the initial render would cause a hydration mismatch.
     try {
       const stored = localStorage.getItem(valuesStorageKey);
       if (!stored) return;
       const parsed = JSON.parse(stored) as Record<string, string>;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setValues((prev) => ({ ...prev, ...parsed }));
     } catch {
       // Ignore malformed/unavailable storage and fall back to defaults.
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [valuesStorageKey]);
 
   useEffect(() => {

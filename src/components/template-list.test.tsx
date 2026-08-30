@@ -34,6 +34,10 @@ vi.mock("next/headers", () => ({
   headers: () => Promise.resolve(new Headers()),
 }));
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
+
 function makeTemplate(overrides: Partial<Template>): Template {
   return {
     id: "id-1",

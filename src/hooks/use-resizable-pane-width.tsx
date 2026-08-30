@@ -24,7 +24,11 @@ export function useResizablePaneWidth({
   const isResizing = useRef(false);
 
   useEffect(() => {
+    // Deferred to after mount (rather than a lazy useState initializer) so the
+    // first client render matches the server-rendered defaultWidth — reading
+    // localStorage during the initial render would cause a hydration mismatch.
     const stored = Number(localStorage.getItem(storageKey));
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (stored >= min && stored <= max) setWidth(stored);
   }, [storageKey, min, max]);
 

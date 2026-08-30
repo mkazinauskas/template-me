@@ -139,7 +139,9 @@ describe("AdminPage", () => {
 
     expect(screen.getByRole("heading", { name: "Admin" })).toBeInTheDocument();
 
-    expect(screen.getByText("alice@example.com")).toBeInTheDocument();
+    // alice@example.com appears twice: once in the Users table, once as the
+    // Templates table's Owner column for the template she owns.
+    expect(screen.getAllByText("alice@example.com")).toHaveLength(2);
     expect(screen.getByText("bob@example.com")).toBeInTheDocument();
 
     expect(screen.getByText("Offer Letter")).toBeInTheDocument();

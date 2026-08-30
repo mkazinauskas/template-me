@@ -28,6 +28,10 @@ function fetchOkBlob(content = "pdf-bytes") {
 
 describe("FillForm / SingleFillForm", () => {
   beforeEach(() => {
+    // FillForm persists values to localStorage keyed by templateId and
+    // restores them on mount — clear between tests so one test's typed
+    // values don't leak into the next (all tests here share templateId "t1").
+    localStorage.clear();
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue(fetchOkBlob()));
     vi.stubGlobal(
       "URL",
@@ -161,7 +165,6 @@ describe("FillForm / SingleFillForm", () => {
 
   it("persists entered values to localStorage and restores them on remount", async () => {
     const user = userEvent.setup();
-    localStorage.clear();
     const { unmount } = render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
 
     await user.type(screen.getByLabelText(/Full name/), "Jane Doe");

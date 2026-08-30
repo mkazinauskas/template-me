@@ -96,7 +96,7 @@ export function PlaceholderTypes() {
           <code className="px-1 py-0.5 rounded bg-black/5 dark:bg-white/10">
             {"{{person.first_name}}"}
           </code>{" "}
-          — they'll appear together under one heading on the fill form.
+          — they&apos;ll appear together under one heading on the fill form.
         </p>
       </div>
     </details>

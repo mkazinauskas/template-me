@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { TemplateField } from "@/db/schema";
 import { parseCsv, normalizeForMatch, buildCsvTemplate, stripHeaderHint } from "@/lib/csv";
@@ -258,10 +258,9 @@ export function BulkFillForm({
   const { width: paneWidth, containerRef, startResizing, resetWidth } = useResizablePaneWidth();
 
   const rows = source === "csv" ? csvRows : editRows;
-
-  useEffect(() => {
-    setPreviewRowIndex((prev) => Math.min(prev, Math.max(rows.length - 1, 0)));
-  }, [rows.length]);
+  // Clamp instead of storing the clamped value: rows can shrink (e.g. a row
+  // deleted from editRows) without previewRowIndex being reset explicitly.
+  const clampedPreviewRowIndex = Math.min(previewRowIndex, Math.max(rows.length - 1, 0));
 
   const editColumns = useMemo<EditableColumn[]>(
     () =>
@@ -367,7 +366,7 @@ export function BulkFillForm({
   }
 
   async function handlePreview() {
-    const row = rows[previewRowIndex];
+    const row = rows[clampedPreviewRowIndex];
     if (!row) return;
     setIsPreviewLoading(true);
     setPreviewError(null);
@@ -558,7 +557,7 @@ export function BulkFillForm({
               </label>
               <select
                 id="preview-row"
-                value={previewRowIndex}
+                value={clampedPreviewRowIndex}
                 onChange={(e) => setPreviewRowIndex(Number(e.target.value))}
                 className={inputClass}
               >
