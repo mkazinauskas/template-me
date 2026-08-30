@@ -56,6 +56,25 @@ describe("UploadForm", () => {
     expect(body.get("name")).toBe("Offer Letter");
   });
 
+  it("prefills the template name from the chosen file name", async () => {
+    const user = userEvent.setup();
+    render(<UploadForm />);
+
+    await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile("Offer Letter.docx"));
+
+    expect(screen.getByLabelText("Template name (optional)")).toHaveValue("Offer Letter");
+  });
+
+  it("does not overwrite a manually entered template name when a file is chosen", async () => {
+    const user = userEvent.setup();
+    render(<UploadForm />);
+
+    await user.type(screen.getByLabelText("Template name (optional)"), "Custom Name");
+    await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile("Offer Letter.docx"));
+
+    expect(screen.getByLabelText("Template name (optional)")).toHaveValue("Custom Name");
+  });
+
   it("appends warnings as a query param when the upload returns warnings", async () => {
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,

@@ -11,6 +11,13 @@ export function UploadForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file && !name.trim()) {
+      setName(file.name.replace(/\.docx$/i, ""));
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
@@ -54,13 +61,6 @@ export function UploadForm() {
     >
       <div>
         <h2 className="text-lg font-semibold">Upload a template</h2>
-        <p className="text-sm text-black/60 dark:text-white/60 mt-1">
-          Upload a .docx file with placeholders like{" "}
-          <code className="px-1 py-0.5 rounded bg-black/5 dark:bg-white/10">
-            {"{{field_name}}"}
-          </code>{" "}
-          — fields are detected automatically.
-        </p>
         <a
           href="/example-template.docx"
           download
@@ -95,6 +95,7 @@ export function UploadForm() {
           ref={fileInputRef}
           type="file"
           accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          onChange={handleFileChange}
           className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-black/90 file:text-white dark:file:bg-white dark:file:text-black file:px-3 file:py-2 file:text-sm file:font-medium file:cursor-pointer cursor-pointer"
         />
       </div>

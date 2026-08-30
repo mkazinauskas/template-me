@@ -1,35 +1,78 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
-import LandingPage from "@/app/page";
+
+vi.mock("next/headers", () => ({
+  headers: () => Promise.resolve(new Headers()),
+}));
+
+const { getSession } = vi.hoisted(() => ({ getSession: vi.fn() }));
+
+vi.mock("@/lib/auth", () => ({
+  auth: { api: { getSession } },
+}));
+
+// LandingPage is an async Server Component (it awaits the session), so we
+// await it directly to get the resolved element before rendering it.
+async function renderLandingPage() {
+  const { default: LandingPage } = await import("@/app/page");
+  const element = await LandingPage();
+  render(element);
+}
 
 describe("LandingPage", () => {
-  it("renders the headline and primary calls to action", () => {
-    render(<LandingPage />);
+  it("renders the headline", async () => {
+    getSession.mockResolvedValue(null);
+    await renderLandingPage();
 
     expect(
       screen.getByRole("heading", { level: 1, name: "Turn Word docs into fillable PDF templates" })
     ).toBeInTheDocument();
-    expect(screen.getAllByRole("link", { name: "Go to Dashboard" }).length).toBeGreaterThan(0);
-    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/dashboard");
   });
 
-  it("links the download-example anchor to the static example file", () => {
-    render(<LandingPage />);
+  it("shows login links to /sign-in when logged out", async () => {
+    getSession.mockResolvedValue(null);
+    await renderLandingPage();
+
+    expect(screen.getAllByRole("link", { name: "Login" }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("link", { name: "Dashboard" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Go to Dashboard" })).not.toBeInTheDocument();
+    for (const link of screen.getAllByRole("link", { name: "Login" })) {
+      expect(link).toHaveAttribute("href", "/sign-in");
+    }
+  });
+
+  it("shows dashboard links to /dashboard when logged in", async () => {
+    getSession.mockResolvedValue({ user: { id: "user-1", email: "owner@example.com" } });
+    await renderLandingPage();
+
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/dashboard");
+    expect(screen.getAllByRole("link", { name: "Go to Dashboard" }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole("link", { name: "Login" })).not.toBeInTheDocument();
+    for (const link of screen.getAllByRole("link", { name: "Go to Dashboard" })) {
+      expect(link).toHaveAttribute("href", "/dashboard");
+    }
+  });
+
+  it("links the download-example anchor to the static example file", async () => {
+    getSession.mockResolvedValue(null);
+    await renderLandingPage();
     expect(screen.getByRole("link", { name: "Download example template" })).toHaveAttribute(
       "href",
       "/example-template.docx"
     );
   });
 
-  it("lists all three onboarding steps", () => {
-    render(<LandingPage />);
+  it("lists all three onboarding steps", async () => {
+    getSession.mockResolvedValue(null);
+    await renderLandingPage();
     expect(screen.getByText("Upload a template")).toBeInTheDocument();
     expect(screen.getByText("Fill in the fields")).toBeInTheDocument();
     expect(screen.getByText("Download a PDF")).toBeInTheDocument();
   });
 
-  it("lists all four feature callouts", () => {
-    render(<LandingPage />);
+  it("lists all four feature callouts", async () => {
+    getSession.mockResolvedValue(null);
+    await renderLandingPage();
     expect(screen.getByText("Automatic field detection")).toBeInTheDocument();
     expect(screen.getByText("Bulk generation")).toBeInTheDocument();
     expect(screen.getByText("Typed fields")).toBeInTheDocument();

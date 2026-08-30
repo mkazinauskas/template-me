@@ -1,6 +1,10 @@
 import Link from "next/link";
+import { headers } from "next/headers";
 import { Logo } from "@/components/logo";
 import { DocumentExample } from "@/components/document-example";
+import { auth } from "@/lib/auth";
+
+export const dynamic = "force-dynamic";
 
 const steps = [
   {
@@ -44,7 +48,9 @@ const features = [
   },
 ];
 
-export default function LandingPage() {
+export default async function LandingPage() {
+  const session = await auth.api.getSession({ headers: await headers() });
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black overflow-x-hidden">
       <header className="mx-auto max-w-5xl px-6 py-6 flex items-center justify-between relative z-10">
@@ -67,10 +73,10 @@ export default function LandingPage() {
             GitHub
           </a>
           <Link
-            href="/dashboard"
+            href={session ? "/dashboard" : "/sign-in"}
             className="rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium hover:opacity-90 hover:scale-[1.03] transition-all"
           >
-            Dashboard
+            {session ? "Dashboard" : "Login"}
           </Link>
         </div>
       </header>
@@ -109,10 +115,10 @@ export default function LandingPage() {
             style={{ animationDelay: "0.2s" }}
           >
             <Link
-              href="/dashboard"
+              href={session ? "/dashboard" : "/sign-in"}
               className="rounded-md bg-black text-white dark:bg-white dark:text-black px-6 py-3 text-sm font-medium hover:opacity-90 hover:scale-[1.03] transition-all"
             >
-              Go to Dashboard
+              {session ? "Go to Dashboard" : "Login"}
             </Link>
             <a
               href="/example-template.docx"
@@ -207,10 +213,10 @@ export default function LandingPage() {
             in under a minute.
           </p>
           <Link
-            href="/dashboard"
+            href={session ? "/dashboard" : "/sign-in"}
             className="rounded-md bg-black text-white dark:bg-white dark:text-black px-6 py-3 text-sm font-medium hover:opacity-90 hover:scale-[1.03] transition-all"
           >
-            Go to Dashboard
+            {session ? "Go to Dashboard" : "Login"}
           </Link>
         </section>
       </main>
