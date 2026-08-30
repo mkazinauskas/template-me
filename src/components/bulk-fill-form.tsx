@@ -320,19 +320,12 @@ export function BulkFillForm({
       const parsed = JSON.parse(stored) as Partial<PersistedBulkState>;
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (parsed.source) setSource(parsed.source);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (parsed.fileName !== undefined) setFileName(parsed.fileName);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (parsed.headers) setHeaders(parsed.headers);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (parsed.csvRows) setCsvRows(parsed.csvRows);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (parsed.mapping) setMapping(parsed.mapping);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (parsed.editRows && parsed.editRows.length > 0) setEditRows(parsed.editRows);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (parsed.nameField) setNameField(parsed.nameField);
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       if (parsed.format) setFormat(parsed.format);
     } catch {
       // Ignore malformed/unavailable storage and fall back to defaults.
@@ -621,8 +614,14 @@ export function BulkFillForm({
                 <h3 className="text-sm font-semibold">Map columns to fields</h3>
                 {fields.map((field) => (
                   <div key={field.key} className="flex flex-col gap-1.5">
-                    <label htmlFor={`map-${field.key}`} className="text-sm font-medium">
+                    <label htmlFor={`map-${field.key}`} className="text-sm font-medium flex items-center gap-2">
                       {field.label}
+                      <code className="text-[10px] normal-case tracking-normal text-black/40 dark:text-white/40 font-mono font-normal">
+                        {formatRawTag(field)}
+                      </code>
+                      <span className="text-[10px] uppercase tracking-wide text-black/40 dark:text-white/40 font-normal">
+                        {field.type}
+                      </span>
                     </label>
                     <select
                       id={`map-${field.key}`}
