@@ -15,6 +15,14 @@ const LO_DEPS = [
   // Broad-coverage fallback font: without it, glyphs Times New Roman lacks
   // (e.g. Lithuanian/Baltic ogonek letters į, ų) render as tofu boxes.
   "google-noto-sans-fonts",
+  // Metric-compatible replacements for the fonts most .docx templates
+  // actually use (Arial/Times New Roman/Courier New, Calibri, Cambria).
+  // Without these LibreOffice substitutes a font with different glyph
+  // widths, so the PDF wraps/paginates differently than the same document
+  // opened in Word. Keep this list in sync with src/lib/docx-to-pdf.ts.
+  "liberation-fonts-all",
+  "google-carlito-fonts",
+  "google-crosextra-caladea-fonts",
 ];
 
 async function main() {

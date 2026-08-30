@@ -49,7 +49,13 @@ ENV NODE_ENV=production
 # font-noto covers everything else Times New Roman falls back to when it's
 # not installed (e.g. Lithuanian/Baltic ogonek letters į, ų), which
 # otherwise render as tofu boxes the same way.
-RUN apk add --no-cache libreoffice font-noto-cjk font-noto
+# font-liberation and font-carlito are metric-compatible replacements for
+# Arial/Times New Roman/Courier New and Calibri — the fonts most .docx
+# templates actually use. Without them LibreOffice substitutes a font with
+# different glyph widths, so generated PDFs wrap/paginate differently than
+# the same document opened in Word. (Alpine has no Cambria-compatible
+# package, unlike the Fedora sandbox path in docx-to-pdf.ts.)
+RUN apk add --no-cache libreoffice font-noto-cjk font-noto font-liberation font-carlito
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
