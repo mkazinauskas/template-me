@@ -44,11 +44,31 @@ describe("BulkFillForm", () => {
     await user.upload(screen.getByLabelText(/Spreadsheet \(\.csv/), file);
 
     expect(await screen.findByText("data.csv — 2 rows")).toBeInTheDocument();
-    expect(screen.getByText("Jane Doe")).toBeInTheDocument();
-    expect(screen.getByText("John Roe")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Jane Doe")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("John Roe")).toBeInTheDocument();
 
     const fullNameMapping = screen.getByLabelText(/^Full name/) as HTMLSelectElement;
     expect(fullNameMapping.value).toBe("Full name ({{full_name}})");
+  });
+
+  it("allows editing values from an uploaded CSV directly in the table", async () => {
+    const user = userEvent.setup();
+    render(<BulkFillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+
+    await user.upload(
+      screen.getByLabelText(/Spreadsheet \(\.csv/),
+      csvFile("Full name ({{full_name}}),Relocation ({{relocation|boolean}})\nJane Doe,true\n")
+    );
+    await screen.findByText("data.csv — 1 row");
+
+    const cell = screen.getByDisplayValue("Jane Doe");
+    await user.clear(cell);
+    await user.type(cell, "Jane Smith");
+
+    await user.click(screen.getByRole("button", { name: "+ Add row" }));
+    expect(screen.getByRole("button", { name: "Generate 2 documents" })).toBeInTheDocument();
+    expect(await screen.findByText("data.csv — 2 rows")).toBeInTheDocument();
+    expect(screen.getByDisplayValue("Jane Smith")).toBeInTheDocument();
   });
 
   it("shows a parse error for a file with no rows", async () => {
@@ -113,6 +133,30 @@ describe("BulkFillForm", () => {
     const body = JSON.parse(options.body);
     expect(body.preview).toBe(true);
     expect(body.data).toEqual({ full_name: "Jane Doe", relocation: "true" });
+  });
+
+  it("returns to the editable table from the preview via 'Back to editing'", async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(["pdf"], { type: "application/pdf" }),
+    });
+    const user = userEvent.setup();
+    render(<BulkFillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+
+    await user.upload(
+      screen.getByLabelText(/Spreadsheet \(\.csv/),
+      csvFile("Full name ({{full_name}}),Relocation ({{relocation|boolean}})\nJane Doe,true\n")
+    );
+    await screen.findByText("data.csv — 1 row");
+
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+    await screen.findByTitle("Document preview");
+    expect(screen.queryByDisplayValue("Jane Doe")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "← Back to editing" }));
+
+    expect(screen.queryByTitle("Document preview")).not.toBeInTheDocument();
+    expect(screen.getByDisplayValue("Jane Doe")).toBeInTheDocument();
   });
 
   it("generates all documents and downloads the resulting zip", async () => {

@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, ReactNode } from "react";
 import type { TemplateField } from "@/db/schema";
 import { parseCsv, normalizeForMatch, buildCsvTemplate, stripHeaderHint } from "@/lib/csv";
 import { formatRawTag } from "@/lib/template-tag";
+import { useResizablePaneWidth, ResizeHandle } from "@/hooks/use-resizable-pane-width";
 
 const inputClass =
   "rounded-md border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/30";
@@ -12,6 +14,13 @@ const cellInputClass =
   "w-full min-w-[140px] rounded-md border border-black/10 dark:border-white/15 bg-transparent px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/30";
 
 const NOT_MAPPED = "";
+
+type EditableColumn = {
+  key: string;
+  label: string;
+  sublabel?: string;
+  renderInput: (value: string, onChange: (value: string) => void) => ReactNode;
+};
 
 function coerceValue(field: TemplateField, raw: string): string {
   const value = raw.trim();
@@ -44,6 +53,10 @@ function autoMapping(fields: TemplateField[], headers: string[]): Record<string,
 
 function emptyEditRow(fields: TemplateField[]): Record<string, string> {
   return Object.fromEntries(fields.map((f) => [f.key, f.type === "boolean" ? "false" : ""]));
+}
+
+function emptyRowForHeaders(headers: string[]): Record<string, string> {
+  return Object.fromEntries(headers.map((h) => [h, ""]));
 }
 
 function BulkCellInput({
@@ -129,13 +142,15 @@ function BulkCellInput({
 }
 
 function EditableRowsTable({
-  fields,
+  columns,
   rows,
   onRowsChange,
+  makeEmptyRow,
 }: {
-  fields: TemplateField[];
+  columns: EditableColumn[];
   rows: Record<string, string>[];
   onRowsChange: (rows: Record<string, string>[]) => void;
+  makeEmptyRow: () => Record<string, string>;
 }) {
   function updateCell(rowIndex: number, key: string, value: string) {
     onRowsChange(rows.map((row, i) => (i === rowIndex ? { ...row, [key]: value } : row)));
@@ -144,7 +159,7 @@ function EditableRowsTable({
     onRowsChange(rows.filter((_, i) => i !== rowIndex));
   }
   function addRow() {
-    onRowsChange([...rows, emptyEditRow(fields)]);
+    onRowsChange([...rows, makeEmptyRow()]);
   }
 
   return (
@@ -155,16 +170,18 @@ function EditableRowsTable({
             <th className="text-left border-b border-black/10 dark:border-white/15 px-2 py-1.5 font-semibold w-8">
               #
             </th>
-            {fields.map((field) => (
+            {columns.map((col) => (
               <th
-                key={field.key}
+                key={col.key}
                 className="text-left border-b border-black/10 dark:border-white/15 px-2 py-1.5 font-semibold whitespace-nowrap"
               >
                 <div className="flex items-center gap-1.5">
-                  {field.label}
-                  <code className="text-[10px] normal-case tracking-normal text-black/40 dark:text-white/40 font-mono font-normal">
-                    {formatRawTag(field)}
-                  </code>
+                  {col.label}
+                  {col.sublabel && (
+                    <code className="text-[10px] normal-case tracking-normal text-black/40 dark:text-white/40 font-mono font-normal">
+                      {col.sublabel}
+                    </code>
+                  )}
                 </div>
               </th>
             ))}
@@ -177,13 +194,9 @@ function EditableRowsTable({
               <td className="px-2 py-1.5 border-b border-black/5 dark:border-white/10 text-black/40 dark:text-white/40">
                 {i + 1}
               </td>
-              {fields.map((field) => (
-                <td key={field.key} className="px-2 py-1.5 border-b border-black/5 dark:border-white/10">
-                  <BulkCellInput
-                    field={field}
-                    value={row[field.key] ?? ""}
-                    onChange={(value) => updateCell(i, field.key, value)}
-                  />
+              {columns.map((col) => (
+                <td key={col.key} className="px-2 py-1.5 border-b border-black/5 dark:border-white/10">
+                  {col.renderInput(row[col.key] ?? "", (value) => updateCell(i, col.key, value))}
                 </td>
               ))}
               <td className="px-2 py-1.5 border-b border-black/5 dark:border-white/10">
@@ -242,11 +255,42 @@ export function BulkFillForm({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [format, setFormat] = useState<"pdf" | "docx">("pdf");
 
+  const { width: paneWidth, containerRef, startResizing, resetWidth } = useResizablePaneWidth();
+
   const rows = source === "csv" ? csvRows : editRows;
 
   useEffect(() => {
     setPreviewRowIndex((prev) => Math.min(prev, Math.max(rows.length - 1, 0)));
   }, [rows.length]);
+
+  const editColumns = useMemo<EditableColumn[]>(
+    () =>
+      fields.map((field) => ({
+        key: field.key,
+        label: field.label,
+        sublabel: formatRawTag(field),
+        renderInput: (value, onChange) => <BulkCellInput field={field} value={value} onChange={onChange} />,
+      })),
+    [fields]
+  );
+
+  const csvColumns = useMemo<EditableColumn[]>(
+    () =>
+      headers.map((header) => ({
+        key: header,
+        label: header,
+        renderInput: (value, onChange) => (
+          <input
+            type="text"
+            aria-label={header}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className={cellInputClass}
+          />
+        ),
+      })),
+    [headers]
+  );
 
   function handleSourceChange(next: "csv" | "edit") {
     if (next === source) return;
@@ -312,6 +356,14 @@ export function BulkFillForm({
     } catch {
       setParseError("Failed to read that file. Please upload a .csv file.");
     }
+  }
+
+  function handleClosePreview() {
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setPreviewError(null);
   }
 
   async function handlePreview() {
@@ -386,8 +438,11 @@ export function BulkFillForm({
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col lg:flex-row">
-      <div className="flex flex-col gap-4 p-6 overflow-y-auto lg:w-[420px] lg:shrink-0 border-b lg:border-b-0 lg:border-r border-black/10 dark:border-white/15">
+    <div ref={containerRef} className="flex h-full min-h-0 flex-col lg:flex-row">
+      <div
+        style={{ "--form-width": `${paneWidth}px` } as CSSProperties}
+        className="flex flex-col gap-4 p-6 overflow-y-auto lg:w-[var(--form-width)] lg:shrink-0 border-b lg:border-b-0 border-black/10 dark:border-white/15"
+      >
         <div className="flex items-center gap-1 rounded-md bg-black/5 dark:bg-white/10 p-1 self-start">
           {(
             [
@@ -456,11 +511,8 @@ export function BulkFillForm({
                 <h3 className="text-sm font-semibold">Map columns to fields</h3>
                 {fields.map((field) => (
                   <div key={field.key} className="flex flex-col gap-1.5">
-                    <label htmlFor={`map-${field.key}`} className="text-sm font-medium flex items-center gap-2">
+                    <label htmlFor={`map-${field.key}`} className="text-sm font-medium">
                       {field.label}
-                      <code className="text-[10px] normal-case tracking-normal text-black/40 dark:text-white/40 font-mono font-normal">
-                        {formatRawTag(field)}
-                      </code>
                     </label>
                     <select
                       id={`map-${field.key}`}
@@ -557,44 +609,34 @@ export function BulkFillForm({
         )}
       </div>
 
+      <ResizeHandle onPointerDown={startResizing} onReset={resetWidth} />
+
       <div className="relative flex-1 min-h-[60vh] lg:min-h-0 bg-zinc-100 dark:bg-zinc-950">
         {previewUrl ? (
-          <iframe src={previewUrl} title="Document preview" className="w-full h-full border-0" />
+          <>
+            <button
+              type="button"
+              onClick={handleClosePreview}
+              className="absolute top-3 left-3 z-10 rounded-md bg-black/80 text-white dark:bg-white/90 dark:text-black px-3 py-1.5 text-xs font-medium shadow-sm hover:bg-black dark:hover:bg-white"
+            >
+              ← Back to editing
+            </button>
+            <iframe src={previewUrl} title="Document preview" className="w-full h-full border-0" />
+          </>
         ) : source === "edit" ? (
-          <EditableRowsTable fields={fields} rows={editRows} onRowsChange={setEditRows} />
-        ) : csvRows.length > 0 ? (
-          <div className="h-full overflow-auto p-4">
-            <table className="w-full text-xs border-collapse">
-              <thead>
-                <tr>
-                  {headers.map((h) => (
-                    <th
-                      key={h}
-                      className="text-left border-b border-black/10 dark:border-white/15 px-2 py-1.5 font-semibold whitespace-nowrap"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {csvRows.slice(0, 20).map((row, i) => (
-                  <tr key={i} className="odd:bg-black/[0.02] dark:odd:bg-white/[0.03]">
-                    {headers.map((h) => (
-                      <td key={h} className="px-2 py-1.5 whitespace-nowrap border-b border-black/5 dark:border-white/10">
-                        {row[h]}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {csvRows.length > 20 && (
-              <p className="mt-2 text-xs text-black/40 dark:text-white/40">
-                Showing 20 of {csvRows.length} rows.
-              </p>
-            )}
-          </div>
+          <EditableRowsTable
+            columns={editColumns}
+            rows={editRows}
+            onRowsChange={setEditRows}
+            makeEmptyRow={() => emptyEditRow(fields)}
+          />
+        ) : headers.length > 0 ? (
+          <EditableRowsTable
+            columns={csvColumns}
+            rows={csvRows}
+            onRowsChange={setCsvRows}
+            makeEmptyRow={() => emptyRowForHeaders(headers)}
+          />
         ) : (
           <div className="flex items-center justify-center h-full text-sm text-black/40 dark:text-white/40 text-center px-6">
             Upload a .csv file with one row per document to get started.

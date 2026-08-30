@@ -3,7 +3,7 @@ import { buildCsvTemplate, normalizeForMatch, parseCsv, stripHeaderHint } from "
 import type { TemplateField } from "@/db/schema";
 
 describe("buildCsvTemplate", () => {
-  it("builds a header row with label + raw tag, and a dummy example row", () => {
+  it("builds a header row of raw tags only, and a dummy example row", () => {
     const fields: TemplateField[] = [
       { key: "full_name", label: "Full name", type: "string", params: [] },
       { key: "salary", label: "Salary", type: "number", params: ["2"] },
@@ -15,9 +15,9 @@ describe("buildCsvTemplate", () => {
     const [headerLine, exampleLine, trailing] = csv.split("\n");
 
     expect(headerLine).toBe(
-      'Full name ({{full_name}}),Salary ({{salary|number(2)}}),Start date ({{start_date|date}}),' +
-        '"Relocation ({{relocation|boolean(""Yes"", ""No"")}})",' +
-        '"Employment type ({{employment_type|select(""Full-time"", ""Part-time"")}})"'
+      "{{full_name}},{{salary|number(2)}},{{start_date|date}}," +
+        '"{{relocation|boolean(""Yes"", ""No"")}}",' +
+        '"{{employment_type|select(""Full-time"", ""Part-time"")}}"'
     );
     expect(exampleLine).toBe("Sample Full name,1234.50,2026-01-15,Yes,Full-time");
     expect(trailing).toBe("");
@@ -33,30 +33,35 @@ describe("buildCsvTemplate", () => {
     expect(csv.split("\n")[1]).toBe("true");
   });
 
-  it("escapes header/example fields containing commas, quotes, or newlines", () => {
+  it("escapes an example row value containing commas or quotes in the label", () => {
     const csv = buildCsvTemplate([
       { key: "note", label: 'Note, "special"', type: "string", params: [] },
     ]);
-    const [headerLine] = csv.split("\n");
-    expect(headerLine).toBe('"Note, ""special"" ({{note}})"');
+    const [headerLine, exampleLine] = csv.split("\n");
+    expect(headerLine).toBe("{{note}}");
+    expect(exampleLine).toBe('"Sample Note, ""special"""');
   });
 });
 
 describe("stripHeaderHint", () => {
-  it("removes a trailing raw-tag hint", () => {
-    expect(stripHeaderHint("Full name ({{full_name}})")).toBe("Full name");
+  it("extracts the field key from a raw-tag-only header", () => {
+    expect(stripHeaderHint("{{full_name}}")).toBe("full_name");
   });
 
-  it("removes a hint with type params", () => {
-    expect(stripHeaderHint('Salary ({{salary|number(2)}})')).toBe("Salary");
+  it("extracts the field key from a tag with type params", () => {
+    expect(stripHeaderHint('{{salary|number(2)}}')).toBe("salary");
   });
 
-  it("leaves a header with no hint untouched", () => {
+  it("leaves a header with no tag untouched", () => {
     expect(stripHeaderHint("Full name")).toBe("Full name");
   });
 
-  it("trims surrounding whitespace", () => {
-    expect(stripHeaderHint("  Full name  ({{full_name}})  ")).toBe("Full name");
+  it("trims surrounding whitespace when there's no tag", () => {
+    expect(stripHeaderHint("  Full name  ")).toBe("Full name");
+  });
+
+  it("still extracts the key from a legacy 'Label ({{tag}})' header", () => {
+    expect(stripHeaderHint("Full name ({{full_name}})")).toBe("full_name");
   });
 });
 

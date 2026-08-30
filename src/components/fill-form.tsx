@@ -1,18 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { TemplateField } from "@/db/schema";
 import { BulkFillForm } from "@/components/bulk-fill-form";
 import { formatRawTag } from "@/lib/template-tag";
+import { useResizablePaneWidth, ResizeHandle } from "@/hooks/use-resizable-pane-width";
 
 const PREVIEW_DEBOUNCE_MS = 700;
 const PREVIEW_DEBOUNCE_MS_FIRST = 150;
-const FORM_WIDTH_STORAGE_KEY = "fillFormPaneWidth";
 const FORM_VALUES_STORAGE_PREFIX = "fillFormValues:";
-const FORM_WIDTH_MIN = 280;
-const FORM_WIDTH_MAX = 800;
-const FORM_WIDTH_DEFAULT = 420;
 
 const inputClass =
   "rounded-md border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/30";
@@ -193,15 +190,8 @@ function SingleFillForm({
   const previewUrlRef = useRef<string | null>(null);
   const isFirstPreview = useRef(true);
 
-  const [formWidth, setFormWidth] = useState(FORM_WIDTH_DEFAULT);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const isResizing = useRef(false);
+  const { width: formWidth, containerRef, startResizing, resetWidth } = useResizablePaneWidth();
   const importInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    const stored = Number(localStorage.getItem(FORM_WIDTH_STORAGE_KEY));
-    if (stored >= FORM_WIDTH_MIN && stored <= FORM_WIDTH_MAX) setFormWidth(stored);
-  }, []);
 
   // Restore previously entered values for this template, so a reload or a
   // trip back to the template list doesn't lose what was typed in.
@@ -224,54 +214,6 @@ function SingleFillForm({
       // Ignore storage failures (e.g. private browsing quota).
     }
   }, [valuesStorageKey, values]);
-
-  const handleResizeMove = useCallback((e: PointerEvent) => {
-    if (!isResizing.current || !containerRef.current) return;
-    const left = containerRef.current.getBoundingClientRect().left;
-    const width = Math.min(FORM_WIDTH_MAX, Math.max(FORM_WIDTH_MIN, e.clientX - left));
-    setFormWidth(width);
-  }, []);
-
-  const stopResizing = useCallback(
-    (e: PointerEvent) => {
-      if (!isResizing.current) return;
-      isResizing.current = false;
-      document.body.style.cursor = "";
-      document.body.style.userSelect = "";
-      setFormWidth((current) => {
-        localStorage.setItem(FORM_WIDTH_STORAGE_KEY, String(current));
-        return current;
-      });
-      window.removeEventListener("pointermove", handleResizeMove);
-      window.removeEventListener("pointerup", stopResizing);
-      void e;
-    },
-    [handleResizeMove]
-  );
-
-  const startResizing = useCallback(
-    (e: React.PointerEvent) => {
-      e.preventDefault();
-      isResizing.current = true;
-      document.body.style.cursor = "col-resize";
-      document.body.style.userSelect = "none";
-      // Fast drags can put the pointer over the preview <iframe>, which is a
-      // separate document — plain window listeners stop receiving events
-      // there. Pointer capture retargets events to this element regardless
-      // of what's underneath, so the drag keeps tracking.
-      e.currentTarget.setPointerCapture(e.pointerId);
-      window.addEventListener("pointermove", handleResizeMove);
-      window.addEventListener("pointerup", stopResizing);
-    },
-    [handleResizeMove, stopResizing]
-  );
-
-  useEffect(() => {
-    return () => {
-      window.removeEventListener("pointermove", handleResizeMove);
-      window.removeEventListener("pointerup", stopResizing);
-    };
-  }, [handleResizeMove, stopResizing]);
 
   useEffect(() => {
     previewUrlRef.current = previewUrl;
@@ -492,19 +434,7 @@ function SingleFillForm({
         </div>
       </form>
 
-      <div
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize form panel"
-        onPointerDown={startResizing}
-        onDoubleClick={() => {
-          setFormWidth(FORM_WIDTH_DEFAULT);
-          localStorage.setItem(FORM_WIDTH_STORAGE_KEY, String(FORM_WIDTH_DEFAULT));
-        }}
-        className="hidden lg:flex w-2 shrink-0 cursor-col-resize items-center justify-center touch-none group"
-      >
-        <div className="h-full w-px bg-black/10 dark:bg-white/15 group-hover:bg-black/30 dark:group-hover:bg-white/40 group-active:bg-black/50 dark:group-active:bg-white/60 transition-colors" />
-      </div>
+      <ResizeHandle onPointerDown={startResizing} onReset={resetWidth} />
 
       <div className="relative flex-1 min-h-[60vh] lg:min-h-0 bg-zinc-100 dark:bg-zinc-950">
         {previewUrl ? (

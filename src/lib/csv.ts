@@ -30,19 +30,20 @@ function dummyValueFor(field: TemplateField): string {
 
 /**
  * Builds a downloadable CSV template with one column per field — headed with
- * the field's display label plus its raw `{{...}}` docx tag, so users can
- * see exactly which template placeholder each column fills — and a sample
- * row of dummy data matching each field's type.
+ * its raw `{{...}}` docx tag, so the column headers double as the exact
+ * placeholders to fill in — and a sample row of dummy data matching each
+ * field's type.
  */
 export function buildCsvTemplate(fields: TemplateField[]): string {
-  const headerRow = fields.map((f) => escapeCsvField(`${f.label} (${formatRawTag(f)})`)).join(",");
+  const headerRow = fields.map((f) => escapeCsvField(formatRawTag(f))).join(",");
   const exampleRow = fields.map((f) => escapeCsvField(dummyValueFor(f))).join(",");
   return `${headerRow}\n${exampleRow}\n`;
 }
 
-/** Strips a trailing " ({{...}})" raw-tag hint from a header cell before fuzzy-matching it to a field. */
+/** Extracts a field key from a header cell containing a `{{key...}}` raw tag, for fuzzy-matching it to a field; leaves a header with no tag untouched. */
 export function stripHeaderHint(header: string): string {
-  return header.replace(/\s*\(\{\{[\s\S]*\}\}\)\s*$/, "").trim();
+  const tagMatch = header.match(/\{\{\s*([^\s|}]+)/);
+  return tagMatch ? tagMatch[1] : header.trim();
 }
 
 /**
