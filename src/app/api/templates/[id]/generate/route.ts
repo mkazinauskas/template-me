@@ -70,10 +70,11 @@ export async function POST(
 
   const body = await req.json().catch(() => null);
   const preview = body?.preview === true;
+  const format = body?.format === "docx" ? "docx" : "pdf";
   const rows = body?.rows;
 
   if (Array.isArray(rows)) {
-    return handleBulk(templateRow, rows);
+    return handleBulk(templateRow, rows, format);
   }
 
   const data = body?.data;
@@ -86,11 +87,17 @@ export async function POST(
     return NextResponse.json({ error: validationError }, { status: 400 });
   }
 
+  // Preview is always rendered as PDF for the inline iframe, regardless of the
+  // requested download format.
+  const needsPdf = preview || format === "pdf";
+
   // Boot the sandbox VM now, in parallel with the blob fetch + render below,
   // instead of only starting it once convertDocxToPdf is called.
-  const sandboxPromise = createPdfSandbox();
-  sandboxPromise.catch(() => {});
-  const stopUnusedSandbox = () => after(() => sandboxPromise.then((s) => s?.stop()).catch(() => {}));
+  const sandboxPromise = needsPdf ? createPdfSandbox() : null;
+  sandboxPromise?.catch(() => {});
+  const stopUnusedSandbox = () => {
+    if (sandboxPromise) after(() => sandboxPromise.then((s) => s?.stop()).catch(() => {}));
+  };
 
   const originalDocx = await getFile(templateRow.blobUrl);
   if (!originalDocx) {
@@ -106,9 +113,20 @@ export async function POST(
     return NextResponse.json({ error: "Failed to fill in the document" }, { status: 500 });
   }
 
+  if (!needsPdf) {
+    const filename = `${templateRow.name.replace(/[^a-zA-Z0-9-_]+/g, "_")}.docx`;
+    return new NextResponse(new Uint8Array(renderedDocx), {
+      status: 200,
+      headers: {
+        "Content-Type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "Content-Disposition": `attachment; filename="${filename}"`,
+      },
+    });
+  }
+
   let pdfBuffer: Buffer;
   try {
-    pdfBuffer = await convertDocxToPdf(renderedDocx, sandboxPromise);
+    pdfBuffer = await convertDocxToPdf(renderedDocx, sandboxPromise!);
   } catch (err) {
     console.error("PDF conversion failed", err);
     return NextResponse.json({ error: "Failed to convert document to PDF" }, { status: 500 });
@@ -125,7 +143,7 @@ export async function POST(
   });
 }
 
-async function handleBulk(templateRow: Template, rows: unknown[]) {
+async function handleBulk(templateRow: Template, rows: unknown[], format: "pdf" | "docx") {
   if (rows.length === 0) {
     return NextResponse.json({ error: "No rows provided" }, { status: 400 });
   }
@@ -155,9 +173,11 @@ async function handleBulk(templateRow: Template, rows: unknown[]) {
     entries.push({ data: data as Record<string, unknown>, filename: base.replace(/[^a-zA-Z0-9-_]+/g, "_") });
   }
 
-  const sandboxPromise = createPdfSandbox();
-  sandboxPromise.catch(() => {});
-  const stopUnusedSandbox = () => after(() => sandboxPromise.then((s) => s?.stop()).catch(() => {}));
+  const sandboxPromise = format === "pdf" ? createPdfSandbox() : null;
+  sandboxPromise?.catch(() => {});
+  const stopUnusedSandbox = () => {
+    if (sandboxPromise) after(() => sandboxPromise.then((s) => s?.stop()).catch(() => {}));
+  };
 
   const originalDocx = await getFile(templateRow.blobUrl);
   if (!originalDocx) {
@@ -173,24 +193,29 @@ async function handleBulk(templateRow: Template, rows: unknown[]) {
     return NextResponse.json({ error: "Failed to fill in the document" }, { status: 500 });
   }
 
-  let pdfBuffers: Buffer[];
-  try {
-    pdfBuffers = await convertDocxBuffersToPdf(renderedDocxBuffers, sandboxPromise);
-  } catch (err) {
-    console.error("Bulk PDF conversion failed", err);
-    return NextResponse.json({ error: "Failed to convert documents to PDF" }, { status: 500 });
+  let outputBuffers: Buffer[];
+  if (format === "docx") {
+    outputBuffers = renderedDocxBuffers;
+  } else {
+    try {
+      outputBuffers = await convertDocxBuffersToPdf(renderedDocxBuffers, sandboxPromise!);
+    } catch (err) {
+      console.error("Bulk PDF conversion failed", err);
+      return NextResponse.json({ error: "Failed to convert documents to PDF" }, { status: 500 });
+    }
   }
 
+  const extension = format === "docx" ? "docx" : "pdf";
   const zip = new PizZip();
   const usedNames = new Set<string>();
-  pdfBuffers.forEach((pdfBuffer, i) => {
-    let name = `${entries[i].filename}.pdf`;
+  outputBuffers.forEach((buffer, i) => {
+    let name = `${entries[i].filename}.${extension}`;
     let suffix = 2;
     while (usedNames.has(name)) {
-      name = `${entries[i].filename}-${suffix++}.pdf`;
+      name = `${entries[i].filename}-${suffix++}.${extension}`;
     }
     usedNames.add(name);
-    zip.file(name, pdfBuffer);
+    zip.file(name, buffer);
   });
   const zipBuffer = zip.generate({ type: "nodebuffer" });
 

@@ -181,6 +181,7 @@ function SingleFillForm({
   const [values, setValues] = useState<Record<string, string>>(
     Object.fromEntries(fields.map((f) => [f.key, defaultValueFor(f)]))
   );
+  const [format, setFormat] = useState<"pdf" | "docx">("pdf");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -229,6 +230,11 @@ function SingleFillForm({
       isResizing.current = true;
       document.body.style.cursor = "col-resize";
       document.body.style.userSelect = "none";
+      // Fast drags can put the pointer over the preview <iframe>, which is a
+      // separate document — plain window listeners stop receiving events
+      // there. Pointer capture retargets events to this element regardless
+      // of what's underneath, so the drag keeps tracking.
+      e.currentTarget.setPointerCapture(e.pointerId);
       window.addEventListener("pointermove", handleResizeMove);
       window.addEventListener("pointerup", stopResizing);
     },
@@ -304,12 +310,12 @@ function SingleFillForm({
       const res = await fetch(`/api/templates/${templateId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: values }),
+        body: JSON.stringify({ data: values, format }),
       });
 
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        setError(json.error ?? "Failed to generate PDF");
+        setError(json.error ?? "Failed to generate document");
         return;
       }
 
@@ -317,13 +323,13 @@ function SingleFillForm({
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${templateName.replace(/[^a-zA-Z0-9-_]+/g, "_")}.pdf`;
+      a.download = `${templateName.replace(/[^a-zA-Z0-9-_]+/g, "_")}.${format}`;
       document.body.appendChild(a);
       a.click();
       a.remove();
       URL.revokeObjectURL(url);
     } catch {
-      setError("Failed to generate PDF");
+      setError("Failed to generate document");
     } finally {
       setIsSubmitting(false);
     }
@@ -371,13 +377,24 @@ function SingleFillForm({
 
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="self-start rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium disabled:opacity-50"
-        >
-          {isSubmitting ? "Generating PDF…" : "Download PDF"}
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium disabled:opacity-50"
+          >
+            {isSubmitting ? "Generating…" : `Download ${format.toUpperCase()}`}
+          </button>
+          <select
+            aria-label="Download format"
+            value={format}
+            onChange={(e) => setFormat(e.target.value as "pdf" | "docx")}
+            className={inputClass}
+          >
+            <option value="pdf">PDF</option>
+            <option value="docx">Word (.docx)</option>
+          </select>
+        </div>
       </form>
 
       <div

@@ -246,6 +246,33 @@ describe("POST /api/templates/[id]/generate", () => {
     expect(res.status).toBe(500);
     expect(json.error).toBe("Failed to convert document to PDF");
   });
+
+  it("returns a docx with an attachment disposition and sanitized filename when format is docx", async () => {
+    state.templateRow = makeTemplate({ name: "Q4 Offer / Letter!!" });
+    // If the docx path accidentally triggers PDF conversion, this forces a failure.
+    state.convertSingleError = new Error("should not be called for docx format");
+    const { POST } = await import("@/app/api/templates/[id]/generate/route");
+
+    const res = await POST(postRequest({ data: VALID_DATA, format: "docx" }), params());
+    const buf = Buffer.from(await res.arrayBuffer());
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe(
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    );
+    expect(res.headers.get("Content-Disposition")).toBe('attachment; filename="Q4_Offer_Letter_.docx"');
+    expect(buf.toString()).toContain("Jane Doe");
+  });
+
+  it("still renders a PDF preview even when format is docx", async () => {
+    const { POST } = await import("@/app/api/templates/[id]/generate/route");
+
+    const res = await POST(postRequest({ data: {}, preview: true, format: "docx" }), params());
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("application/pdf");
+    expect(res.headers.get("Content-Disposition")).toBe("inline");
+  });
 });
 
 describe("POST /api/templates/[id]/generate (bulk)", () => {
@@ -353,5 +380,30 @@ describe("POST /api/templates/[id]/generate (bulk)", () => {
 
     expect(res.status).toBe(500);
     expect(json.error).toBe("Failed to convert documents to PDF");
+  });
+
+  it("builds a zip with one docx per row when format is docx, skipping PDF conversion", async () => {
+    // If the docx path accidentally triggers PDF conversion, this forces a failure.
+    state.convertBulkError = new Error("should not be called for docx format");
+    const { POST } = await import("@/app/api/templates/[id]/generate/route");
+
+    const res = await POST(
+      postRequest({
+        rows: [
+          { data: VALID_DATA, filename: "Custom Name!" },
+          { data: { ...VALID_DATA, full_name: "John Roe" } },
+        ],
+        format: "docx",
+      }),
+      params()
+    );
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("application/zip");
+
+    const zipBuf = Buffer.from(await res.arrayBuffer());
+    const zip = new PizZip(zipBuf);
+    const names = Object.keys(zip.files);
+    expect(names).toContain("Custom_Name_.docx");
   });
 });

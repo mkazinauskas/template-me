@@ -63,6 +63,7 @@ export function BulkFillForm({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [format, setFormat] = useState<"pdf" | "docx">("pdf");
 
   function buildRowData(row: Record<string, string>): Record<string, string> {
     const data: Record<string, string> = {};
@@ -154,7 +155,7 @@ export function BulkFillForm({
       const res = await fetch(`/api/templates/${templateId}/generate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows: payloadRows }),
+        body: JSON.stringify({ rows: payloadRows, format }),
       });
 
       if (!res.ok) {
@@ -299,14 +300,25 @@ export function BulkFillForm({
 
             {submitError && <p className="text-sm text-red-600 dark:text-red-400">{submitError}</p>}
 
-            <button
-              type="button"
-              onClick={handleGenerateAll}
-              disabled={isSubmitting}
-              className="self-start rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium disabled:opacity-50"
-            >
-              {isSubmitting ? "Generating…" : `Generate ${rows.length} document${rows.length === 1 ? "" : "s"}`}
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleGenerateAll}
+                disabled={isSubmitting}
+                className="rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium disabled:opacity-50"
+              >
+                {isSubmitting ? "Generating…" : `Generate ${rows.length} document${rows.length === 1 ? "" : "s"}`}
+              </button>
+              <select
+                aria-label="Download format"
+                value={format}
+                onChange={(e) => setFormat(e.target.value as "pdf" | "docx")}
+                className={inputClass}
+              >
+                <option value="pdf">PDF</option>
+                <option value="docx">Word (.docx)</option>
+              </select>
+            </div>
           </>
         )}
       </div>
