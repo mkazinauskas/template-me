@@ -8,7 +8,9 @@ const FIELDS: Field[] = [
   { tag: "{{client_name}}", value: "Horizon Studio" },
   { tag: '{{start_date|date("yyyy-mm-dd")}}', value: "2026-09-01" },
   { tag: "{{monthly_rate|number(2)}}", value: "$1,250.00" },
+  { tag: '{{plan|select("Basic","Pro")}}', value: "Pro" },
   { tag: '{{auto_renew|boolean("Yes","No")}}', value: "Yes" },
+  { tag: "{{signed|checkbox}}", value: "☒" },
 ];
 
 type Segment = { text: string } | { field: number };
@@ -20,8 +22,12 @@ const SEGMENTS: Segment[] = [
   { field: 1 },
   { text: ". The monthly rate is " },
   { field: 2 },
-  { text: ", auto-renewing: " },
+  { text: " on the " },
   { field: 3 },
+  { text: " plan, auto-renewing: " },
+  { field: 4 },
+  { text: ". Signed: " },
+  { field: 5 },
   { text: "." },
 ];
 

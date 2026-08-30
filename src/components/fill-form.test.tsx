@@ -112,6 +112,19 @@ describe("FillForm / SingleFillForm", () => {
     expect(screen.getByText("Yes")).toBeInTheDocument();
   });
 
+  it("renders a checkbox input and toggles its checked state", async () => {
+    const user = userEvent.setup();
+    const checkboxFields = [{ key: "agreed", label: "Agreed", type: "checkbox" as const, params: [] }];
+    render(<FillForm templateId="t1" fields={checkboxFields} templateName="Offer Letter" />);
+
+    const checkbox = screen.getByRole("checkbox");
+    expect(checkbox).not.toBeChecked();
+
+    await user.click(checkbox);
+
+    expect(checkbox).toBeChecked();
+  });
+
   it("submits field values and triggers a PDF download", async () => {
     const user = userEvent.setup();
     render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);

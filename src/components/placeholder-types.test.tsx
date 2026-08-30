@@ -10,6 +10,7 @@ describe("PlaceholderTypes", () => {
     expect(screen.getByText("Date")).toBeInTheDocument();
     expect(screen.getByText("Boolean")).toBeInTheDocument();
     expect(screen.getByText("Select")).toBeInTheDocument();
+    expect(screen.getByText("Checkbox")).toBeInTheDocument();
   });
 
   it("renders the syntax example for the date type", () => {

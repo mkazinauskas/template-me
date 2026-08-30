@@ -65,6 +65,7 @@ describe("extractFields", () => {
         type: "select",
         params: ["Full-time", "Part-time", "Contract"],
       },
+      { key: "terms_accepted", label: "Terms accepted", type: "checkbox", params: [] },
     ]);
   });
 
@@ -124,6 +125,13 @@ describe("extractFields", () => {
     expect(fields[0].params).toEqual(["2"]);
   });
 
+  it("recognizes the checkbox type with no params", () => {
+    const buf = buildDocx(paragraph("{{agreed|checkbox}}"));
+    const { fields, warnings } = extractFields(buf);
+    expect(fields[0]).toEqual({ key: "agreed", label: "Agreed", type: "checkbox", params: [] });
+    expect(warnings).toEqual([]);
+  });
+
   it("finds tags even when split across separate formatting runs", () => {
     const buf = buildDocx(
       "<w:p><w:r><w:t>{{fir</w:t></w:r><w:r><w:t>st_name}}</w:t></w:r></w:p>"
@@ -140,6 +148,7 @@ describe("renderDocx", () => {
     { key: "start_date", label: "Start date", type: "date", params: ["dd/mm/yyyy"] },
     { key: "relocation", label: "Relocation", type: "boolean", params: ["Yes", "No"] },
     { key: "employment_type", label: "Employment type", type: "select", params: [] },
+    { key: "terms_accepted", label: "Terms accepted", type: "checkbox", params: [] },
   ];
 
   function renderedText(fixtureFields: TemplateField[], data: Record<string, string>): string {
@@ -153,19 +162,21 @@ describe("renderDocx", () => {
     return doc.getFullText();
   }
 
-  it("substitutes string, number, date, boolean, and select values into the document", () => {
+  it("substitutes string, number, date, boolean, select, and checkbox values into the document", () => {
     const text = renderedText(fields, {
       full_name: "Jane Doe",
       salary: "1234.5",
       start_date: "2026-03-05",
       relocation: "true",
       employment_type: "Full-time",
+      terms_accepted: "true",
     });
     expect(text).toContain("Jane Doe");
     expect(text).toContain("1234.50");
     expect(text).toContain("05/03/2026");
     expect(text).toContain("Yes");
     expect(text).toContain("Full-time");
+    expect(text).toContain("☒");
   });
 
   it("formats booleans using the field's false label when the value is falsy", () => {
@@ -177,6 +188,24 @@ describe("renderDocx", () => {
       employment_type: "Contract",
     });
     expect(text).toContain("No");
+  });
+
+  it("renders a checked box for a truthy checkbox value", () => {
+    const buf = buildDocx(paragraph("{{agreed|checkbox}}"));
+    const output = renderDocx(buf, [{ key: "agreed", label: "Agreed", type: "checkbox", params: [] }], {
+      agreed: "true",
+    });
+    const zip = new PizZip(output);
+    const doc = new Docxtemplater(zip, { delimiters: { start: "{{", end: "}}" } });
+    expect(doc.getFullText()).toBe("☒");
+  });
+
+  it("renders an unchecked box for a falsy or missing checkbox value", () => {
+    const buf = buildDocx(paragraph("{{agreed|checkbox}}"));
+    const output = renderDocx(buf, [{ key: "agreed", label: "Agreed", type: "checkbox", params: [] }], {});
+    const zip = new PizZip(output);
+    const doc = new Docxtemplater(zip, { delimiters: { start: "{{", end: "}}" } });
+    expect(doc.getFullText()).toBe("☐");
   });
 
   it("renders an empty string for missing data", () => {

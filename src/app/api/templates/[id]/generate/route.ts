@@ -16,7 +16,7 @@ const MAX_BULK_ROWS = 100;
 function validateRow(templateRow: Template, data: Record<string, unknown>, preview: boolean): string | null {
   if (!preview) {
     const missing = templateRow.fields
-      .filter((f) => f.type !== "boolean")
+      .filter((f) => f.type !== "boolean" && f.type !== "checkbox")
       .map((f) => f.key)
       .filter((key) => !(key in data) || String(data[key]).trim() === "");
     if (missing.length > 0) {

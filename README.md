@@ -40,9 +40,8 @@ generate dozens of them at once, packaged into a `.zip`.
    the document's raw XML text (via `docxtemplater`) and regex-matches every
    `{{...}}` tag, regardless of what Word formatting run it landed in.
    Each tag is parsed into a field: a key, an optional type, and optional
-   type arguments (`{{birthday|date("dd/mm/yyyy")}}`,
-   `{{active|boolean("Yes", "No")}}`, `{{plan|select("Basic","Pro")}}`). The
-   original `.docx` goes to **Vercel Blob** (private); the parsed field list
+   type arguments (see [supported field types](#supported-field-types)
+   below). The original `.docx` goes to **Vercel Blob** (private); the parsed field list
    and template metadata go to **Neon Postgres** via `drizzle-orm`
    ([schema.ts](src/db/schema.ts)). Running via Docker Compose swaps both for
    local equivalents — see [below](#running-locally-with-docker-compose).
@@ -57,9 +56,8 @@ generate dozens of them at once, packaged into a `.zip`.
    and hands the rendered `.docx` to a **Vercel Sandbox** microVM running
    headless LibreOffice, which converts it to PDF. There's no pure-Node
    docx→PDF renderer with acceptable fidelity, so this shells out to
-   `soffice` inside an ephemeral, disposable VM. To keep this fast, the
-   sandbox boots from a pre-built snapshot that already has LibreOffice
-   installed (~1-2s) rather than installing it from scratch (~60s).
+   `soffice` inside an ephemeral, disposable VM booted from a pre-built
+   snapshot (see [below](#libreoffice-sandbox-snapshot)).
 4. **Bulk generation** — Instead of filling one form, you can download a
    ready-made CSV template (one column per field, headed with the field's
    raw `{{tag}}` so it's unambiguous which column fills what), fill it in a
@@ -81,6 +79,7 @@ treated as `string`.
 | `{{key\|date("yyyy-mm-dd")}}` | Date picker | The argument is the output format, using `yyyy`/`mm`/`dd` tokens in any arrangement (e.g. `"dd/mm/yyyy"`). Defaults to `yyyy-mm-dd`. |
 | `{{key\|boolean("Yes","No")}}` | Toggle switch | Renders the first argument when on, the second when off. Defaults to `"Yes"` / `"No"`. Unlike other types, boolean fields are never "required" — an unset toggle just renders as false. |
 | `{{key\|select("A","B","C")}}` | Dropdown | Arguments are the selectable options; the submitted value must be one of them. |
+| `{{key\|checkbox}}` | Checkbox | Renders `☒` when checked, `☐` when not. Like boolean fields, checkbox fields are never "required" — an unset checkbox just renders as unchecked. |
 
 A tag key with a dot, like `person.first_name`, is split into a group
 (`person`) and its own label (`first_name`) — fields sharing a group are

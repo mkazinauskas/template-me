@@ -15,7 +15,7 @@ const inputClass =
   "rounded-md border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/30";
 
 function defaultValueFor(field: TemplateField) {
-  if (field.type === "boolean") return "false";
+  if (field.type === "boolean" || field.type === "checkbox") return "false";
   return "";
 }
 
@@ -100,6 +100,16 @@ function FieldInput({
         </label>
       );
     }
+    case "checkbox":
+      return (
+        <input
+          id={field.key}
+          type="checkbox"
+          checked={value === "true"}
+          onChange={(e) => onChange(e.target.checked ? "true" : "false")}
+          className="h-4 w-4 rounded border-black/25 dark:border-white/30 accent-black dark:accent-white"
+        />
+      );
     case "select":
       return (
         <select

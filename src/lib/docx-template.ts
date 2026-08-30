@@ -3,7 +3,9 @@ import Docxtemplater from "docxtemplater";
 import type { TemplateField, TemplateFieldType } from "@/db/schema";
 
 const DELIMITERS = { start: "{{", end: "}}" };
-const KNOWN_TYPES: TemplateFieldType[] = ["string", "number", "date", "boolean", "select"];
+const KNOWN_TYPES: TemplateFieldType[] = ["string", "number", "date", "boolean", "select", "checkbox"];
+const CHECKED_BOX = "☒";
+const UNCHECKED_BOX = "☐";
 
 function toLabel(key: string) {
   return key
@@ -105,6 +107,10 @@ function formatFieldValue(field: TemplateField, rawValue: string): string {
       const isTrue = rawValue === "true" || rawValue === "on" || rawValue === "1";
       const [trueLabel = "Yes", falseLabel = "No"] = field.params;
       return isTrue ? trueLabel : falseLabel;
+    }
+    case "checkbox": {
+      const isTrue = rawValue === "true" || rawValue === "on" || rawValue === "1";
+      return isTrue ? CHECKED_BOX : UNCHECKED_BOX;
     }
     case "select":
     case "string":

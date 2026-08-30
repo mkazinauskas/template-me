@@ -33,6 +33,11 @@ describe("buildCsvTemplate", () => {
     expect(csv.split("\n")[1]).toBe("true");
   });
 
+  it("uses a 'true' dummy for a checkbox field", () => {
+    const csv = buildCsvTemplate([{ key: "agreed", label: "Agreed", type: "checkbox", params: [] }]);
+    expect(csv.split("\n")[1]).toBe("true");
+  });
+
   it("escapes an example row value containing commas or quotes in the label", () => {
     const csv = buildCsvTemplate([
       { key: "note", label: 'Note, "special"', type: "string", params: [] },

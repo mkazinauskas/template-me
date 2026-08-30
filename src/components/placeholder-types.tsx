@@ -29,6 +29,12 @@ const ROWS: { type: string; syntax: string; input: string; notes: string }[] = [
     input: "Dropdown",
     notes: "Options are required.",
   },
+  {
+    type: "Checkbox",
+    syntax: "{{key|checkbox}}",
+    input: "Checkbox",
+    notes: "Renders ☒ when checked, ☐ otherwise.",
+  },
 ];
 
 export function PlaceholderTypes() {

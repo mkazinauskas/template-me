@@ -2,7 +2,7 @@ import type { TemplateField } from "@/db/schema";
 import { formatRawTag } from "@/lib/template-tag";
 
 /** Escapes a single CSV field per RFC 4180 (quotes when it contains a comma, quote, or newline). */
-function escapeCsvField(value: string): string {
+export function escapeCsvField(value: string): string {
   if (/[",\n\r]/.test(value)) {
     return `"${value.replace(/"/g, '""')}"`;
   }
@@ -20,6 +20,8 @@ function dummyValueFor(field: TemplateField): string {
       return "2026-01-15";
     case "boolean":
       return field.params[0] || "true";
+    case "checkbox":
+      return "true";
     case "select":
       return field.params[0] ?? "";
     case "string":

@@ -15,6 +15,7 @@ const TYPE_META: Record<TemplateFieldType, { label: string; dot: string }> = {
   date: { label: "Date", dot: "bg-amber-500" },
   boolean: { label: "Toggle", dot: "bg-emerald-500" },
   select: { label: "Select", dot: "bg-pink-500" },
+  checkbox: { label: "Checkbox", dot: "bg-teal-500" },
 };
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {

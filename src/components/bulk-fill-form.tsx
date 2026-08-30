@@ -24,7 +24,7 @@ type EditableColumn = {
 
 function coerceValue(field: TemplateField, raw: string): string {
   const value = raw.trim();
-  if (field.type === "boolean") {
+  if (field.type === "boolean" || field.type === "checkbox") {
     return ["true", "yes", "y", "1"].includes(value.toLowerCase()) ? "true" : "false";
   }
   if (field.type === "date" && value !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
@@ -52,7 +52,9 @@ function autoMapping(fields: TemplateField[], headers: string[]): Record<string,
 }
 
 function emptyEditRow(fields: TemplateField[]): Record<string, string> {
-  return Object.fromEntries(fields.map((f) => [f.key, f.type === "boolean" ? "false" : ""]));
+  return Object.fromEntries(
+    fields.map((f) => [f.key, f.type === "boolean" || f.type === "checkbox" ? "false" : ""])
+  );
 }
 
 function emptyRowForHeaders(headers: string[]): Record<string, string> {
@@ -111,6 +113,16 @@ function BulkCellInput({
         </button>
       );
     }
+    case "checkbox":
+      return (
+        <input
+          type="checkbox"
+          aria-label={field.label}
+          checked={value === "true"}
+          onChange={(e) => onChange(e.target.checked ? "true" : "false")}
+          className="h-4 w-4 rounded border-black/25 dark:border-white/30 accent-black dark:accent-white"
+        />
+      );
     case "select":
       return (
         <select
@@ -303,12 +315,13 @@ export function BulkFillForm({
   function buildRowData(row: Record<string, string>): Record<string, string> {
     const data: Record<string, string> = {};
     for (const field of fields) {
+      const isToggle = field.type === "boolean" || field.type === "checkbox";
       if (source === "edit") {
-        data[field.key] = coerceValue(field, row[field.key] ?? (field.type === "boolean" ? "false" : ""));
+        data[field.key] = coerceValue(field, row[field.key] ?? (isToggle ? "false" : ""));
         continue;
       }
       const header = mapping[field.key];
-      data[field.key] = header ? coerceValue(field, row[header] ?? "") : field.type === "boolean" ? "false" : "";
+      data[field.key] = header ? coerceValue(field, row[header] ?? "") : isToggle ? "false" : "";
     }
     return data;
   }
@@ -432,7 +445,7 @@ export function BulkFillForm({
   }
 
   const unmappedRequired = useMemo(
-    () => fields.filter((f) => f.type !== "boolean" && !mapping[f.key]),
+    () => fields.filter((f) => f.type !== "boolean" && f.type !== "checkbox" && !mapping[f.key]),
     [fields, mapping]
   );
 

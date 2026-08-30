@@ -206,6 +206,34 @@ describe("BulkFillForm", () => {
     expect(screen.getByRole("button", { name: "Generate 1 document" })).toBeInTheDocument();
   });
 
+  it("renders a checkbox input in edit mode and includes its checked state when previewing", async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      blob: async () => new Blob(["pdf"], { type: "application/pdf" }),
+    });
+    const checkboxFields: TemplateField[] = [
+      { key: "full_name", label: "Full name", type: "string", params: [] },
+      { key: "agreed", label: "Agreed", type: "checkbox", params: [] },
+    ];
+    const user = userEvent.setup();
+    render(<BulkFillForm templateId="t1" fields={checkboxFields} templateName="Offer Letter" />);
+
+    await user.click(screen.getByRole("button", { name: "Edit in page" }));
+    await user.type(screen.getByRole("textbox", { name: "Full name" }), "Jane Doe");
+
+    const checkbox = screen.getByRole("checkbox", { name: "Agreed" });
+    expect(checkbox).not.toBeChecked();
+    await user.click(checkbox);
+    expect(checkbox).toBeChecked();
+
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+
+    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(1));
+    const [, options] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    const body = JSON.parse(options.body);
+    expect(body.data).toEqual({ full_name: "Jane Doe", agreed: "true" });
+  });
+
   it("generates documents from manually entered rows", async () => {
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
       ok: true,
