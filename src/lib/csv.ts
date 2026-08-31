@@ -1,12 +1,24 @@
 import type { TemplateField } from "@/db/schema";
 import { formatRawTag } from "@/lib/template-tag";
 
+// Leading characters that spreadsheet apps (Excel, Google Sheets, etc.)
+// treat as the start of a formula when a CSV cell is opened. A field that
+// gets echoed back into a CSV (e.g. a submitted bulk-fill value) could
+// otherwise be crafted to execute a formula/macro on open — see OWASP's CSV
+// injection guidance.
+const FORMULA_TRIGGER_CHARS = /^[=+\-@\t\r]/;
+
 /** Escapes a single CSV field per RFC 4180 (quotes when it contains a comma, quote, or newline). */
 export function escapeCsvField(value: string): string {
-  if (/[",\n\r]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`;
+  // Prefix with a literal single-quote so spreadsheet apps treat the cell as
+  // plain text instead of a formula. This must happen before (not instead
+  // of) the RFC 4180 quoting below, since the prefixed value may still
+  // itself contain a comma/quote/newline that needs escaping.
+  const defanged = FORMULA_TRIGGER_CHARS.test(value.trim()) ? `'${value}` : value;
+  if (/[",\n\r]/.test(defanged)) {
+    return `"${defanged.replace(/"/g, '""')}"`;
   }
-  return value;
+  return defanged;
 }
 
 /** Produces a plausible dummy value for a field, matching its type, so a sample row is easy to understand. */

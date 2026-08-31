@@ -38,6 +38,12 @@ vi.mock("@/lib/auth", () => ({
   auth: { api: { getSession: () => Promise.resolve(state.session) } },
 }));
 
+vi.mock("@/lib/rate-limit", () => ({
+  checkRateLimit: vi.fn(async () =>
+    state.rateLimited ? { allowed: false, retryAfterSeconds: 30 } : { allowed: true, retryAfterSeconds: 0 }
+  ),
+}));
+
 vi.mock("@/lib/storage", () => ({
   getFile: vi.fn(async () => state.storedFile),
 }));
@@ -107,6 +113,19 @@ describe("POST /api/templates/[id]/generate", () => {
     state.convertSingleError = null;
     state.convertBulkError = null;
     state.session = { user: { id: "user-1", email: "owner@example.com" } };
+    state.rateLimited = false;
+  });
+
+  it("returns 429 when the per-user rate limit has been exceeded", async () => {
+    state.rateLimited = true;
+    const { POST } = await import("@/app/api/templates/[id]/generate/route");
+
+    const res = await POST(postRequest({ data: VALID_DATA }), params());
+    const json = await res.json();
+
+    expect(res.status).toBe(429);
+    expect(json.error).toContain("Too many document generation requests");
+    expect(res.headers.get("Retry-After")).toBe("30");
   });
 
   it("returns 401 when there is no session", async () => {
@@ -284,6 +303,7 @@ describe("POST /api/templates/[id]/generate (bulk)", () => {
     state.convertSingleError = null;
     state.convertBulkError = null;
     state.session = { user: { id: "user-1", email: "owner@example.com" } };
+    state.rateLimited = false;
   });
 
   it("returns 400 when no rows are provided", async () => {

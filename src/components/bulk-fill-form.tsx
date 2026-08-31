@@ -6,6 +6,12 @@ import type { TemplateField } from "@/db/schema";
 import { parseCsv, normalizeForMatch, buildCsvTemplate, rowsToCsv, stripHeaderHint } from "@/lib/csv";
 import { formatRawTag } from "@/lib/template-tag";
 import { useResizablePaneWidth, ResizeHandle } from "@/hooks/use-resizable-pane-width";
+import { FieldInput } from "@/components/field-input";
+import { DocumentPreviewPane } from "@/components/document-preview-pane";
+import { inputClasses, compactInputClasses } from "@/components/ui/input";
+import { buttonClasses } from "@/components/ui/button";
+import { downloadBlob } from "@/lib/download";
+import { slugifyFilename } from "@/lib/slugify";
 
 const BULK_STATE_STORAGE_PREFIX = "bulkFillState:";
 
@@ -19,12 +25,6 @@ type PersistedBulkState = {
   nameField: string;
   format: "pdf" | "docx";
 };
-
-const inputClass =
-  "rounded-md border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/30";
-
-const cellInputClass =
-  "w-full min-w-[140px] rounded-md border border-black/10 dark:border-white/15 bg-transparent px-2 py-1 text-xs outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/30";
 
 const NOT_MAPPED = "";
 
@@ -83,107 +83,7 @@ function emptyRowForHeaders(headers: string[]): Record<string, string> {
 }
 
 function downloadTextFile(filename: string, content: string, mimeType: string) {
-  const blob = new Blob([content], { type: mimeType });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = filename;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  URL.revokeObjectURL(url);
-}
-
-function BulkCellInput({
-  field,
-  value,
-  onChange,
-}: {
-  field: TemplateField;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  switch (field.type) {
-    case "number":
-      return (
-        <input
-          type="number"
-          step="any"
-          aria-label={field.label}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={cellInputClass}
-        />
-      );
-    case "date":
-      return (
-        <input
-          type="date"
-          aria-label={field.label}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={cellInputClass}
-        />
-      );
-    case "boolean": {
-      const checked = value === "true";
-      return (
-        <button
-          type="button"
-          role="switch"
-          aria-checked={checked}
-          aria-label={field.label}
-          onClick={() => onChange(checked ? "false" : "true")}
-          className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-black/30 dark:focus-visible:ring-white/40 ${
-            checked ? "bg-black dark:bg-white" : "bg-black/20 dark:bg-white/20"
-          }`}
-        >
-          <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-white dark:bg-black shadow transition-transform ${
-              checked ? "translate-x-4.5" : "translate-x-0.5"
-            }`}
-          />
-        </button>
-      );
-    }
-    case "checkbox":
-      return (
-        <input
-          type="checkbox"
-          aria-label={field.label}
-          checked={value === "true"}
-          onChange={(e) => onChange(e.target.checked ? "true" : "false")}
-          className="h-4 w-4 rounded border-black/25 dark:border-white/30 accent-black dark:accent-white"
-        />
-      );
-    case "select":
-      return (
-        <select
-          aria-label={field.label}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={cellInputClass}
-        >
-          <option value="">—</option>
-          {field.params.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      );
-    case "string":
-    default:
-      return (
-        <input
-          type="text"
-          aria-label={field.label}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={cellInputClass}
-        />
-      );
-  }
+  downloadBlob(new Blob([content], { type: mimeType }), filename);
 }
 
 function EditableRowsTable({

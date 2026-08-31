@@ -3,6 +3,8 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { PlaceholderTypes } from "@/components/placeholder-types";
+import { inputClasses } from "@/components/ui/input";
+import { buttonClasses } from "@/components/ui/button";
 
 export function UploadForm() {
   const router = useRouter();
@@ -60,6 +62,7 @@ export function UploadForm() {
   return (
     <form
       onSubmit={handleSubmit}
+      aria-describedby={error ? "form-error" : undefined}
       className="rounded-xl border border-black/10 dark:border-white/15 p-6 flex flex-col gap-4"
     >
       <div>
@@ -85,7 +88,7 @@ export function UploadForm() {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g. Offer Letter"
-          className="rounded-md border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/30"
+          className={inputClasses}
         />
       </div>
 
@@ -103,12 +106,16 @@ export function UploadForm() {
         />
       </div>
 
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && (
+        <p id="form-error" role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
 
       <button
         type="submit"
         disabled={isSubmitting || !hasFile}
-        className="self-start rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium disabled:opacity-50"
+        className={buttonClasses({ className: "self-start" })}
       >
         {isSubmitting ? "Uploading…" : "Upload template"}
       </button>

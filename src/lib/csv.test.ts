@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCsvTemplate, normalizeForMatch, parseCsv, rowsToCsv, stripHeaderHint } from "@/lib/csv";
+import { buildCsvTemplate, escapeCsvField, normalizeForMatch, parseCsv, rowsToCsv, stripHeaderHint } from "@/lib/csv";
 import type { TemplateField } from "@/db/schema";
 
 describe("buildCsvTemplate", () => {
@@ -45,6 +45,43 @@ describe("buildCsvTemplate", () => {
     const [headerLine, exampleLine] = csv.split("\n");
     expect(headerLine).toBe("{{note}}");
     expect(exampleLine).toBe('"Sample Note, ""special"""');
+  });
+});
+
+describe("escapeCsvField", () => {
+  it("prefixes a leading '=' formula with a single-quote to neutralize it", () => {
+    expect(escapeCsvField("=cmd|'/c calc'!A1")).toBe("'=cmd|'/c calc'!A1");
+  });
+
+  it("prefixes a leading '+' formula with a single-quote", () => {
+    expect(escapeCsvField('+HYPERLINK("http://evil.example","click")')).toBe(
+      '\'+HYPERLINK("http://evil.example","click")'
+    );
+  });
+
+  it("prefixes a leading '-' formula with a single-quote", () => {
+    expect(escapeCsvField("-2+3")).toBe("'-2+3");
+  });
+
+  it("prefixes a leading '@' formula with a single-quote", () => {
+    expect(escapeCsvField("@SUM(A1:A2)")).toBe("'@SUM(A1:A2)");
+  });
+
+  it("prefixes a value starting with a tab or carriage return", () => {
+    expect(escapeCsvField("\t=1+1")).toBe("'\t=1+1");
+    expect(escapeCsvField("\r=1+1")).toBe("'\r=1+1");
+  });
+
+  it("still applies RFC 4180 quoting after defanging a formula that also contains a comma", () => {
+    expect(escapeCsvField("=1,2")).toBe('"\'=1,2"');
+  });
+
+  it("detects a formula trigger after leading whitespace is trimmed", () => {
+    expect(escapeCsvField("  =1+1")).toBe("'  =1+1");
+  });
+
+  it("leaves an ordinary value untouched", () => {
+    expect(escapeCsvField("Jane Doe")).toBe("Jane Doe");
   });
 });
 

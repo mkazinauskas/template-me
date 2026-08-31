@@ -88,6 +88,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
     return (
       <form
         onSubmit={handleLocalSubmit}
+        aria-describedby={error ? "form-error" : undefined}
         className="rounded-xl border border-black/10 dark:border-white/15 p-6 flex flex-col gap-4 w-full max-w-sm"
       >
         <div>
@@ -109,7 +110,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="rounded-md border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/30"
+            className={inputClasses}
           />
         </div>
 
@@ -123,17 +124,17 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="rounded-md border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/30"
+            className={inputClasses}
           />
         </div>
 
-        {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+        {error && (
+          <p id="form-error" role="alert" className="text-sm text-red-600 dark:text-red-400">
+            {error}
+          </p>
+        )}
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium disabled:opacity-50"
-        >
+        <button type="submit" disabled={isSubmitting} className={buttonClasses()}>
           {isSubmitting ? "Please wait…" : mode === "sign-up" ? "Create account" : "Sign in"}
         </button>
       </form>
@@ -143,6 +144,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
   return (
     <form
       onSubmit={step === "email" ? handleSendCode : handleVerifyCode}
+      aria-describedby={error ? "form-error" : undefined}
       className="rounded-xl border border-black/10 dark:border-white/15 p-6 flex flex-col gap-4 w-full max-w-sm"
     >
       <div>
@@ -170,7 +172,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
                 type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="rounded-md border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/30"
+                className={inputClasses}
               />
             </div>
           )}
@@ -185,7 +187,7 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="rounded-md border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/30"
+              className={inputClasses}
             />
           </div>
         </>
@@ -202,18 +204,18 @@ export function AuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
             required
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            className="rounded-md border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-black/20 dark:focus:ring-white/30"
+            className={inputClasses}
           />
         </div>
       )}
 
-      {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
+      {error && (
+        <p id="form-error" role="alert" className="text-sm text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
 
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium disabled:opacity-50"
-      >
+      <button type="submit" disabled={isSubmitting} className={buttonClasses()}>
         {isSubmitting
           ? "Please wait…"
           : step === "email"
