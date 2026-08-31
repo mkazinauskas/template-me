@@ -62,10 +62,15 @@ async function convertLocally(docxBuffers: Buffer[]): Promise<Buffer[]> {
     );
 
     try {
+      // Use a per-conversion HOME so LibreOffice gets a fresh, writable user
+      // profile directory each time. Without this, LO falls back to the
+      // process HOME (e.g. /root in the container), which may be read-only or
+      // contain a corrupted profile from a previous run, causing garbled PDFs.
+      // --norestore prevents LO from trying to resume a previous session.
       await execFileAsync(
         "soffice",
-        ["--headless", "--convert-to", "pdf", "--outdir", dir, ...names.map((name) => path.join(dir, name))],
-        { timeout: 120_000 }
+        ["--headless", "--norestore", "--convert-to", "pdf", "--outdir", dir, ...names.map((name) => path.join(dir, name))],
+        { timeout: 120_000, env: { ...process.env, HOME: dir } }
       );
     } catch (err) {
       const stderr = err && typeof err === "object" && "stderr" in err ? String(err.stderr) : String(err);
