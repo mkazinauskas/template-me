@@ -19,7 +19,7 @@ describe("buildCsvTemplate", () => {
         '"{{relocation|boolean(""Yes"", ""No"")}}",' +
         '"{{employment_type|select(""Full-time"", ""Part-time"")}}"'
     );
-    expect(exampleLine).toBe("Sample Full name,1234.50,2026-01-15,Yes,Full-time");
+    expect(exampleLine).toBe("Sample Full name,1234.50,2026-01-15,true,Full-time");
     expect(trailing).toBe("");
   });
 
@@ -30,6 +30,13 @@ describe("buildCsvTemplate", () => {
 
   it("defaults the boolean dummy to 'true' when no params are given", () => {
     const csv = buildCsvTemplate([{ key: "active", label: "Active", type: "boolean", params: [] }]);
+    expect(csv.split("\n")[1]).toBe("true");
+  });
+
+  it("uses the literal 'true' boolean dummy even when a custom true-label is given", () => {
+    const csv = buildCsvTemplate([
+      { key: "relocation", label: "Relocation", type: "boolean", params: ["Yes", "No"] },
+    ]);
     expect(csv.split("\n")[1]).toBe("true");
   });
 

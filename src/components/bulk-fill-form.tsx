@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import type { TemplateField } from "@/db/schema";
 import { parseCsv, normalizeForMatch, buildCsvTemplate, rowsToCsv, stripHeaderHint } from "@/lib/csv";
+import { isTruthyValue } from "@/lib/docx-template";
 import { formatRawTag } from "@/lib/template-tag";
 import { useResizablePaneWidth, ResizeHandle } from "@/hooks/use-resizable-pane-width";
 import { FieldInput } from "@/components/field-input";
@@ -38,7 +39,7 @@ type EditableColumn = {
 function coerceValue(field: TemplateField, raw: string): string {
   const value = raw.trim();
   if (field.type === "boolean" || field.type === "checkbox") {
-    return ["true", "yes", "y", "1"].includes(value.toLowerCase()) ? "true" : "false";
+    return isTruthyValue(value) ? "true" : "false";
   }
   if (field.type === "date" && value !== "" && !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
     const parsed = new Date(value);
@@ -218,14 +219,30 @@ export function BulkFillForm({
       const stored = localStorage.getItem(storageKey);
       if (!stored) return;
       const parsed = JSON.parse(stored) as Partial<PersistedBulkState>;
+      const fieldKeys = new Set(fields.map((f) => f.key));
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (parsed.source) setSource(parsed.source);
       if (parsed.fileName !== undefined) setFileName(parsed.fileName);
       if (parsed.headers) setHeaders(parsed.headers);
       if (parsed.csvRows) setCsvRows(parsed.csvRows);
-      if (parsed.mapping) setMapping(parsed.mapping);
+      if (parsed.mapping) {
+        // The template may have been edited (fields renamed/removed) since
+        // this mapping was persisted — drop entries pointing at field keys
+        // that no longer exist so we don't silently reference stale fields.
+        const prunedMapping = Object.fromEntries(
+          Object.entries(parsed.mapping).filter(([fieldKey]) => fieldKeys.has(fieldKey))
+        );
+        setMapping(prunedMapping);
+      }
       if (parsed.editRows && parsed.editRows.length > 0) setEditRows(parsed.editRows);
-      if (parsed.nameField) setNameField(parsed.nameField);
+      // Only restore nameField if it's still a valid field key; otherwise
+      // fall back to the same default used on first mount, since a stale
+      // value would silently fail to match any <option> in the select.
+      if (parsed.nameField && fieldKeys.has(parsed.nameField)) {
+        setNameField(parsed.nameField);
+      } else if (parsed.nameField) {
+        setNameField(nameableFields[0]?.key ?? "");
+      }
       if (parsed.format) setFormat(parsed.format);
     } catch {
       // Ignore malformed/unavailable storage and fall back to defaults.

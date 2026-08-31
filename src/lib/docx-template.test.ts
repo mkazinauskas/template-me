@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
-import { extractFields, renderDocx } from "@/lib/docx-template";
+import { extractFields, isTruthyValue, renderDocx } from "@/lib/docx-template";
 import type { TemplateField } from "@/db/schema";
 
 const FIXTURE_PATH = path.join(process.cwd(), "public", "example-template.docx");
@@ -220,6 +220,19 @@ describe("renderDocx", () => {
     expect(doc.getFullText()).toBe("☐");
   });
 
+  it.each(["true", "on", "1", "yes", "y", "YES", "Y"])(
+    "treats %j as truthy for a checkbox value",
+    (value) => {
+      const buf = buildDocx(paragraph("{{agreed|checkbox}}"));
+      const output = renderDocx(buf, [{ key: "agreed", label: "Agreed", type: "checkbox", params: [] }], {
+        agreed: value,
+      });
+      const zip = new PizZip(output);
+      const doc = new Docxtemplater(zip, { delimiters: { start: "{{", end: "}}" } });
+      expect(doc.getFullText()).toBe("☒");
+    }
+  );
+
   it("renders an empty string for missing data", () => {
     const buf = buildDocx(paragraph("Hello {{name}}!"));
     const output = renderDocx(buf, [{ key: "name", label: "Name", type: "string", params: [] }], {});
@@ -236,5 +249,15 @@ describe("renderDocx", () => {
     const zip = new PizZip(output);
     const doc = new Docxtemplater(zip, { delimiters: { start: "{{", end: "}}" } });
     expect(doc.getFullText()).toBe("not-a-number");
+  });
+});
+
+describe("isTruthyValue", () => {
+  it.each(["true", "on", "1", "yes", "y", " TRUE ", "Yes", "Y"])("treats %j as truthy", (value) => {
+    expect(isTruthyValue(value)).toBe(true);
+  });
+
+  it.each(["false", "off", "0", "no", "n", "", "maybe"])("treats %j as falsy", (value) => {
+    expect(isTruthyValue(value)).toBe(false);
   });
 });

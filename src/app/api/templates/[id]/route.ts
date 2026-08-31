@@ -43,6 +43,8 @@ export async function DELETE(
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
   await deleteFile(row.blobUrl).catch(() => {});
-  await db.delete(templates).where(eq(templates.id, id));
+  await db
+    .delete(templates)
+    .where(and(eq(templates.id, id), eq(templates.userId, session.user.id)));
   return NextResponse.json({ ok: true });
 }

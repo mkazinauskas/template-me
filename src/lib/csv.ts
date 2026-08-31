@@ -31,7 +31,10 @@ function dummyValueFor(field: TemplateField): string {
     case "date":
       return "2026-01-15";
     case "boolean":
-      return field.params[0] || "true";
+      // Always the literal "true" (not the custom true-label) — this value
+      // round-trips through coerceValue/formatFieldValue's truthy checks,
+      // whereas a custom label like "Yes" wouldn't reliably parse back as true.
+      return "true";
     case "checkbox":
       return "true";
     case "select":

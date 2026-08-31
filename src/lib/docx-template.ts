@@ -8,6 +8,20 @@ const CHECKED_BOX = "☒";
 const UNCHECKED_BOX = "☐";
 
 /**
+ * Union of the truthy string synonyms this module and bulk-fill-form.tsx's
+ * `coerceValue` each independently accepted for boolean/checkbox fields, so
+ * the two no longer disagree on what counts as "checked".
+ * TODO: bulk-fill-form.tsx's coerceValue should import and use this same
+ * helper instead of its own local list (out of scope for this change).
+ */
+export const TRUTHY_VALUES = new Set(["true", "on", "1", "yes", "y"]);
+
+/** Whether a raw string value (case-insensitively) represents "true" for a boolean/checkbox field. */
+export function isTruthyValue(value: string): boolean {
+  return TRUTHY_VALUES.has(value.trim().toLowerCase());
+}
+
+/**
  * Cap on the total *uncompressed* size of a docx's zip entries — guards
  * against a "zip bomb" (a small upload that decompresses into something huge
  * enough to OOM the process) since docxtemplater/PizZip fully decompress
@@ -138,12 +152,12 @@ function formatFieldValue(field: TemplateField, rawValue: string): string {
       return formatDate(rawValue, format);
     }
     case "boolean": {
-      const isTrue = rawValue === "true" || rawValue === "on" || rawValue === "1";
+      const isTrue = isTruthyValue(rawValue);
       const [trueLabel = "Yes", falseLabel = "No"] = field.params;
       return isTrue ? trueLabel : falseLabel;
     }
     case "checkbox": {
-      const isTrue = rawValue === "true" || rawValue === "on" || rawValue === "1";
+      const isTrue = isTruthyValue(rawValue);
       return isTrue ? CHECKED_BOX : UNCHECKED_BOX;
     }
     case "select":

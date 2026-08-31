@@ -5,44 +5,21 @@ import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
+import { INSTALL_LIBREOFFICE_CMD } from "./libreoffice-deps";
+import { LIBREOFFICE_SNAPSHOT_ID } from "./libreoffice-snapshot.generated";
 
 const execFileAsync = promisify(execFile);
 const LOCAL_MODE = process.env.LOCAL_MODE === "true";
 
-const LO_VERSION = "26.8.0";
-const LO_DEPS = [
-  "libXinerama",
-  "libXrender",
-  "libSM",
-  "libICE",
-  "cairo",
-  "cups-libs",
-  "mesa-libGL",
-  "dbus-libs",
-  "nss",
-  "nspr",
-  // Broad-coverage fallback font: without it, glyphs Times New Roman lacks
-  // (e.g. Lithuanian/Baltic ogonek letters į, ų) render as tofu boxes.
-  "google-noto-sans-fonts",
-  // Metric-compatible replacements for the fonts most .docx templates
-  // actually use (Arial/Times New Roman/Courier New, Calibri, Cambria).
-  // Without these LibreOffice substitutes a font with different glyph
-  // widths, so the PDF wraps/paginates differently than the same document
-  // opened in Word.
-  "liberation-fonts-all",
-  "google-carlito-fonts",
-  "google-crosextra-caladea-fonts",
-];
-
-const INSTALL_LIBREOFFICE_CMD = [
-  "cd /tmp",
-  `curl -sL -o lo.tar.gz https://download.documentfoundation.org/libreoffice/stable/${LO_VERSION}/rpm/x86_64/LibreOffice_${LO_VERSION}_Linux_x86-64_rpm.tar.gz`,
-  "mkdir -p lo",
-  "tar xzf lo.tar.gz -C lo --strip-components=1",
-  "cd lo/RPMS",
-  "sudo dnf install -y ./*.rpm",
-  `sudo dnf install -y ${LO_DEPS.join(" ")}`,
-].join(" && ");
+/**
+ * Preference order: the snapshot baked into this deployment at build time
+ * (see scripts/write-libreoffice-snapshot.ts) — always in sync with the
+ * LO_DEPS this same build's soffice invocation expects — then a manual
+ * override via env var, then undefined (fresh install fallback).
+ */
+function snapshotId(): string | undefined {
+  return LIBREOFFICE_SNAPSHOT_ID || process.env.LIBREOFFICE_SANDBOX_SNAPSHOT_ID;
+}
 
 /**
  * Starts booting the sandbox VM without waiting for it. Callers that also
@@ -56,14 +33,14 @@ const INSTALL_LIBREOFFICE_CMD = [
  */
 export function createPdfSandbox(): Promise<Sandbox | null> {
   if (LOCAL_MODE) return Promise.resolve(null);
-  const snapshotId = process.env.LIBREOFFICE_SANDBOX_SNAPSHOT_ID;
-  return snapshotId
-    ? Sandbox.create({ source: { type: "snapshot", snapshotId }, timeout: 120_000 })
+  const id = snapshotId();
+  return id
+    ? Sandbox.create({ source: { type: "snapshot", snapshotId: id }, timeout: 120_000 })
     : Sandbox.create({ runtime: "node24", timeout: 300_000 });
 }
 
 async function ensureLibreOffice(sandbox: Sandbox) {
-  if (process.env.LIBREOFFICE_SANDBOX_SNAPSHOT_ID) return;
+  if (snapshotId()) return;
   const install = await sandbox.runCommand("sh", ["-c", INSTALL_LIBREOFFICE_CMD]);
   if (install.exitCode !== 0) {
     throw new Error(`Failed to install LibreOffice in sandbox: ${await install.stderr()}`);
@@ -115,8 +92,8 @@ async function convertLocally(docxBuffers: Buffer[]): Promise<Buffer[]> {
  * in a Node serverless function). When LIBREOFFICE_SANDBOX_SNAPSHOT_ID is set,
  * the sandbox boots from a pre-built snapshot (~1s total); otherwise it
  * installs LibreOffice from scratch (~30-60s), which is only meant as a local
- * fallback before a snapshot has been created via
- * scripts/create-libreoffice-snapshot.ts.
+ * fallback for the rare case a build's snapshot regeneration failed (see
+ * scripts/write-libreoffice-snapshot.ts) and no override is set.
  *
  * Pass `sandboxPromise` (e.g. from `createPdfSandbox()`) to start the VM
  * before the docx is ready; if the caller ends up not calling this at all,

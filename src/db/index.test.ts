@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const neon = vi.fn<(url: string) => string>().mockReturnValue("sql-client");
 const drizzle = vi.fn<(client: unknown, config: unknown) => string>().mockReturnValue("db-instance");
-const poolInstance = { marker: "pg-pool" };
+const poolInstance = { marker: "pg-pool", on: vi.fn() };
 const Pool = vi.fn<(config: unknown) => object>().mockReturnValue(poolInstance);
 const drizzleNodePg = vi.fn<(client: unknown, config: unknown) => string>().mockReturnValue("local-db-instance");
 

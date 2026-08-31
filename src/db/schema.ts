@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, jsonb, uuid, boolean, integer, bigint, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, jsonb, uuid, boolean, integer, bigint, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export type TemplateFieldType = "string" | "number" | "date" | "boolean" | "select" | "checkbox";
@@ -73,7 +73,10 @@ export const account = pgTable(
       .$onUpdate(() => new Date())
       .notNull(),
   },
-  (table) => [index("account_userId_idx").on(table.userId)]
+  (table) => [
+    index("account_userId_idx").on(table.userId),
+    uniqueIndex("account_providerId_accountId_idx").on(table.providerId, table.accountId),
+  ]
 );
 
 export const verification = pgTable(
@@ -140,7 +143,11 @@ export const templates = pgTable(
     userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
-  (table) => [index("templates_userId_idx").on(table.userId)]
+  (table) => [
+    index("templates_userId_idx").on(table.userId),
+    index("templates_userId_createdAt_idx").on(table.userId, table.createdAt),
+    uniqueIndex("templates_blobPathname_idx").on(table.blobPathname),
+  ]
 );
 
 export const templatesRelations = relations(templates, ({ one }) => ({

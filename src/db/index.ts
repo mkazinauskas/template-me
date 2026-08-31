@@ -13,6 +13,12 @@ function createDb() {
   // interchangeably behind `getDb()`.
   if (process.env.LOCAL_MODE === "true") {
     const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
+    // Without this listener, an error on an idle pooled client (e.g. the
+    // backend restarting the connection) is emitted as an unhandled "error"
+    // event and crashes the process — see node-postgres's Pool docs.
+    pool.on("error", (err) => {
+      console.error("Unexpected error on idle Postgres client", err);
+    });
     return drizzleNodePg(pool, { schema }) as unknown as ReturnType<typeof drizzleNeon>;
   }
   const sql = neon(process.env.DATABASE_URL!);

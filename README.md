@@ -149,18 +149,33 @@ against production data), remove `LOCAL_MODE` from `.env.docker` and fill in
 
 ## LibreOffice sandbox snapshot
 
-PDF conversion boots a Vercel Sandbox from a pre-built snapshot
-(`LIBREOFFICE_SANDBOX_SNAPSHOT_ID` env var) with LibreOffice already
-installed, so conversion takes ~1-2s instead of the ~60s a from-scratch
-install would need. To rebuild the snapshot (e.g. after a LibreOffice
-version bump or if the snapshot expires):
+PDF conversion boots a Vercel Sandbox from a pre-built snapshot with
+LibreOffice already installed, so conversion takes ~1-2s instead of the
+~60s a from-scratch install would need.
+
+The snapshot is rebuilt automatically on every Vercel build: the
+`vercel-build` script (`scripts/write-libreoffice-snapshot.ts`) installs
+LibreOffice + the fonts listed in `src/lib/libreoffice-deps.ts` into a
+fresh sandbox, snapshots it, and bakes the resulting ID into
+`src/lib/libreoffice-snapshot.generated.ts`, which ships as part of that
+deployment. This means the snapshot's fonts/deps can never drift out of
+sync with the code that expects them — no manual step after changing
+`LO_DEPS`. Snapshots expire after 14 days so old ones don't pile up. If
+snapshot creation fails during a build (sandbox API hiccup, etc.), the
+build still succeeds — the deployment just falls back to
+`LIBREOFFICE_SANDBOX_SNAPSHOT_ID` (if set) or a from-scratch install at
+request time.
+
+For local testing of a `LO_DEPS` change before pushing it (or to pin a
+deployment to a specific snapshot as a manual override):
 
 ```bash
 npx dotenv -e .env.local -- npx tsx scripts/create-libreoffice-snapshot.ts
 ```
 
-Then update `LIBREOFFICE_SANDBOX_SNAPSHOT_ID` locally and with
-`vercel env add LIBREOFFICE_SANDBOX_SNAPSHOT_ID`.
+then set `LIBREOFFICE_SANDBOX_SNAPSHOT_ID` locally and/or with
+`vercel env add LIBREOFFICE_SANDBOX_SNAPSHOT_ID` — it only takes effect
+when the build-time generated snapshot is unavailable.
 
 ## Database schema changes
 
