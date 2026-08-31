@@ -139,6 +139,18 @@ describe("extractFields", () => {
     const { fields } = extractFields(buf);
     expect(fields).toEqual([{ key: "first_name", label: "First name", type: "string", params: [] }]);
   });
+
+  it("rejects a zip whose entries decompress far beyond a reasonable size (zip-bomb guard)", () => {
+    const zip = new PizZip();
+    // A single highly-compressible 60 MB entry compresses down to a tiny
+    // buffer, but would blow past the 50 MB uncompressed cap if read.
+    zip.file("word/document.xml", "a".repeat(60 * 1024 * 1024), {
+      compression: "DEFLATE",
+    });
+    const buf = zip.generate({ type: "nodebuffer", compression: "DEFLATE" });
+
+    expect(() => extractFields(buf)).toThrow(/too large/i);
+  });
 });
 
 describe("renderDocx", () => {

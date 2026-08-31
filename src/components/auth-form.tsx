@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { authClient } from "@/lib/auth-client";
+import { inputClasses } from "@/components/ui/input";
+import { buttonClasses } from "@/components/ui/button";
 
 // Local Docker Compose has no Resend account to send OTP emails with, so it
 // seeds one static account (see scripts/seed-local-user.ts) and signs in

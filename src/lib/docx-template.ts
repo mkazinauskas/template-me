@@ -7,6 +7,40 @@ const KNOWN_TYPES: TemplateFieldType[] = ["string", "number", "date", "boolean",
 const CHECKED_BOX = "☒";
 const UNCHECKED_BOX = "☐";
 
+/**
+ * Cap on the total *uncompressed* size of a docx's zip entries — guards
+ * against a "zip bomb" (a small upload that decompresses into something huge
+ * enough to OOM the process) since docxtemplater/PizZip fully decompress
+ * entries into memory when reading text or rendering.
+ */
+const MAX_UNCOMPRESSED_ZIP_BYTES = 50 * 1024 * 1024; // 50 MB
+
+/**
+ * Sums each zip entry's uncompressed size straight from the zip's central
+ * directory metadata (populated by PizZip while parsing the archive
+ * structure) and rejects if the total is implausibly large — without ever
+ * decompressing entry contents to measure them, which would itself be the
+ * OOM risk this is meant to prevent.
+ *
+ * `_data.uncompressedSize` isn't part of PizZip's public TypeScript surface,
+ * but is populated on every non-directory `ZipObject` as soon as the archive
+ * is loaded (see pizzip's zipEntry.js / object.js) — reading it here is safe
+ * and doesn't trigger decompression.
+ */
+function assertSafeUncompressedSize(zip: PizZip) {
+  let total = 0;
+  for (const relativePath of Object.keys(zip.files)) {
+    const entry = zip.files[relativePath];
+    if (entry.dir) continue;
+    const uncompressedSize =
+      (entry as unknown as { _data?: { uncompressedSize?: number } })._data?.uncompressedSize ?? 0;
+    total += uncompressedSize;
+    if (total > MAX_UNCOMPRESSED_ZIP_BYTES) {
+      throw new Error("Document contents are too large to process");
+    }
+  }
+}
+
 function toLabel(key: string) {
   return key
     .replace(/[_.-]+/g, " ")
@@ -141,6 +175,7 @@ function scopedParser(tag: string) {
 
 function loadDocxtemplater(buffer: Buffer) {
   const zip = new PizZip(buffer);
+  assertSafeUncompressedSize(zip);
   return new Docxtemplater(zip, {
     delimiters: DELIMITERS,
     paragraphLoop: true,

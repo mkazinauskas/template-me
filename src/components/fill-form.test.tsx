@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FillForm } from "@/components/fill-form";
 import type { TemplateField } from "@/db/schema";
@@ -181,14 +181,41 @@ describe("FillForm / SingleFillForm", () => {
     const { unmount } = render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
 
     await user.type(screen.getByLabelText(/Full name/), "Jane Doe");
-    await waitFor(() =>
-      expect(JSON.parse(localStorage.getItem("fillFormValues:t1")!).full_name).toBe("Jane Doe")
-    );
+    await user.type(screen.getByLabelText(/Salary/), "1000");
+    await user.type(screen.getByLabelText(/Start date/), "2026-03-05");
+    await user.click(screen.getByRole("switch"));
+    await user.selectOptions(screen.getByRole("combobox", { name: /Employment type/ }), "Full-time");
+    await waitFor(() => {
+      const stored = JSON.parse(localStorage.getItem("fillFormValues:t1")!);
+      expect(stored.full_name).toBe("Jane Doe");
+      expect(stored.salary).toBe("1000");
+      expect(stored.start_date).toBe("2026-03-05");
+      expect(stored.relocation).toBe("true");
+      expect(stored.employment_type).toBe("Full-time");
+    });
 
     unmount();
 
     render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
     expect(await screen.findByLabelText(/Full name/)).toHaveValue("Jane Doe");
+    expect(screen.getByLabelText(/Salary/)).toHaveValue(1000);
+    expect(screen.getByLabelText(/Start date/)).toHaveValue("2026-03-05");
+    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("combobox", { name: /Employment type/ })).toHaveValue("Full-time");
+  });
+
+  it("writes each edit to localStorage immediately, with no debounce or delay", () => {
+    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+
+    // Plain fireEvent with no `await`/`waitFor` afterwards: the write must
+    // land in the same tick as the edit (fill-form.tsx persists it directly
+    // in the change handler rather than in a debounced/deferred effect), so
+    // a refresh right after typing can never race ahead of the save.
+    fireEvent.change(screen.getByLabelText(/Full name/), { target: { value: "Jane" } });
+    expect(JSON.parse(localStorage.getItem("fillFormValues:t1")!).full_name).toBe("Jane");
+
+    fireEvent.click(screen.getByRole("switch"));
+    expect(JSON.parse(localStorage.getItem("fillFormValues:t1")!).relocation).toBe("true");
   });
 
   it("exports the current values as a downloadable JSON file", async () => {

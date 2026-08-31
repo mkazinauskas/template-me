@@ -7,10 +7,17 @@ import { templates, type Template } from "@/db/schema";
 import { renderDocx } from "@/lib/docx-template";
 import { convertDocxToPdf, convertDocxBuffersToPdf, createPdfSandbox } from "@/lib/docx-to-pdf";
 import { auth } from "@/lib/auth";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export const maxDuration = 300;
 
 const MAX_BULK_ROWS = 100;
+
+// This route boots a Vercel Sandbox + LibreOffice per call (and a bulk call
+// can render/convert up to MAX_BULK_ROWS documents), so it's throttled
+// per-user well below what a legitimate workflow needs, to bound cost/abuse.
+const GENERATE_RATE_LIMIT_WINDOW_MS = 60_000;
+const GENERATE_RATE_LIMIT_MAX = 10;
 
 /** Validates one row's data against the template's fields. Returns an error message, or null if valid. */
 function validateRow(templateRow: Template, data: Record<string, unknown>, preview: boolean): string | null {
@@ -56,6 +63,17 @@ export async function POST(
   const session = await auth.api.getSession({ headers: req.headers });
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { allowed, retryAfterSeconds } = await checkRateLimit(`generate:${session.user.id}`, {
+    windowMs: GENERATE_RATE_LIMIT_WINDOW_MS,
+    max: GENERATE_RATE_LIMIT_MAX,
+  });
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "Too many document generation requests. Please wait a moment and try again." },
+      { status: 429, headers: { "Retry-After": String(retryAfterSeconds) } }
+    );
   }
 
   const { id } = await params;

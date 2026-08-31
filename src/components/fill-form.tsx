@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import type { TemplateField } from "@/db/schema";
 import { BulkFillForm } from "@/components/bulk-fill-form";
@@ -203,6 +203,22 @@ function SingleFillForm({
   const { width: formWidth, containerRef, startResizing, resetWidth } = useResizablePaneWidth();
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Persists synchronously (in the same event as the state update) rather
+  // than in a useEffect reacting to `values`: a useEffect's write is deferred
+  // to a passive-effect pass, which a browser refresh triggered right after
+  // typing can interrupt before it ever runs, silently dropping the last
+  // edit even though the UI shows it was "saved".
+  const persistValues = useCallback(
+    (next: Record<string, string>) => {
+      try {
+        localStorage.setItem(valuesStorageKey, JSON.stringify(next));
+      } catch {
+        // Ignore storage failures (e.g. private browsing quota).
+      }
+    },
+    [valuesStorageKey]
+  );
+
   // Restore previously entered values for this template, so a reload or a
   // trip back to the template list doesn't lose what was typed in.
   useEffect(() => {
@@ -219,14 +235,6 @@ function SingleFillForm({
       // Ignore malformed/unavailable storage and fall back to defaults.
     }
   }, [valuesStorageKey]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem(valuesStorageKey, JSON.stringify(values));
-    } catch {
-      // Ignore storage failures (e.g. private browsing quota).
-    }
-  }, [valuesStorageKey, values]);
 
   useEffect(() => {
     previewUrlRef.current = previewUrl;
@@ -342,7 +350,9 @@ function SingleFillForm({
       for (const [key, value] of Object.entries(parsed)) {
         if (fieldKeys.has(key) && typeof value === "string") imported[key] = value;
       }
-      setValues((prev) => ({ ...prev, ...imported }));
+      const next = { ...values, ...imported };
+      setValues(next);
+      persistValues(next);
       setError(null);
     } catch {
       setError("Failed to import values: not a valid values file");
@@ -350,7 +360,9 @@ function SingleFillForm({
   }
 
   function handleClearValues() {
-    setValues(Object.fromEntries(fields.map((f) => [f.key, defaultValueFor(f)])));
+    const next = Object.fromEntries(fields.map((f) => [f.key, defaultValueFor(f)]));
+    setValues(next);
+    persistValues(next);
     setError(null);
   }
 
@@ -407,7 +419,11 @@ function SingleFillForm({
               <FieldInput
                 field={field}
                 value={values[field.key] ?? ""}
-                onChange={(value) => setValues((prev) => ({ ...prev, [field.key]: value }))}
+                onChange={(value) => {
+                  const next = { ...values, [field.key]: value };
+                  setValues(next);
+                  persistValues(next);
+                }}
               />
             </div>
           ));

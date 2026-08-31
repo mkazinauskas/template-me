@@ -48,7 +48,12 @@ vi.mock("@/lib/docx-template", () => ({
   }),
 }));
 
-function docxFile(name = "template.docx", content = "dummy") {
+// Real .docx files are zip archives, which always start with this 4-byte
+// signature — prefix it by default so these fixtures pass the route's
+// magic-byte check the same way a real upload would.
+const ZIP_MAGIC = "\x50\x4b\x03\x04";
+
+function docxFile(name = "template.docx", content = `${ZIP_MAGIC}dummy`) {
   return new File([content], name, {
     type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   });
@@ -154,6 +159,35 @@ describe("POST /api/templates", () => {
 
     expect(res.status).toBe(400);
     expect(json.error).toBe("File must be a .docx document");
+  });
+
+  it("rejects a file over the size cap", async () => {
+    const big = new Uint8Array(10 * 1024 * 1024 + 1);
+    const formData = new FormData();
+    formData.set("file", new File([big], "big.docx", {
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    }));
+    const req = new NextRequest("http://localhost/api/templates", { method: "POST", body: formData });
+    const { POST } = await import("@/app/api/templates/route");
+
+    const res = await POST(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toContain("too large");
+  });
+
+  it("rejects a .docx-named file that isn't actually a zip", async () => {
+    const formData = new FormData();
+    formData.set("file", docxFile("fake.docx", "not a zip file at all"));
+    const req = new NextRequest("http://localhost/api/templates", { method: "POST", body: formData });
+    const { POST } = await import("@/app/api/templates/route");
+
+    const res = await POST(req);
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("Could not read this file as a Word document");
   });
 
   it("rejects a docx that fails to parse", async () => {

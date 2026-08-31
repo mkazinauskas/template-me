@@ -18,6 +18,7 @@ const state = vi.hoisted(() => ({
   convertSingleError: null as Error | null,
   convertBulkError: null as Error | null,
   session: { user: { id: "user-1", email: "owner@example.com" } } as { user: { id: string; email: string } } | null,
+  rateLimited: false,
 }));
 
 vi.mock("@/db", () => ({

@@ -3,11 +3,21 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  /* Semantic tokens for the patterns repeated across forms/buttons/cards:
+   * a hairline border, muted-but-legible informational text, and the ring
+   * shown around a focused input. Each has a light/dark pair below rather
+   * than relying on a `dark:` utility at every call site. */
+  --border: rgb(0 0 0 / 0.1);
+  --muted-foreground: rgb(0 0 0 / 0.6);
+  --focus-ring: rgb(0 0 0 / 0.2);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-border: var(--border);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-focus-ring: var(--focus-ring);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
@@ -16,6 +26,9 @@
   :root {
     --background: #0a0a0a;
     --foreground: #ededed;
+    --border: rgb(255 255 255 / 0.15);
+    --muted-foreground: rgb(255 255 255 / 0.6);
+    --focus-ring: rgb(255 255 255 / 0.3);
   }
 }
 

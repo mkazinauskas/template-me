@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, jsonb, uuid, boolean, index } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, jsonb, uuid, boolean, integer, bigint, index } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
 export type TemplateFieldType = "string" | "number" | "date" | "boolean" | "select" | "checkbox";
@@ -91,6 +91,18 @@ export const verification = pgTable(
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)]
 );
+
+// Better Auth's rate-limit table (see auth.ts's `rateLimit: { storage: "database" }`).
+// Column/field names below match Better Auth's built-in field defaults —
+// see @better-auth/core's buildAuthTables()'s `rateLimitTable`. Also reused
+// by src/lib/rate-limit.ts for the app's own per-route rate limiting, keyed
+// separately so the two don't collide.
+export const rateLimit = pgTable("rate_limit", {
+  id: text("id").primaryKey(),
+  key: text("key").notNull().unique(),
+  count: integer("count").notNull(),
+  lastRequest: bigint("last_request", { mode: "number" }).notNull(),
+});
 
 export const userRelations = relations(user, ({ many }) => ({
   sessions: many(session),

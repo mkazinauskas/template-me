@@ -38,6 +38,14 @@ export const auth = betterAuth({
       },
     }),
   ],
+  // Vercel runs multiple (Fluid Compute) instances of this app, so the
+  // default in-memory rate-limit store doesn't share state across them —
+  // each instance would enforce its own separate limit. Persisting counts in
+  // Postgres (via the `rateLimit` table/model in db/schema.ts) instead makes
+  // the limit actually hold across instances.
+  rateLimit: {
+    storage: "database",
+  },
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: siteUrl,
   // `next dev` picks a different port when the default is already in use,
