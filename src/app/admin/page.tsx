@@ -67,7 +67,7 @@ export default async function AdminPage() {
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
       <main className="mx-auto max-w-6xl px-6 py-10 flex flex-col gap-10">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-y-2">
           <Link href="/" className="transition-transform hover:scale-[1.03]">
             <Logo size="sm" />
           </Link>
@@ -91,12 +91,12 @@ export default async function AdminPage() {
 
         <section className="animate-fade-in-up flex flex-col gap-3" style={{ animationDelay: "0.1s" }}>
           <h2 className="text-lg font-semibold">
-            Users <span className="text-black/40 dark:text-white/40 font-normal">({users.length})</span>
+            Users <span className="text-black/50 dark:text-white/50 font-normal">({users.length})</span>
           </h2>
           <div className="overflow-x-auto rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-white/[0.02]">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-black/10 dark:border-white/15 text-left text-xs text-black/40 dark:text-white/40">
+                <tr className="border-b border-black/10 dark:border-white/15 text-left text-xs text-black/50 dark:text-white/50">
                   <th className="px-4 py-2.5 font-medium">Name</th>
                   <th className="px-4 py-2.5 font-medium">Email</th>
                   <th className="px-4 py-2.5 font-medium">Role</th>
@@ -124,7 +124,7 @@ export default async function AdminPage() {
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-black/60 dark:text-white/60">{u.templateCount}</td>
-                    <td className="px-4 py-2.5 text-black/40 dark:text-white/40">
+                    <td className="px-4 py-2.5 text-black/50 dark:text-white/50">
                       {dateFormatter.format(u.createdAt)}
                     </td>
                   </tr>
@@ -137,14 +137,14 @@ export default async function AdminPage() {
         <section className="animate-fade-in-up flex flex-col gap-3" style={{ animationDelay: "0.2s" }}>
           <h2 className="text-lg font-semibold">
             Templates{" "}
-            <span className="text-black/40 dark:text-white/40 font-normal">
+            <span className="text-black/50 dark:text-white/50 font-normal">
               ({templateRows.length})
             </span>
           </h2>
           <div className="overflow-x-auto rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-white/[0.02]">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-black/10 dark:border-white/15 text-left text-xs text-black/40 dark:text-white/40">
+                <tr className="border-b border-black/10 dark:border-white/15 text-left text-xs text-black/50 dark:text-white/50">
                   <th className="px-4 py-2.5 font-medium">Name</th>
                   <th className="px-4 py-2.5 font-medium">File</th>
                   <th className="px-4 py-2.5 font-medium">Owner</th>
@@ -163,12 +163,12 @@ export default async function AdminPage() {
                       {t.originalFilename}
                     </td>
                     <td className="px-4 py-2.5 text-black/60 dark:text-white/60">
-                      {t.ownerEmail ?? <span className="text-black/40 dark:text-white/40">— none —</span>}
+                      {t.ownerEmail ?? <span className="text-black/50 dark:text-white/50">— none —</span>}
                     </td>
                     <td className="px-4 py-2.5 text-black/60 dark:text-white/60">
                       {t.fields.length}
                     </td>
-                    <td className="px-4 py-2.5 text-black/40 dark:text-white/40">
+                    <td className="px-4 py-2.5 text-black/50 dark:text-white/50">
                       {dateFormatter.format(t.createdAt)}
                     </td>
                   </tr>

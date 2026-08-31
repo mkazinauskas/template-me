@@ -123,7 +123,7 @@ function EditableRowsTable({
                 <div className="flex items-center gap-1.5">
                   {col.label}
                   {col.sublabel && (
-                    <code className="text-[10px] normal-case tracking-normal text-black/40 dark:text-white/40 font-mono font-normal">
+                    <code className="text-[10px] normal-case tracking-normal text-black/50 dark:text-white/50 font-mono font-normal">
                       {col.sublabel}
                     </code>
                   )}
@@ -136,7 +136,7 @@ function EditableRowsTable({
         <tbody>
           {rows.map((row, i) => (
             <tr key={i} className="odd:bg-black/[0.02] dark:odd:bg-white/[0.03]">
-              <td className="px-2 py-1.5 border-b border-black/5 dark:border-white/10 text-black/40 dark:text-white/40">
+              <td className="px-2 py-1.5 border-b border-black/5 dark:border-white/10 text-black/50 dark:text-white/50">
                 {i + 1}
               </td>
               {columns.map((col) => (
@@ -261,7 +261,9 @@ export function BulkFillForm({
         key: field.key,
         label: field.label,
         sublabel: formatRawTag(field),
-        renderInput: (value, onChange) => <BulkCellInput field={field} value={value} onChange={onChange} />,
+        renderInput: (value, onChange) => (
+          <FieldInput field={field} aria-label={field.label} value={value} onChange={onChange} />
+        ),
       })),
     [fields]
   );
@@ -277,7 +279,7 @@ export function BulkFillForm({
             aria-label={header}
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            className={cellInputClass}
+            className={compactInputClasses}
           />
         ),
       })),
@@ -315,7 +317,7 @@ export function BulkFillForm({
 
   function handleDownloadTemplate() {
     downloadTextFile(
-      `${templateName.replace(/[^a-zA-Z0-9-_]+/g, "_")}_template.csv`,
+      `${slugifyFilename(templateName)}_template.csv`,
       buildCsvTemplate(fields),
       "text/csv;charset=utf-8;"
     );
@@ -330,7 +332,7 @@ export function BulkFillForm({
           )
         : csvRows;
     downloadTextFile(
-      `${templateName.replace(/[^a-zA-Z0-9-_]+/g, "_")}_rows.csv`,
+      `${slugifyFilename(templateName)}_rows.csv`,
       rowsToCsv(outHeaders, outRows),
       "text/csv;charset=utf-8;"
     );
@@ -420,14 +422,7 @@ export function BulkFillForm({
       }
 
       const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${templateName.replace(/[^a-zA-Z0-9-_]+/g, "_")}.zip`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+      downloadBlob(blob, `${slugifyFilename(templateName)}.zip`);
     } catch {
       setSubmitError("Failed to generate documents");
     } finally {
@@ -444,6 +439,10 @@ export function BulkFillForm({
     <div ref={containerRef} className="flex h-full min-h-0 flex-col lg:flex-row">
       <div
         style={{ "--form-width": `${paneWidth}px` } as CSSProperties}
+        aria-describedby={
+          [parseError && "csv-parse-error", submitError && "form-error"].filter(Boolean).join(" ") ||
+          undefined
+        }
         className="flex flex-col gap-4 p-6 overflow-y-auto lg:w-[var(--form-width)] lg:shrink-0 border-b lg:border-b-0 border-black/10 dark:border-white/15"
       >
         <div className="flex items-center gap-1 rounded-md bg-black/5 dark:bg-white/10 p-1 self-start">
@@ -495,7 +494,11 @@ export function BulkFillForm({
                 {fileName} — {csvRows.length} row{csvRows.length === 1 ? "" : "s"}
               </p>
             )}
-            {parseError && <p className="text-sm text-red-600 dark:text-red-400">{parseError}</p>}
+            {parseError && (
+              <p id="csv-parse-error" role="alert" className="text-sm text-red-600 dark:text-red-400">
+                {parseError}
+              </p>
+            )}
           </div>
         ) : (
           <div className="flex flex-col gap-1.5">
@@ -516,10 +519,10 @@ export function BulkFillForm({
                   <div key={field.key} className="flex flex-col gap-1.5">
                     <label htmlFor={`map-${field.key}`} className="text-sm font-medium flex items-center gap-2">
                       {field.label}
-                      <code className="text-[10px] normal-case tracking-normal text-black/40 dark:text-white/40 font-mono font-normal">
+                      <code className="text-[10px] normal-case tracking-normal text-black/50 dark:text-white/50 font-mono font-normal">
                         {formatRawTag(field)}
                       </code>
-                      <span className="text-[10px] uppercase tracking-wide text-black/40 dark:text-white/40 font-normal">
+                      <span className="text-[10px] uppercase tracking-wide text-black/50 dark:text-white/50 font-normal">
                         {field.type}
                       </span>
                     </label>
@@ -529,7 +532,7 @@ export function BulkFillForm({
                       onChange={(e) =>
                         setMapping((prev) => ({ ...prev, [field.key]: e.target.value }))
                       }
-                      className={inputClass}
+                      className={inputClasses}
                     >
                       <option value={NOT_MAPPED}>— Not mapped —</option>
                       {headers.map((header) => (
@@ -551,7 +554,7 @@ export function BulkFillForm({
                 id="name-field"
                 value={nameField}
                 onChange={(e) => setNameField(e.target.value)}
-                className={inputClass}
+                className={inputClasses}
               >
                 {nameableFields.map((field) => (
                   <option key={field.key} value={field.key}>
@@ -569,7 +572,7 @@ export function BulkFillForm({
                 id="preview-row"
                 value={clampedPreviewRowIndex}
                 onChange={(e) => setPreviewRowIndex(Number(e.target.value))}
-                className={inputClass}
+                className={inputClasses}
               >
                 {rows.map((_, i) => (
                   <option key={i} value={i}>
@@ -581,7 +584,7 @@ export function BulkFillForm({
                 type="button"
                 onClick={handlePreview}
                 disabled={isPreviewLoading}
-                className="shrink-0 rounded-md border border-black/15 dark:border-white/20 px-3 py-2 text-sm font-medium disabled:opacity-50"
+                className={buttonClasses({ variant: "secondary", size: "sm", className: "shrink-0" })}
               >
                 {isPreviewLoading ? "Loading…" : "Preview"}
               </button>
@@ -593,14 +596,18 @@ export function BulkFillForm({
               </p>
             )}
 
-            {submitError && <p className="text-sm text-red-600 dark:text-red-400">{submitError}</p>}
+            {submitError && (
+              <p id="form-error" role="alert" className="text-sm text-red-600 dark:text-red-400">
+                {submitError}
+              </p>
+            )}
 
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={handleGenerateAll}
                 disabled={isSubmitting}
-                className="rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium disabled:opacity-50"
+                className={buttonClasses()}
               >
                 {isSubmitting ? "Generating…" : `Generate ${rows.length} document${rows.length === 1 ? "" : "s"}`}
               </button>
@@ -608,7 +615,7 @@ export function BulkFillForm({
                 aria-label="Download format"
                 value={format}
                 onChange={(e) => setFormat(e.target.value as "pdf" | "docx")}
-                className={inputClass}
+                className={inputClasses}
               >
                 <option value="pdf">PDF</option>
                 <option value="docx">Word (.docx)</option>
@@ -616,7 +623,7 @@ export function BulkFillForm({
               <button
                 type="button"
                 onClick={handleDownloadRows}
-                className="rounded-md border border-black/15 dark:border-white/20 px-3 py-2 text-sm font-medium"
+                className={buttonClasses({ variant: "secondary", size: "sm" })}
               >
                 Download rows as CSV
               </button>
@@ -627,50 +634,42 @@ export function BulkFillForm({
 
       <ResizeHandle onPointerDown={startResizing} onReset={resetWidth} />
 
-      <div className="relative flex-1 min-h-[60vh] lg:min-h-0 bg-zinc-100 dark:bg-zinc-950">
-        {previewUrl ? (
-          <>
-            <button
-              type="button"
-              onClick={handleClosePreview}
-              className="absolute top-3 left-3 z-10 rounded-md bg-black/80 text-white dark:bg-white/90 dark:text-black px-3 py-1.5 text-xs font-medium shadow-sm hover:bg-black dark:hover:bg-white"
-            >
-              ← Back to editing
-            </button>
-            <iframe src={previewUrl} title="Document preview" className="w-full h-full border-0" />
-          </>
-        ) : source === "edit" ? (
-          <EditableRowsTable
-            columns={editColumns}
-            rows={editRows}
-            onRowsChange={setEditRows}
-            makeEmptyRow={() => emptyEditRow(fields)}
-          />
-        ) : headers.length > 0 ? (
-          <EditableRowsTable
-            columns={csvColumns}
-            rows={csvRows}
-            onRowsChange={setCsvRows}
-            makeEmptyRow={() => emptyRowForHeaders(headers)}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full text-sm text-black/40 dark:text-white/40 text-center px-6">
-            Upload a .csv file with one row per document to get started.
-          </div>
-        )}
-
-        {(isPreviewLoading || previewError) && (
-          <div
-            className={`absolute top-3 right-3 rounded-md px-3 py-1.5 text-xs font-medium shadow-sm ${
-              previewError
-                ? "bg-red-600 text-white"
-                : "bg-black/80 text-white dark:bg-white/90 dark:text-black"
-            }`}
+      <DocumentPreviewPane
+        url={previewUrl}
+        loading={isPreviewLoading}
+        error={previewError}
+        loadingLabel="Rendering preview…"
+        previewActions={
+          <button
+            type="button"
+            onClick={handleClosePreview}
+            className="absolute top-3 left-3 z-10 rounded-md bg-black/80 text-white dark:bg-white/90 dark:text-black px-3 py-1.5 text-xs font-medium shadow-sm hover:bg-black dark:hover:bg-white"
           >
-            {previewError ?? "Rendering preview…"}
-          </div>
-        )}
-      </div>
+            ← Back to editing
+          </button>
+        }
+        emptyState={
+          source === "edit" ? (
+            <EditableRowsTable
+              columns={editColumns}
+              rows={editRows}
+              onRowsChange={setEditRows}
+              makeEmptyRow={() => emptyEditRow(fields)}
+            />
+          ) : headers.length > 0 ? (
+            <EditableRowsTable
+              columns={csvColumns}
+              rows={csvRows}
+              onRowsChange={setCsvRows}
+              makeEmptyRow={() => emptyRowForHeaders(headers)}
+            />
+          ) : (
+            <div className="flex items-center justify-center h-full text-sm text-black/50 dark:text-white/50 text-center px-6">
+              Upload a .csv file with one row per document to get started.
+            </div>
+          )
+        }
+      />
     </div>
   );
 }

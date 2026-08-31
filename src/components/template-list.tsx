@@ -126,7 +126,7 @@ export async function TemplateList({ page = 1, q }: { page?: number; q?: string 
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[11px] text-black/40 dark:text-white/40">No fields detected</p>
+                  <p className="text-[11px] text-black/50 dark:text-white/50">No fields detected</p>
                 )}
 
                 {groupLabels.size > 0 && (
@@ -143,7 +143,7 @@ export async function TemplateList({ page = 1, q }: { page?: number; q?: string 
                 )}
 
                 <div className="mt-auto flex items-center justify-between gap-2 pt-3 border-t border-black/5 dark:border-white/10">
-                  <span className="text-xs text-black/40 dark:text-white/40">
+                  <span className="text-xs text-black/50 dark:text-white/50">
                     {dateFormatter.format(t.createdAt)}
                   </span>
                   <Link

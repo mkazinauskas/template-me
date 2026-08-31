@@ -24,7 +24,7 @@ export default async function TemplatesPage({
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
       <main className="mx-auto max-w-5xl px-6 py-10 flex flex-col gap-8">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-y-2">
           <Link href="/" className="transition-transform hover:scale-[1.03]">
             <Logo size="sm" />
           </Link>

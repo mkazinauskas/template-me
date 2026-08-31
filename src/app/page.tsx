@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { Logo } from "@/components/logo";
 import { DocumentExample } from "@/components/document-example";
 import { auth } from "@/lib/auth";
+import { buttonClasses } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -74,7 +75,7 @@ export default async function LandingPage() {
           </a>
           <Link
             href={session ? "/dashboard" : "/sign-in"}
-            className="rounded-md bg-black text-white dark:bg-white dark:text-black px-4 py-2 text-sm font-medium hover:opacity-90 hover:scale-[1.03] transition-all"
+            className={buttonClasses({ interactive: "hover" })}
           >
             {session ? "Dashboard" : "Login"}
           </Link>
@@ -116,14 +117,14 @@ export default async function LandingPage() {
           >
             <Link
               href={session ? "/dashboard" : "/sign-in"}
-              className="rounded-md bg-black text-white dark:bg-white dark:text-black px-6 py-3 text-sm font-medium hover:opacity-90 hover:scale-[1.03] transition-all"
+              className={buttonClasses({ size: "lg", interactive: "hover" })}
             >
               {session ? "Go to Dashboard" : "Login"}
             </Link>
             <a
               href="/example-template.docx"
               download
-              className="rounded-md border border-black/15 dark:border-white/20 px-6 py-3 text-sm font-medium hover:bg-black/[0.03] dark:hover:bg-white/[0.06] hover:scale-[1.03] transition-all"
+              className={buttonClasses({ variant: "secondary", size: "lg", interactive: "hover" })}
             >
               Download example template
             </a>
@@ -214,7 +215,7 @@ export default async function LandingPage() {
           </p>
           <Link
             href={session ? "/dashboard" : "/sign-in"}
-            className="rounded-md bg-black text-white dark:bg-white dark:text-black px-6 py-3 text-sm font-medium hover:opacity-90 hover:scale-[1.03] transition-all"
+            className={buttonClasses({ size: "lg", interactive: "hover" })}
           >
             {session ? "Go to Dashboard" : "Login"}
           </Link>

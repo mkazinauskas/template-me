@@ -27,13 +27,13 @@ export default async function DashboardPage({
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
       <main className="mx-auto max-w-5xl px-6 py-10 flex flex-col gap-10">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-y-2">
           <Link href="/" className="transition-transform hover:scale-[1.03]">
             <Logo size="sm" />
           </Link>
           <div className="flex items-center gap-4">
             {session && (
-              <span className="hidden sm:inline text-sm text-black/40 dark:text-white/40">
+              <span className="hidden sm:inline text-sm text-black/50 dark:text-white/50">
                 {session.user.email}
               </span>
             )}
