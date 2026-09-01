@@ -187,6 +187,49 @@ function scopedParser(tag: string) {
   };
 }
 
+/**
+ * Rewrites the WordprocessingML parts to work around two ways a Google
+ * Docs–exported .docx renders wrongly when we convert it to PDF with headless
+ * LibreOffice (Word itself tolerates both):
+ *
+ * 1. Fractional twip/dxa measurements. Google Docs writes full floating-point
+ *    precision on attributes OOXML defines as integers — page margins
+ *    (`<w:pgMar w:top="850.3937007874016"/>`), table/cell widths
+ *    (`<w:tblW w:w="9315.0"/>`), indents (`<w:ind w:left="708.6614.../>`), tab
+ *    stops. LibreOffice drops the whole attribute; for `<w:pgMar>` that means
+ *    falling back to a huge default margin — a blank first page with the rest
+ *    crammed after it. Every `w:*="<n>.<n>"` value is twentieths-of-a-point or
+ *    twips, so rounding to an integer is sub-pixel and safe.
+ *
+ * 2. Floating tables. Google Docs wraps almost every table in
+ *    `<w:tblpPr .../>` (absolute text-anchored positioning). Word flows such a
+ *    table across pages; LibreOffice instead pins the entire table to its
+ *    single anchor point, so a long multi-page table collapses every row on
+ *    top of itself into one unreadable black block. Stripping `<w:tblpPr>`
+ *    (and the paragraph-level equivalent `<w:framePr>`) turns them back into
+ *    normal inline content that paginates correctly. For the full-width
+ *    single-column tables these exports produce, this doesn't change Word's
+ *    layout in any meaningful way either.
+ */
+function sanitizeForLibreOffice(zip: PizZip): void {
+  for (const relativePath of Object.keys(zip.files)) {
+    if (!/^word\/.*\.xml$/.test(relativePath)) continue;
+    const entry = zip.files[relativePath];
+    if (entry.dir) continue;
+    const xml = entry.asText();
+    const sanitized = xml
+      .replace(
+        /(\sw:[A-Za-z]+=")(-?\d+\.\d+)(")/g,
+        (_, before, num, after) => `${before}${Math.round(parseFloat(num))}${after}`
+      )
+      .replace(/<w:tblpPr\b[^>]*\/>/g, "")
+      .replace(/<w:tblpPr\b[^>]*>[\s\S]*?<\/w:tblpPr>/g, "")
+      .replace(/<w:framePr\b[^>]*\/>/g, "")
+      .replace(/<w:framePr\b[^>]*>[\s\S]*?<\/w:framePr>/g, "");
+    if (sanitized !== xml) zip.file(relativePath, sanitized);
+  }
+}
+
 function loadDocxtemplater(buffer: Buffer) {
   const zip = new PizZip(buffer);
   assertSafeUncompressedSize(zip);
@@ -243,5 +286,7 @@ export function renderDocx(
     formatted[field.key] = formatFieldValue(field, data[field.key] ?? "");
   }
   doc.render(formatted);
-  return doc.getZip().generate({ type: "nodebuffer" });
+  const zip = doc.getZip();
+  sanitizeForLibreOffice(zip);
+  return zip.generate({ type: "nodebuffer" });
 }
