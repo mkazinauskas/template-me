@@ -164,6 +164,9 @@ live-syncs changes to `src`/`public` straight into the running `app`
 container, and Next's own Turbopack watcher picks them up and refreshes the
 browser — no image rebuild, no restart.
 
+Tilt is managed by [mise](https://mise.jdx.dev) (see [`mise.toml`](mise.toml)),
+so `mise install` pulls it in alongside Node — no separate install needed.
+
 ```bash
 tilt up
 ```
