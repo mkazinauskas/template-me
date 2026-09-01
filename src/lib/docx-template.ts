@@ -188,28 +188,18 @@ function scopedParser(tag: string) {
 }
 
 /**
- * Rewrites the WordprocessingML parts to work around two ways a Google
- * Docs–exported .docx renders wrongly when we convert it to PDF with headless
- * LibreOffice (Word itself tolerates both):
+ * Rewrites the WordprocessingML parts to fix two things a Google Docs export
+ * does that Word tolerates but headless LibreOffice (our docx->PDF converter)
+ * mangles:
  *
- * 1. Fractional twip/dxa measurements. Google Docs writes full floating-point
- *    precision on attributes OOXML defines as integers — page margins
- *    (`<w:pgMar w:top="850.3937007874016"/>`), table/cell widths
- *    (`<w:tblW w:w="9315.0"/>`), indents (`<w:ind w:left="708.6614.../>`), tab
- *    stops. LibreOffice drops the whole attribute; for `<w:pgMar>` that means
- *    falling back to a huge default margin — a blank first page with the rest
- *    crammed after it. Every `w:*="<n>.<n>"` value is twentieths-of-a-point or
- *    twips, so rounding to an integer is sub-pixel and safe.
- *
- * 2. Floating tables. Google Docs wraps almost every table in
- *    `<w:tblpPr .../>` (absolute text-anchored positioning). Word flows such a
- *    table across pages; LibreOffice instead pins the entire table to its
- *    single anchor point, so a long multi-page table collapses every row on
- *    top of itself into one unreadable black block. Stripping `<w:tblpPr>`
- *    (and the paragraph-level equivalent `<w:framePr>`) turns them back into
- *    normal inline content that paginates correctly. For the full-width
- *    single-column tables these exports produce, this doesn't change Word's
- *    layout in any meaningful way either.
+ * - Fractional twip measurements (`<w:pgMar w:top="850.393..."/>`,
+ *   `<w:tblW w:w="9315.0"/>`, ...). LibreOffice drops the whole attribute; a
+ *   lost `<w:pgMar>` falls back to a huge margin, giving a blank first page.
+ *   Every such value is twips/twentieths-of-a-point, so rounding is sub-pixel.
+ * - Floating tables (`<w:tblpPr>`). Word flows them across pages; LibreOffice
+ *   pins the table to its one anchor point, collapsing every row of a
+ *   multi-page table onto page 1. Stripping the positioning (and the
+ *   paragraph-level `<w:framePr>`) makes them inline again.
  */
 function sanitizeForLibreOffice(zip: PizZip): void {
   for (const relativePath of Object.keys(zip.files)) {
@@ -223,9 +213,7 @@ function sanitizeForLibreOffice(zip: PizZip): void {
         (_, before, num, after) => `${before}${Math.round(parseFloat(num))}${after}`
       )
       .replace(/<w:tblpPr\b[^>]*\/>/g, "")
-      .replace(/<w:tblpPr\b[^>]*>[\s\S]*?<\/w:tblpPr>/g, "")
-      .replace(/<w:framePr\b[^>]*\/>/g, "")
-      .replace(/<w:framePr\b[^>]*>[\s\S]*?<\/w:framePr>/g, "");
+      .replace(/<w:framePr\b[^>]*\/>/g, "");
     if (sanitized !== xml) zip.file(relativePath, sanitized);
   }
 }

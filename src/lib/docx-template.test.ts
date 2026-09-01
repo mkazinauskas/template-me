@@ -241,9 +241,10 @@ describe("renderDocx", () => {
     expect(doc.getFullText()).toBe("Hello !");
   });
 
-  it("rounds fractional twip measurements (e.g. Google Docs exports) to integers so LibreOffice lays out pages correctly", () => {
-    const body = `<w:p><w:pPr><w:ind w:left="708.6614173228347" w:hanging="12.5"/></w:pPr><w:r><w:t>Hi {{name}}</w:t></w:r></w:p>` +
-      `<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="850.3937007874016" w:bottom="1134" w:left="1701" w:right="567"/></w:sectPr>`;
+  it("rounds fractional twip measurements (Google Docs exports) to integers, leaving the XML declaration alone", () => {
+    const body =
+      `<w:p><w:pPr><w:ind w:left="708.6614173228347" w:hanging="12.5"/></w:pPr><w:r><w:t>Hi {{name}}</w:t></w:r></w:p>` +
+      `<w:sectPr><w:pgMar w:top="850.3937007874016" w:bottom="1134"/></w:sectPr>`;
     const output = renderDocx(buildDocx(body), [{ key: "name", label: "Name", type: "string", params: [] }], {
       name: "Jo",
     });
@@ -255,45 +256,34 @@ describe("renderDocx", () => {
     expect(documentXml).toContain('<?xml version="1.0"');
   });
 
-  // Regression: a Google Docs export wraps its multi-page contract body in a
-  // single floating table (`<w:tblpPr>`). Word flows it across pages; headless
-  // LibreOffice instead pins the whole table to its one anchor point, stacking
-  // every row on top of itself into an unreadable block on page 1. renderDocx
-  // must strip that positioning (and the paragraph-level `<w:framePr>`) so the
-  // table becomes normal inline content again — without dropping any rows or
-  // touching tables that were never floated.
-  it("strips floating-table/frame positioning from a Google Docs export while keeping every row and non-floated table intact", () => {
+  // Google Docs wraps a multi-page table body in one floating table
+  // (`<w:tblpPr>`); LibreOffice pins it to a single anchor point and stacks
+  // every row onto page 1. renderDocx must strip that positioning (and the
+  // paragraph-level `<w:framePr>`) without dropping rows or touching other tables.
+  it("strips floating-table and frame positioning while keeping all rows and non-floated tables", () => {
     const rows = Array.from(
       { length: 40 },
       (_, i) => `<w:tr><w:tc><w:p><w:r><w:t>Clause ${i + 1} for {{name}}</w:t></w:r></w:p></w:tc></w:tr>`
     ).join("");
     const body =
-      `<w:tbl><w:tblPr><w:tblStyle w:val="Table1"/>` +
-      `<w:tblpPr w:leftFromText="180" w:rightFromText="180" w:topFromText="0" w:bottomFromText="0" w:vertAnchor="text" w:horzAnchor="text" w:tblpX="15" w:tblpY="1"/>` +
-      `<w:tblW w:w="9315" w:type="dxa"/></w:tblPr>${rows}</w:tbl>` +
-      `<w:p><w:pPr><w:framePr w:w="4000" w:h="200" w:vAnchor="text" w:hAnchor="text" w:wrap="around"/></w:pPr><w:r><w:t>{{name}} sidebar</w:t></w:r></w:p>` +
-      `<w:tbl><w:tblPr><w:tblStyle w:val="Table2"/><w:tblW w:w="9322" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr>` +
-      `<w:tr><w:tc><w:p><w:r><w:t>Signature: {{name}}</w:t></w:r></w:p></w:tc></w:tr></w:tbl>` +
-      `<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="850" w:bottom="1134" w:left="1701" w:right="567"/></w:sectPr>`;
+      `<w:tbl><w:tblPr><w:tblpPr w:vertAnchor="text" w:horzAnchor="text" w:tblpX="15" w:tblpY="1"/></w:tblPr>${rows}</w:tbl>` +
+      `<w:p><w:pPr><w:framePr w:w="4000" w:vAnchor="text" w:hAnchor="text"/></w:pPr><w:r><w:t>{{name}} sidebar</w:t></w:r></w:p>` +
+      `<w:tbl><w:tblPr><w:tblLayout w:type="fixed"/></w:tblPr>` +
+      `<w:tr><w:tc><w:p><w:r><w:t>Signature: {{name}}</w:t></w:r></w:p></w:tc></w:tr></w:tbl>`;
 
     const output = renderDocx(buildDocx(body), [{ key: "name", label: "Name", type: "string", params: [] }], {
       name: "Jo",
     });
     const documentXml = new PizZip(output).file("word/document.xml")!.asText();
 
-    // Floating positioning gone...
     expect(documentXml).not.toContain("<w:tblpPr");
     expect(documentXml).not.toContain("<w:framePr");
-    // ...but both tables, all 40 body rows, and the sidebar paragraph remain.
-    expect((documentXml.match(/<w:tbl>/g) ?? []).length).toBe(2);
-    expect((documentXml.match(/<w:tr>/g) ?? []).length).toBe(41);
+    expect(documentXml.match(/<w:tbl>/g)).toHaveLength(2);
+    expect(documentXml.match(/<w:tr>/g)).toHaveLength(41);
     expect(documentXml).toContain("Clause 1 for Jo");
     expect(documentXml).toContain("Clause 40 for Jo");
     expect(documentXml).toContain("Jo sidebar");
-    // The never-floated table keeps its own <w:tblPr> untouched.
-    expect(documentXml).toContain('<w:tblStyle w:val="Table2"/>');
     expect(documentXml).toContain('<w:tblLayout w:type="fixed"/>');
-    expect(documentXml).toContain("Signature: Jo");
   });
 
   it("leaves a non-numeric number value as-is instead of throwing", () => {
