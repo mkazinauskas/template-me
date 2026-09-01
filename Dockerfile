@@ -16,15 +16,23 @@ ENV NEXT_PUBLIC_LOCAL_MODE=$NEXT_PUBLIC_LOCAL_MODE
 ENV NEXT_PUBLIC_LOCAL_AUTH_EMAIL=$NEXT_PUBLIC_LOCAL_AUTH_EMAIL
 ENV NEXT_PUBLIC_LOCAL_AUTH_PASSWORD=$NEXT_PUBLIC_LOCAL_AUTH_PASSWORD
 # `next build` collects route data by importing every API route, which
-# imports auth.ts, which builds a database connection at module scope — so
-# LOCAL_MODE/DATABASE_URL need to exist at build time too (as a placeholder;
-# nothing actually connects during the build), not just at container
-# runtime via docker-compose.yml's `env_file`. These never reach the final
-# runner stage below, which gets its real values from `.env.docker`.
+# imports auth.ts, which imports env.ts — whose assertEnv() throws if
+# DATABASE_URL/BETTER_AUTH_SECRET/BETTER_AUTH_URL/BLOB_READ_WRITE_TOKEN are
+# missing in a production build without LOCAL_MODE=true. So these all need
+# to exist at build time too (as placeholders; nothing actually connects
+# during the build), not just at container runtime via docker-compose.yml's
+# `env_file`. These never reach the final runner stage below, which gets its
+# real values from `.env.docker`.
 ARG LOCAL_MODE
 ARG DATABASE_URL="postgres://placeholder:placeholder@localhost:5432/placeholder"
+ARG BETTER_AUTH_SECRET="placeholder-build-time-secret"
+ARG BETTER_AUTH_URL="http://localhost:3000"
+ARG BLOB_READ_WRITE_TOKEN="placeholder"
 ENV LOCAL_MODE=$LOCAL_MODE
 ENV DATABASE_URL=$DATABASE_URL
+ENV BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
+ENV BETTER_AUTH_URL=$BETTER_AUTH_URL
+ENV BLOB_READ_WRITE_TOKEN=$BLOB_READ_WRITE_TOKEN
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 RUN npm run build
