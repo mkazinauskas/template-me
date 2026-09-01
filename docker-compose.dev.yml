@@ -1,0 +1,10 @@
+# Overlay applied on top of docker-compose.yml by the Tiltfile — swaps the
+# `app` service's production build for Dockerfile.dev (`next dev`) so Tilt can
+# live-sync source into the running container instead of rebuilding the image
+# on every change. Not meant to be used standalone; `tilt up` is the intended
+# entry point (see Tiltfile and README).
+services:
+  app:
+    image: template-me-app
+    build:
+      dockerfile: Dockerfile.dev

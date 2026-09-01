@@ -31,6 +31,7 @@ generate dozens of them at once, packaged into a `.zip`.
 - [Stack](#stack)
 - [Local development](#local-development)
 - [Running locally with Docker Compose](#running-locally-with-docker-compose)
+- [Local development with Tilt](#local-development-with-tilt)
 - [Running with the prebuilt image](#running-with-the-prebuilt-image)
 - [LibreOffice sandbox snapshot](#libreoffice-sandbox-snapshot)
 - [Database schema changes](#database-schema-changes)
@@ -108,6 +109,12 @@ npm run dev
 
 ## Running locally with Docker Compose
 
+> For local setup, prefer
+> [`docker-compose.prebuilt.yml`](#running-with-the-prebuilt-image) — it
+> pulls prebuilt images instead of building LibreOffice from scratch, so it
+> comes up much faster. Use the `docker compose up --build` flow below only
+> if you're changing source or dependencies and need a fresh local build.
+
 ```bash
 docker compose up --build
 ```
@@ -140,13 +147,40 @@ fully offline mode everywhere it would otherwise reach a cloud service:
 | Sign-in | Email OTP via Resend | Static email/password, seeded by [`scripts/seed-local-user.ts`](scripts/seed-local-user.ts) |
 
 This is a self-contained local setup rather than a dev loop — no hot reload,
-no bind-mounted source (use `npm run dev` for that). Rebuild
+no bind-mounted source (use `npm run dev`, or [Tilt](#local-development-with-tilt)
+for a containerized dev loop with hot reload). Rebuild
 (`docker compose up --build`) after changing source or dependencies.
 
 To point Docker Compose at the real cloud services instead (e.g. to test
 against production data), remove `LOCAL_MODE` from `.env.docker` and fill in
 `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, `RESEND_API_KEY`, etc. from
 `vercel env pull`.
+
+## Local development with Tilt
+
+Same fully-offline stack as `docker compose up` above (needs `.env.docker` —
+see the previous section), but with auto-refresh: [Tilt](https://tilt.dev)
+live-syncs changes to `src`/`public` straight into the running `app`
+container, and Next's own Turbopack watcher picks them up and refreshes the
+browser — no image rebuild, no restart.
+
+```bash
+tilt up
+```
+
+Open the URL Tilt prints (usually [http://localhost:10350](http://localhost:10350))
+for the dev UI, service logs, and build status. The app itself is at
+[http://localhost:3000](http://localhost:3000), same as the plain Compose
+setup.
+
+This works by layering [`docker-compose.dev.yml`](docker-compose.dev.yml) on
+top of `docker-compose.yml` (see [`Tiltfile`](Tiltfile)): `db` and `migrate`
+are unchanged, but `app` runs [`Dockerfile.dev`](Dockerfile.dev) (`next dev`)
+instead of a production build. Changes to `package.json`, `package-lock.json`,
+`Dockerfile.dev`, or anything outside `src`/`public` fall back to a normal
+image rebuild, since those need a fresh `npm ci` or process restart anyway.
+
+Stop everything with `tilt down`.
 
 ## Running with the prebuilt image
 
