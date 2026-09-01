@@ -32,15 +32,16 @@ services:
       db:
         condition: service_healthy
 
+  # Runs `next dev` directly (Dockerfile.dev) rather than a production
+  # build — this is a dev loop, not a prod-shaped demo. Under `tilt up`,
+  # Tilt live-syncs `src`/`public` into the running container and Next's
+  # own Turbopack watcher picks up the change; under plain `docker compose
+  # up --build` you get the same dev server but have to rebuild manually.
   app:
+    image: template-me-app
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        LOCAL_MODE: "true"
-        NEXT_PUBLIC_LOCAL_MODE: "true"
-        NEXT_PUBLIC_LOCAL_AUTH_EMAIL: "demo@example.com"
-        NEXT_PUBLIC_LOCAL_AUTH_PASSWORD: "localpassword123"
+      dockerfile: Dockerfile.dev
     ports:
       - "3000:3000"
     env_file:

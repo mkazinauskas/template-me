@@ -30,8 +30,7 @@ generate dozens of them at once, packaged into a `.zip`.
 - [Supported field types](#supported-field-types)
 - [Stack](#stack)
 - [Local development](#local-development)
-- [Running locally with Docker Compose](#running-locally-with-docker-compose)
-- [Local development with Tilt](#local-development-with-tilt)
+- [Local development with Docker Compose](#local-development-with-docker-compose)
 - [Running with the prebuilt image](#running-with-the-prebuilt-image)
 - [LibreOffice sandbox snapshot](#libreoffice-sandbox-snapshot)
 - [Database schema changes](#database-schema-changes)
@@ -46,7 +45,7 @@ generate dozens of them at once, packaged into a `.zip`.
    below). The original `.docx` goes to **Vercel Blob** (private); the parsed field list
    and template metadata go to **Neon Postgres** via `drizzle-orm`
    ([schema.ts](src/db/schema.ts)). Running via Docker Compose swaps both for
-   local equivalents — see [below](#running-locally-with-docker-compose).
+   local equivalents — see [below](#local-development-with-docker-compose).
 2. **Fill** — The template's page builds a form from its field list — one
    input per field, grouped into fieldsets when keys share a dot-prefix
    (`person.first_name` + `person.last_name` → a "Person" group). Every
@@ -107,32 +106,27 @@ vercel env pull --yes   # syncs DATABASE_URL, BLOB_READ_WRITE_TOKEN, etc.
 npm run dev
 ```
 
-## Running locally with Docker Compose
+## Local development with Docker Compose
 
-> For local setup, prefer
-> [`docker-compose.prebuilt.yml`](#running-with-the-prebuilt-image) — it
-> pulls prebuilt images instead of building LibreOffice from scratch, so it
-> comes up much faster. Use the `docker compose up --build` flow below only
-> if you're changing source or dependencies and need a fresh local build.
-
-```bash
-docker compose up --build
-```
-
-That's it — no Neon, Vercel Blob, Vercel Sandbox, or Resend account needed.
-`docker compose up` brings up three services:
+[`docker-compose.yml`](docker-compose.yml) brings up a fully-offline stack —
+no Neon, Vercel Blob, Vercel Sandbox, or Resend account needed — with three
+services:
 
 - **`db`** — a plain `postgres:16-alpine` container with a persisted volume.
 - **`migrate`** — runs `drizzle-kit push` against it and seeds one static
   account (see below), then exits.
-- **`app`** — the Next.js production build, at
+- **`app`** — `next dev` ([`Dockerfile.dev`](Dockerfile.dev)), at
   [http://localhost:3000](http://localhost:3000).
 
 Sign in with the seeded account — `demo@example.com` /
 `localpassword123` by default (change them in `.env.docker`, which is
-created the first time you run this and gitignored like the other `.env*`
-files). The sign-in/sign-up pages swap their usual email-code flow for a
-plain password form whenever `LOCAL_MODE=true`, since there's no Resend
+gitignored like the other `.env*` files — create it yourself with
+`LOCAL_MODE`, `DATABASE_URL`, `LOCAL_STORAGE_DIR`, `BETTER_AUTH_SECRET`,
+`BETTER_AUTH_URL`, `LOCAL_AUTH_*`, and `NEXT_PUBLIC_LOCAL_*`; see the comments
+in [`docker-compose.yml`](docker-compose.yml) and
+[`docker-compose.prebuilt.yml`](docker-compose.prebuilt.yml) for the values
+each expects). The sign-in/sign-up pages swap their usual email-code flow for
+a plain password form whenever `LOCAL_MODE=true`, since there's no Resend
 account locally to send the OTP email through — see
 [`auth-form.tsx`](src/components/auth-form.tsx).
 
@@ -146,44 +140,41 @@ fully offline mode everywhere it would otherwise reach a cloud service:
 | PDF conversion | Headless LibreOffice in a Vercel Sandbox microVM | Headless LibreOffice installed directly in the image (`apk add libreoffice`), invoked with `child_process` ([docx-to-pdf.ts](src/lib/docx-to-pdf.ts)) |
 | Sign-in | Email OTP via Resend | Static email/password, seeded by [`scripts/seed-local-user.ts`](scripts/seed-local-user.ts) |
 
-This is a self-contained local setup rather than a dev loop — no hot reload,
-no bind-mounted source (use `npm run dev`, or [Tilt](#local-development-with-tilt)
-for a containerized dev loop with hot reload). Rebuild
-(`docker compose up --build`) after changing source or dependencies.
-
 To point Docker Compose at the real cloud services instead (e.g. to test
 against production data), remove `LOCAL_MODE` from `.env.docker` and fill in
 `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, `RESEND_API_KEY`, etc. from
 `vercel env pull`.
 
-## Local development with Tilt
+Two ways to run it:
 
-Same fully-offline stack as `docker compose up` above (needs `.env.docker` —
-see the previous section), but with auto-refresh: [Tilt](https://tilt.dev)
+**Plain Compose** — brings the stack up, but you rebuild manually
+(`docker compose up --build`) after changing source or dependencies:
+
+```bash
+docker compose up --build
+```
+
+**[Tilt](https://tilt.dev)** — same stack, with auto-refresh: Tilt
 live-syncs changes to `src`/`public` straight into the running `app`
 container, and Next's own Turbopack watcher picks them up and refreshes the
-browser — no image rebuild, no restart.
-
-Tilt is managed by [mise](https://mise.jdx.dev) (see [`mise.toml`](mise.toml)),
-so `mise install` pulls it in alongside Node — no separate install needed.
+browser — no image rebuild, no restart. Tilt is managed by
+[mise](https://mise.jdx.dev) (see [`mise.toml`](mise.toml)), so `mise install`
+pulls it in alongside Node — no separate install needed.
 
 ```bash
 tilt up
 ```
 
 Open the URL Tilt prints (usually [http://localhost:10350](http://localhost:10350))
-for the dev UI, service logs, and build status. The app itself is at
-[http://localhost:3000](http://localhost:3000), same as the plain Compose
-setup.
+for the dev UI, service logs, and build status. The app itself is still at
+[http://localhost:3000](http://localhost:3000). Changes to `package.json`,
+`package-lock.json`, `Dockerfile.dev`, or anything outside `src`/`public`
+fall back to a normal image rebuild, since those need a fresh `npm ci` or
+process restart anyway. Stop everything with `tilt down`.
 
-This works by layering [`docker-compose.dev.yml`](docker-compose.dev.yml) on
-top of `docker-compose.yml` (see [`Tiltfile`](Tiltfile)): `db` and `migrate`
-are unchanged, but `app` runs [`Dockerfile.dev`](Dockerfile.dev) (`next dev`)
-instead of a production build. Changes to `package.json`, `package-lock.json`,
-`Dockerfile.dev`, or anything outside `src`/`public` fall back to a normal
-image rebuild, since those need a fresh `npm ci` or process restart anyway.
-
-Stop everything with `tilt down`.
+For a fully offline demo shaped like production (a real `next build`, not
+`next dev`), see [`docker-compose.prebuilt.yml`](#running-with-the-prebuilt-image)
+below — it pulls prebuilt images from GHCR rather than building locally.
 
 ## Running with the prebuilt image
 
