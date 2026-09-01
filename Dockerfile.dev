@@ -4,7 +4,7 @@
 # running container (see Tiltfile) and Next's own Turbopack watcher picks
 # them up and refreshes the browser automatically; under plain `docker
 # compose up` you get the same dev server without the live-sync.
-FROM node:22-alpine
+FROM node:24-alpine
 WORKDIR /app
 
 COPY package.json package-lock.json ./

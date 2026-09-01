@@ -1,9 +1,9 @@
-FROM node:22-alpine AS deps
+FROM node:24-alpine AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
-FROM node:22-alpine AS builder
+FROM node:24-alpine AS builder
 WORKDIR /app
 # NEXT_PUBLIC_* vars are inlined into the client bundle at build time, so
 # they have to arrive as build args, not just runtime env — see
@@ -40,7 +40,7 @@ RUN npm run build
 # Runs `drizzle-kit push` + the local user seed script against the local
 # Postgres container before the app starts. Needs devDependencies
 # (drizzle-kit, tsx), which the standalone runner image below doesn't have.
-FROM node:22-alpine AS migrator
+FROM node:24-alpine AS migrator
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json package-lock.json drizzle.config.ts tsconfig.json ./
@@ -48,7 +48,7 @@ COPY src ./src
 COPY scripts ./scripts
 CMD ["sh", "-c", "npx drizzle-kit push --force && npx tsx scripts/seed-local-user.ts"]
 
-FROM node:22-alpine AS runner
+FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
 # Only needed for LOCAL_MODE's docx->pdf conversion (see src/lib/docx-to-pdf.ts),
