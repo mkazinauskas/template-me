@@ -1,0 +1,61 @@
+# Runs the same fully-offline demo as docker-compose.yml, but pulls
+# prebuilt images from GHCR instead of building them locally — much faster
+# since it skips installing LibreOffice from scratch. Self-contained: no
+# repo checkout needed beyond this file.
+#
+#   docker compose -f docker-compose.prebuilt.yml up
+#
+# To update to the latest published images:
+#
+#   docker compose -f docker-compose.prebuilt.yml pull
+#   docker compose -f docker-compose.prebuilt.yml up
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  # Runs drizzle-kit push + seeds the static local user, then exits.
+  migrate:
+    image: ghcr.io/mkazinauskas/template-me:latest-migrator
+    environment: &app-env
+      LOCAL_MODE: "true"
+      DATABASE_URL: postgres://app:app@db:5432/app
+      LOCAL_STORAGE_DIR: /data/blobs
+      # Local-only demo secret, fine for a throwaway trial — regenerate
+      # (e.g. `openssl rand -base64 32`) for anything longer-lived.
+      BETTER_AUTH_SECRET: 6mmK76a8NUTRl30LdpVxQwQNB8CEDOsWmeTtyqq3A/A=
+      BETTER_AUTH_URL: http://localhost:3000
+      # Must match the NEXT_PUBLIC_LOCAL_AUTH_* values baked into the
+      # `:latest-demo` image's client bundle at build time.
+      LOCAL_AUTH_EMAIL: demo@example.com
+      LOCAL_AUTH_PASSWORD: localpassword123
+      LOCAL_AUTH_NAME: Local User
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    image: ghcr.io/mkazinauskas/template-me:latest-demo
+    ports:
+      - "3000:3000"
+    environment: *app-env
+    volumes:
+      - blob-data:/data/blobs
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  db-data:
+  blob-data:

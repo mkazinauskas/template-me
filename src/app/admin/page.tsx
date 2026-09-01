@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { redirect } from "next/navigation";
@@ -7,8 +6,7 @@ import { count, desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { templates, user } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { Logo } from "@/components/logo";
-import { SignOutButton } from "@/components/sign-out-button";
+import { AppHeader } from "@/components/app-header";
 
 export const dynamic = "force-dynamic";
 
@@ -66,22 +64,8 @@ export default async function AdminPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
+      <AppHeader user={session.user} width="6xl" />
       <main className="mx-auto max-w-6xl px-6 py-10 flex flex-col gap-10">
-        <div className="flex flex-wrap items-center justify-between gap-y-2">
-          <Link href="/" className="transition-transform hover:scale-[1.03]">
-            <Logo size="sm" />
-          </Link>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/dashboard"
-              className="shrink-0 text-sm text-black/50 dark:text-white/50 hover:underline"
-            >
-              ← Dashboard
-            </Link>
-            <SignOutButton />
-          </div>
-        </div>
-
         <div className="animate-fade-in-up">
           <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
           <p className="text-sm text-black/60 dark:text-white/60 mt-1">

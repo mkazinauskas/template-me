@@ -97,7 +97,9 @@ export async function TemplateList({ page = 1, q }: { page?: number; q?: string 
                       />
                     </svg>
                   </div>
-                  <DeleteTemplateButton templateId={t.id} variant="icon" />
+                  <div className="relative z-10">
+                    <DeleteTemplateButton templateId={t.id} variant="icon" />
+                  </div>
                 </div>
 
                 <div className="min-w-0">
@@ -148,7 +150,8 @@ export async function TemplateList({ page = 1, q }: { page?: number; q?: string 
                   </span>
                   <Link
                     href={`/templates/${t.id}`}
-                    className="inline-flex items-center gap-1 text-sm font-medium text-black dark:text-white after:content-['→'] after:transition-transform after:duration-200 group-hover:after:translate-x-0.5"
+                    className="inline-flex items-center gap-1 text-sm font-medium text-black dark:text-white after:content-['→'] after:transition-transform after:duration-200 group-hover:after:translate-x-0.5 before:absolute before:inset-0 before:z-0 before:content-['']"
+                    aria-label={`Open ${t.name}`}
                   >
                     Open
                   </Link>

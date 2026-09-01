@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { and, eq } from "drizzle-orm";
@@ -9,10 +8,14 @@ import { templates } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { FillForm } from "@/components/fill-form";
 import { DeleteTemplateButton } from "@/components/delete-template-button";
-import { Logo } from "@/components/logo";
+import { AppHeader } from "@/components/app-header";
+
+const getSession = cache(async () =>
+  auth.api.getSession({ headers: await headers() })
+);
 
 const getTemplate = cache(async (id: string) => {
-  const session = await auth.api.getSession({ headers: await headers() });
+  const session = await getSession();
   if (!session) return undefined;
   const db = getDb();
   const [template] = await db
@@ -48,7 +51,7 @@ export default async function TemplatePage({
 }) {
   const { id } = await params;
   const { warnings: warningsParam } = await searchParams;
-  const template = await getTemplate(id);
+  const [template, session] = await Promise.all([getTemplate(id), getSession()]);
 
   if (!template) {
     notFound();
@@ -66,26 +69,20 @@ export default async function TemplatePage({
 
   return (
     <div className="h-screen flex flex-col bg-zinc-50 dark:bg-black overflow-hidden">
-      <header className="shrink-0 px-6 py-4 border-b border-black/10 dark:border-white/15">
-        <div className="flex items-center justify-between">
-          <Link href="/" className="transition-transform hover:scale-[1.03]">
-            <Logo size="sm" animated={false} />
-          </Link>
-          <Link
-            href="/dashboard"
-            className="text-sm text-black/50 dark:text-white/50 hover:underline"
-          >
-            ← All templates
-          </Link>
-        </div>
-        <div className="flex items-center justify-between mt-2">
-          <h1 className="text-xl font-semibold tracking-tight">{template.name}</h1>
+      <AppHeader user={session?.user} />
+      <div className="shrink-0 px-6 py-4 border-b border-black/10 dark:border-white/15">
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="text-xl font-semibold tracking-tight truncate">
+              {template.name}
+            </h1>
+            <p className="text-sm text-black/60 dark:text-white/60 mt-0.5 truncate">
+              {template.originalFilename}
+            </p>
+          </div>
           <DeleteTemplateButton templateId={template.id} />
         </div>
-        <p className="text-sm text-black/60 dark:text-white/60 mt-0.5">
-          {template.originalFilename}
-        </p>
-      </header>
+      </div>
 
       {warnings.length > 0 && (
         <div className="shrink-0 border-b border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-6 py-3 text-sm text-amber-800 dark:text-amber-300">

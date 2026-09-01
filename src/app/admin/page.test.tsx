@@ -71,10 +71,11 @@ const redirect = vi.hoisted(() =>
     throw new Error("NEXT_REDIRECT");
   })
 );
-vi.mock("next/navigation", () => ({ notFound, redirect }));
-
-vi.mock("@/components/sign-out-button", () => ({
-  SignOutButton: () => <button>Sign out</button>,
+vi.mock("next/navigation", () => ({
+  notFound,
+  redirect,
+  usePathname: () => "/admin",
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
 }));
 
 async function renderAdminPage() {

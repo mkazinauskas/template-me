@@ -31,6 +31,7 @@ generate dozens of them at once, packaged into a `.zip`.
 - [Stack](#stack)
 - [Local development](#local-development)
 - [Running locally with Docker Compose](#running-locally-with-docker-compose)
+- [Running with the prebuilt image](#running-with-the-prebuilt-image)
 - [LibreOffice sandbox snapshot](#libreoffice-sandbox-snapshot)
 - [Database schema changes](#database-schema-changes)
 
@@ -146,6 +147,38 @@ To point Docker Compose at the real cloud services instead (e.g. to test
 against production data), remove `LOCAL_MODE` from `.env.docker` and fill in
 `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN`, `RESEND_API_KEY`, etc. from
 `vercel env pull`.
+
+## Running with the prebuilt image
+
+Same fully-offline demo as above, but pulling prebuilt images from GHCR
+instead of building them locally — much faster since it skips installing
+LibreOffice from scratch:
+
+```bash
+docker compose -f docker-compose.prebuilt.yml up
+```
+
+This is self-contained: you only need
+[`docker-compose.prebuilt.yml`](docker-compose.prebuilt.yml) itself, not a
+full checkout of the repo. It pulls `ghcr.io/mkazinauskas/template-me:latest-demo`
+(the app, built with `LOCAL_MODE` baked in) and `:latest-migrator` (the
+one-shot migration/seed step), published by
+[`docker-publish.yml`](.github/workflows/docker-publish.yml) on every push
+to `main`. Sign in with the same seeded account as above —
+`demo@example.com` / `localpassword123`.
+
+To update to the latest published images:
+
+```bash
+docker compose -f docker-compose.prebuilt.yml pull
+docker compose -f docker-compose.prebuilt.yml up
+```
+
+Note that these `-demo`/`-migrator` tags are separate from the plain
+`:latest` image also published by that workflow — `:latest` is a normal
+production build (no `LOCAL_MODE`), meant for deploying against real Neon
+Postgres / Vercel Blob / Vercel Sandbox / Resend credentials rather than
+this local demo.
 
 ## LibreOffice sandbox snapshot
 
