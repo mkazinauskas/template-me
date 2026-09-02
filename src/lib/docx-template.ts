@@ -5,7 +5,7 @@ import { parseTag, splitGroup, toLabel } from "./docx-template/tag-parsing";
 import { formatFieldValue } from "./docx-template/value-formatting";
 import { assertSafeUncompressedSize, sanitizeForLibreOffice } from "./docx-template/zip";
 
-export { isTruthyValue, TRUTHY_VALUES } from "./docx-template/value-formatting";
+export { isTruthyValue } from "./docx-template/value-formatting";
 
 const DELIMITERS = { start: "{{", end: "}}" };
 

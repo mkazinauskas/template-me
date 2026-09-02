@@ -2,7 +2,7 @@ import type { TemplateField } from "@/db/schema";
 
 export type FieldBucket = { groupLabel?: string; fields: TemplateField[] };
 
-export function defaultValueFor(field: TemplateField): string {
+function defaultValueFor(field: TemplateField): string {
   if (field.type === "boolean" || field.type === "checkbox") return "false";
   return "";
 }

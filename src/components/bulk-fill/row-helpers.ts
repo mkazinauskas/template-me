@@ -32,7 +32,7 @@ export type PersistedBulkState = {
 };
 
 /** Normalizes a raw string into the canonical form the template's field type expects. */
-export function coerceValue(field: TemplateField, raw: string): string {
+function coerceValue(field: TemplateField, raw: string): string {
   const value = raw.trim();
   if (field.type === "boolean" || field.type === "checkbox") {
     return isTruthyValue(value) ? "true" : "false";

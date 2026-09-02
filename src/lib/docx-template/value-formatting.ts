@@ -5,9 +5,10 @@ const UNCHECKED_BOX = "☐";
 
 /**
  * The truthy string synonyms accepted for boolean/checkbox fields. Kept in one
- * place so every part of the pipeline agrees on what counts as "checked".
+ * place (behind {@link isTruthyValue}) so every part of the pipeline agrees on
+ * what counts as "checked".
  */
-export const TRUTHY_VALUES = new Set(["true", "on", "1", "yes", "y"]);
+const TRUTHY_VALUES = new Set(["true", "on", "1", "yes", "y"]);
 
 /** Whether a raw string value (case-insensitively) represents "true" for a boolean/checkbox field. */
 export function isTruthyValue(value: string): boolean {
