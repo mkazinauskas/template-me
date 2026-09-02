@@ -152,7 +152,7 @@ export default async function LandingPage() {
       <main>
         <section
           aria-labelledby="hero-heading"
-          className="relative mx-auto max-w-3xl px-6 pt-16 pb-20 text-center flex flex-col items-center gap-6 overflow-hidden"
+          className="relative mx-auto max-w-5xl px-6 pt-16 pb-20 text-center flex flex-col items-center gap-6 overflow-hidden"
         >
           <div
             aria-hidden="true"
@@ -180,7 +180,7 @@ export default async function LandingPage() {
             </span>
           </h1>
           <p
-            className="animate-fade-in-up text-base sm:text-lg text-black/60 dark:text-white/60 max-w-xl text-balance"
+            className="animate-fade-in-up text-base sm:text-lg text-black/60 dark:text-white/60 max-w-2xl text-pretty"
             style={{ animationDelay: "0.1s" }}
           >
             Upload a .docx file with {"{{placeholder}}"} tags and Template Me
@@ -266,7 +266,7 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section aria-labelledby="faq-heading" className="mx-auto max-w-3xl px-6 pb-24">
+        <section aria-labelledby="faq-heading" className="mx-auto max-w-5xl px-6 pb-24">
           <h2
             id="faq-heading"
             className="text-xl font-semibold tracking-tight text-center mb-8"
