@@ -1,129 +1,18 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FillForm } from "@/components/fill-form";
-import type { TemplateField } from "@/db/schema";
+import {
+  fetchOkBlob,
+  FIELDS,
+  installFillFormGlobals,
+  restoreFillFormGlobals,
+  spyOnAnchorClick,
+} from "./fill-form.test-helpers";
 
-const FIELDS: TemplateField[] = [
-  { key: "full_name", label: "Full name", type: "string", params: [] },
-  { key: "salary", label: "Salary", type: "number", params: ["2"] },
-  { key: "start_date", label: "Start date", type: "date", params: [] },
-  { key: "relocation", label: "Relocation", type: "boolean", params: ["Yes", "No"] },
-  {
-    key: "employment_type",
-    label: "Employment type",
-    type: "select",
-    params: ["Full-time", "Part-time"],
-  },
-  { key: "person.first_name", label: "First name", type: "string", params: [], group: "person", groupLabel: "Person" },
-];
-
-function fetchOkBlob(content = "pdf-bytes") {
-  return {
-    ok: true,
-    json: async () => ({}),
-    blob: async () => new Blob([content], { type: "application/pdf" }),
-  };
-}
-
-describe("FillForm / SingleFillForm", () => {
-  beforeEach(() => {
-    // FillForm persists values to localStorage keyed by templateId and
-    // restores them on mount — clear between tests so one test's typed
-    // values don't leak into the next (all tests here share templateId "t1").
-    localStorage.clear();
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(fetchOkBlob()));
-    vi.stubGlobal(
-      "URL",
-      Object.assign(URL, {
-        createObjectURL: vi.fn(() => "blob:mock-url"),
-        revokeObjectURL: vi.fn(),
-      })
-    );
-  });
-
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  it("renders every field with its label, raw tag, and type, grouping fields under a fieldset", () => {
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
-
-    expect(screen.getByText("Full name")).toBeInTheDocument();
-    expect(screen.getByText("{{salary|number(2)}}")).toBeInTheDocument();
-    expect(screen.getByText("Person")).toBeInTheDocument();
-
-    const group = screen.getByText("Person").closest("fieldset")!;
-    expect(within(group).getByText("First name")).toBeInTheDocument();
-  });
-
-  it("renders the correct input type per field", () => {
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
-
-    expect(screen.getByLabelText(/Salary/)).toHaveAttribute("type", "number");
-    expect(screen.getByLabelText(/Start date/)).toHaveAttribute("type", "date");
-    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "false");
-    expect(screen.getByRole("combobox", { name: /Employment type/ })).toBeInTheDocument();
-  });
-
-  it("fetches a preview shortly after mount with the default values", async () => {
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
-
-    await waitFor(
-      () =>
-        expect(globalThis.fetch).toHaveBeenCalledWith(
-          "/api/templates/t1/generate",
-          expect.objectContaining({
-            method: "POST",
-            body: expect.stringContaining('"preview":true'),
-          })
-        ),
-      { timeout: 2000 }
-    );
-  }, 10000);
-
-  it("debounces the preview request while the user is still typing", async () => {
-    const user = userEvent.setup();
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
-    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(1), { timeout: 2000 });
-    (globalThis.fetch as ReturnType<typeof vi.fn>).mockClear();
-
-    await user.type(screen.getByLabelText(/Full name/), "Jo");
-
-    // Debounce window (700ms) hasn't elapsed yet.
-    await new Promise((r) => setTimeout(r, 300));
-    expect(globalThis.fetch).not.toHaveBeenCalled();
-
-    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(1), { timeout: 2000 });
-    const [, options] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(JSON.parse(options.body).data.full_name).toBe("Jo");
-  }, 10000);
-
-  it("toggles the boolean switch and reflects the on/off label", async () => {
-    const user = userEvent.setup();
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
-
-    const toggle = screen.getByRole("switch");
-    expect(screen.getByText("No")).toBeInTheDocument();
-
-    await user.click(toggle);
-
-    expect(toggle).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByText("Yes")).toBeInTheDocument();
-  });
-
-  it("renders a checkbox input and toggles its checked state", async () => {
-    const user = userEvent.setup();
-    const checkboxFields = [{ key: "agreed", label: "Agreed", type: "checkbox" as const, params: [] }];
-    render(<FillForm templateId="t1" fields={checkboxFields} templateName="Offer Letter" />);
-
-    const checkbox = screen.getByRole("checkbox");
-    expect(checkbox).not.toBeChecked();
-
-    await user.click(checkbox);
-
-    expect(checkbox).toBeChecked();
-  });
+describe("FillForm — submit, persistence & values import/export", () => {
+  beforeEach(installFillFormGlobals);
+  afterEach(restoreFillFormGlobals);
 
   it("submits field values and triggers a PDF download", async () => {
     const user = userEvent.setup();
@@ -135,13 +24,7 @@ describe("FillForm / SingleFillForm", () => {
     await user.selectOptions(screen.getByRole("combobox", { name: /Employment type/ }), "Full-time");
     await user.type(screen.getByLabelText(/First name/), "Jane");
 
-    const clickSpy = vi.fn();
-    const originalCreateElement = document.createElement.bind(document);
-    vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
-      const el = originalCreateElement(tag);
-      if (tag === "a") el.click = clickSpy;
-      return el;
-    });
+    const clickSpy = spyOnAnchorClick();
 
     await user.click(screen.getByRole("button", { name: "Download PDF" }));
     await waitFor(() => expect(clickSpy).toHaveBeenCalled(), { timeout: 2000 });
@@ -160,7 +43,10 @@ describe("FillForm / SingleFillForm", () => {
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation((_url, options) => {
       const body = options?.body ? JSON.parse(options.body as string) : {};
       if (body.preview) return Promise.resolve(fetchOkBlob());
-      return Promise.resolve({ ok: false, json: async () => ({ error: "Missing values for: full_name" }) });
+      return Promise.resolve({
+        ok: false,
+        json: async () => ({ error: "Missing values for: full_name" }),
+      });
     });
     const user = userEvent.setup();
     render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
@@ -178,7 +64,9 @@ describe("FillForm / SingleFillForm", () => {
 
   it("persists entered values to localStorage and restores them on remount", async () => {
     const user = userEvent.setup();
-    const { unmount } = render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+    const { unmount } = render(
+      <FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />
+    );
 
     await user.type(screen.getByLabelText(/Full name/), "Jane Doe");
     await user.type(screen.getByLabelText(/Salary/), "1000");
@@ -207,10 +95,10 @@ describe("FillForm / SingleFillForm", () => {
   it("writes each edit to localStorage immediately, with no debounce or delay", () => {
     render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
 
-    // Plain fireEvent with no `await`/`waitFor` afterwards: the write must
-    // land in the same tick as the edit (fill-form.tsx persists it directly
-    // in the change handler rather than in a debounced/deferred effect), so
-    // a refresh right after typing can never race ahead of the save.
+    // Plain fireEvent with no `await`/`waitFor` afterwards: the write must land
+    // in the same tick as the edit (values are persisted directly in the change
+    // handler rather than in a debounced/deferred effect), so a refresh right
+    // after typing can never race ahead of the save.
     fireEvent.change(screen.getByLabelText(/Full name/), { target: { value: "Jane" } });
     expect(JSON.parse(localStorage.getItem("fillFormValues:t1")!).full_name).toBe("Jane");
 
@@ -224,13 +112,7 @@ describe("FillForm / SingleFillForm", () => {
 
     await user.type(screen.getByLabelText(/Full name/), "Jane Doe");
 
-    const clickSpy = vi.fn();
-    const originalCreateElement = document.createElement.bind(document);
-    vi.spyOn(document, "createElement").mockImplementation((tag: string) => {
-      const el = originalCreateElement(tag);
-      if (tag === "a") el.click = clickSpy;
-      return el;
-    });
+    const clickSpy = spyOnAnchorClick();
 
     await user.click(screen.getByRole("button", { name: "Export values" }));
 
@@ -283,14 +165,5 @@ describe("FillForm / SingleFillForm", () => {
     expect(screen.getByLabelText(/Full name/)).toHaveValue("");
     expect(screen.getByLabelText(/Salary/)).toHaveValue(null);
     expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "false");
-  });
-
-  it("switches to the bulk-fill tab", async () => {
-    const user = userEvent.setup();
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
-
-    await user.click(screen.getByRole("button", { name: "Create multiple from a spreadsheet" }));
-
-    expect(screen.getByLabelText(/Spreadsheet \(\.csv/)).toBeInTheDocument();
   });
 });
