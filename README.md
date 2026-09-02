@@ -114,8 +114,9 @@ services:
 
 - **`db`** — a plain `postgres:16-alpine` container with a persisted volume.
 - **`migrate`** — runs `drizzle-kit push` against it and seeds one static
-  account (see below), then exits.
-- **`app`** — `next dev` ([`Dockerfile.dev`](Dockerfile.dev)), at
+  account (see below), then exits. Reuses the `app` image with a command
+  override.
+- **`app`** — `next dev` (the `dev` stage of [`Dockerfile`](Dockerfile)), at
   [http://localhost:3000](http://localhost:3000).
 
 Sign in with the seeded account — `demo@example.com` /
@@ -168,7 +169,7 @@ tilt up
 Open the URL Tilt prints (usually [http://localhost:10350](http://localhost:10350))
 for the dev UI, service logs, and build status. The app itself is still at
 [http://localhost:3000](http://localhost:3000). Changes to `package.json`,
-`package-lock.json`, `Dockerfile.dev`, or anything outside `src`/`public`
+`package-lock.json`, `Dockerfile`, or anything outside `src`/`public`
 fall back to a normal image rebuild, since those need a fresh `npm ci` or
 process restart anyway. Stop everything with `tilt down`.
 

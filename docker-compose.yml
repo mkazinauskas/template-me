@@ -20,28 +20,34 @@ services:
       timeout: 5s
       retries: 30
 
-  # Runs drizzle-kit push + seeds the static local user, then exits.
+  # Runs drizzle-kit push + seeds the static local user, then exits. Reuses
+  # the same `dev` image as `app` (it carries drizzle-kit + tsx) with a
+  # command override, so `docker compose up --build` only builds one image.
   migrate:
+    image: template-me-app
     build:
       context: .
       dockerfile: Dockerfile
-      target: migrator
+      target: dev
+    command: sh -c "npx drizzle-kit push --force && npx tsx scripts/seed-local-user.ts"
     env_file:
       - .env.docker
     depends_on:
       db:
         condition: service_healthy
 
-  # Runs `next dev` directly (Dockerfile.dev) rather than a production
-  # build — this is a dev loop, not a prod-shaped demo. Under `tilt up`,
-  # Tilt live-syncs `src`/`public` into the running container and Next's
-  # own Turbopack watcher picks up the change; under plain `docker compose
-  # up --build` you get the same dev server but have to rebuild manually.
+  # Runs `next dev` directly (Dockerfile `dev` stage) rather than a
+  # production build — this is a dev loop, not a prod-shaped demo. Under
+  # `tilt up`, Tilt live-syncs `src`/`public` into the running container and
+  # Next's own Turbopack watcher picks up the change; under plain `docker
+  # compose up --build` you get the same dev server but have to rebuild
+  # manually.
   app:
     image: template-me-app
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile
+      target: dev
     ports:
       - "3000:3000"
     env_file:

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { Logo } from "@/components/logo";
 import { DocumentExample } from "@/components/document-example";
+import { DockerRunTabs } from "@/components/docker-run-tabs";
 import { auth } from "@/lib/auth";
 import { siteUrl } from "@/lib/site-url";
 import { buttonClasses } from "@/components/ui/button";
@@ -238,29 +239,8 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-3xl px-6 pb-20 text-center flex flex-col items-center">
-          <div
-            className="animate-fade-in-up w-full max-w-md rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-white/[0.02] p-4 text-left"
-            style={{ animationDelay: "0.3s" }}
-          >
-            <p className="text-xs font-medium text-black/50 dark:text-white/50 mb-2">
-              Run it locally with Docker Compose
-            </p>
-            <pre className="overflow-x-auto rounded-md bg-zinc-900 dark:bg-black px-3 py-2.5 text-xs text-zinc-100 font-mono">
-              <code>
-                git clone https://github.com/mkazinauskas/template-me.git
-                {"\n"}cd template-me
-                {"\n"}docker compose up
-              </code>
-            </pre>
-            <p className="mt-2 text-xs text-black/40 dark:text-white/40">
-              Then open{" "}
-              <span className="font-mono text-black/60 dark:text-white/60">
-                localhost:3000
-              </span>{" "}
-              — no cloud account required.
-            </p>
-          </div>
+        <section className="mx-auto max-w-5xl px-6 pb-20 flex flex-col items-center">
+          <DockerRunTabs />
         </section>
 
         <section aria-labelledby="features-heading" className="mx-auto max-w-5xl px-6 pb-24">

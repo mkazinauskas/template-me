@@ -3,6 +3,19 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
+# Dev image for the `app` and `migrate` services in docker-compose.yml.
+# Unlike the `runner` stage below, this runs `next dev` directly instead of a
+# standalone production build. Under `tilt up`, Tilt live-syncs source changes
+# into the running container (see Tiltfile) and Next's own Turbopack watcher
+# picks them up and refreshes the browser; under plain `docker compose up` you
+# get the same dev server without the live-sync. It keeps devDependencies
+# (drizzle-kit, tsx) from the `deps` stage, so `migrate` reuses this same
+# image with a command override rather than needing its own build.
+FROM deps AS dev
+COPY . .
+EXPOSE 3000
+CMD ["npx", "next", "dev"]
+
 FROM node:24-alpine AS builder
 WORKDIR /app
 # NEXT_PUBLIC_* vars are inlined into the client bundle at build time, so
@@ -40,6 +53,8 @@ RUN npm run build
 # Runs `drizzle-kit push` + the local user seed script against the local
 # Postgres container before the app starts. Needs devDependencies
 # (drizzle-kit, tsx), which the standalone runner image below doesn't have.
+# Only used by CI (docker-publish.yml) and docker-compose.prebuilt.yml —
+# local docker-compose.yml runs the same command from the `dev` image above.
 FROM node:24-alpine AS migrator
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
