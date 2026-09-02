@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { getFile } from "@/lib/storage";
 import { getDb } from "@/db";
 import { templates } from "@/db/schema";
 import { convertDocxToPdf } from "@/lib/docx-to-pdf";
 import { auth } from "@/lib/auth";
+import { canViewTemplate } from "@/lib/template-access";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { handleBulk } from "./bulk";
 import { sanitizeFilename } from "./filename";
@@ -14,20 +15,27 @@ import { renderRow, validateRow } from "./row-validation";
 export const maxDuration = 300;
 
 // This route boots a Vercel Sandbox + LibreOffice per call (and a bulk call can
-// render/convert up to 100 documents), so it's throttled per-user well below
-// what a legitimate workflow needs, to bound cost/abuse.
+// render/convert up to 100 documents), so it's throttled well below what a
+// legitimate workflow needs, to bound cost/abuse. Signed-in callers are keyed
+// by user id; anonymous callers (allowed for public templates) are keyed by
+// client IP, at a tighter cap since we can't attribute the load to an account.
 const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_MAX_USER = 10;
+const RATE_LIMIT_MAX_ANON = 4;
+
+function clientIp(req: NextRequest): string {
+  return req.headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
+}
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth.api.getSession({ headers: req.headers });
-  if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
 
-  const { allowed, retryAfterSeconds } = await checkRateLimit(`generate:${session.user.id}`, {
+  const rateLimitKey = session
+    ? `generate:${session.user.id}`
+    : `generate:anon:${clientIp(req)}`;
+  const { allowed, retryAfterSeconds } = await checkRateLimit(rateLimitKey, {
     windowMs: RATE_LIMIT_WINDOW_MS,
-    max: RATE_LIMIT_MAX,
+    max: session ? RATE_LIMIT_MAX_USER : RATE_LIMIT_MAX_ANON,
   });
   if (!allowed) {
     return NextResponse.json(
@@ -38,11 +46,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 
   const { id } = await params;
   const db = getDb();
-  const [templateRow] = await db
-    .select()
-    .from(templates)
-    .where(and(eq(templates.id, id), eq(templates.userId, session.user.id)));
-  if (!templateRow) {
+  const [templateRow] = await db.select().from(templates).where(eq(templates.id, id));
+  if (!templateRow || !canViewTemplate(templateRow, session?.user.id)) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
 

@@ -1,13 +1,15 @@
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { cache } from "react";
 import type { Metadata } from "next";
 import { getDb } from "@/db";
 import { templates } from "@/db/schema";
 import { auth } from "@/lib/auth";
+import { canViewTemplate, isTemplateOwner } from "@/lib/template-access";
 import { FillForm } from "@/components/fill-form";
 import { DeleteTemplateButton } from "@/components/delete-template-button";
+import { PublishToggle } from "@/components/publish-toggle";
 import { AppHeader } from "@/components/app-header";
 
 const getSession = cache(async () =>
@@ -16,12 +18,9 @@ const getSession = cache(async () =>
 
 const getTemplate = cache(async (id: string) => {
   const session = await getSession();
-  if (!session) return undefined;
   const db = getDb();
-  const [template] = await db
-    .select()
-    .from(templates)
-    .where(and(eq(templates.id, id), eq(templates.userId, session.user.id)));
+  const [template] = await db.select().from(templates).where(eq(templates.id, id));
+  if (!template || !canViewTemplate(template, session?.user.id)) return undefined;
   return template;
 });
 
@@ -57,6 +56,8 @@ export default async function TemplatePage({
     notFound();
   }
 
+  const isOwner = isTemplateOwner(template, session?.user.id);
+
   let warnings: string[] = [];
   if (warningsParam) {
     try {
@@ -80,7 +81,20 @@ export default async function TemplatePage({
               {template.originalFilename}
             </p>
           </div>
-          <DeleteTemplateButton templateId={template.id} />
+          <div className="flex shrink-0 items-center gap-3">
+            {isOwner ? (
+              <>
+                <PublishToggle templateId={template.id} isPublic={template.isPublic} />
+                <DeleteTemplateButton templateId={template.id} />
+              </>
+            ) : (
+              template.isPublic && (
+                <span className="rounded-full bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                  Public template
+                </span>
+              )
+            )}
+          </div>
         </div>
       </div>
 

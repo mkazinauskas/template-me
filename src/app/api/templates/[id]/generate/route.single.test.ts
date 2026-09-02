@@ -29,15 +29,15 @@ describe("POST /api/templates/[id]/generate", () => {
     expect(res.headers.get("Retry-After")).toBe("30");
   });
 
-  it("returns 401 when there is no session", async () => {
+  it("returns 404 for a private template when there is no session", async () => {
     state.session = null;
     const POST = await importPost();
 
     const res = await POST(postRequest({ data: VALID_DATA }), params());
     const json = await res.json();
 
-    expect(res.status).toBe(401);
-    expect(json.error).toBe("Unauthorized");
+    expect(res.status).toBe(404);
+    expect(json.error).toBe("Template not found");
   });
 
   it("returns 404 when the template does not exist", async () => {
@@ -51,7 +51,7 @@ describe("POST /api/templates/[id]/generate", () => {
     expect(json.error).toBe("Template not found");
   });
 
-  it("returns 404 when the template belongs to a different user", async () => {
+  it("returns 404 when a private template belongs to a different user", async () => {
     state.templateRow = makeTemplate({ userId: "someone-else" });
     const POST = await importPost();
 
@@ -60,6 +60,28 @@ describe("POST /api/templates/[id]/generate", () => {
 
     expect(res.status).toBe(404);
     expect(json.error).toBe("Template not found");
+  });
+
+  it("generates a document for a non-owner when the template is public", async () => {
+    state.session = { user: { id: "user-2", email: "other@example.com" } };
+    state.templateRow = makeTemplate({ userId: "someone-else", isPublic: true });
+    const POST = await importPost();
+
+    const res = await POST(postRequest({ data: VALID_DATA }), params());
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("application/pdf");
+  });
+
+  it("generates a document for an anonymous caller when the template is public", async () => {
+    state.session = null;
+    state.templateRow = makeTemplate({ userId: "someone-else", isPublic: true });
+    const POST = await importPost();
+
+    const res = await POST(postRequest({ data: VALID_DATA }), params());
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get("Content-Type")).toBe("application/pdf");
   });
 
   it("returns 400 for a malformed JSON body", async () => {

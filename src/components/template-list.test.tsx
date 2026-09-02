@@ -47,6 +47,7 @@ function makeTemplate(overrides: Partial<Template>): Template {
     blobPathname: "templates/offer.docx",
     fields: [],
     userId: "user-1",
+    isPublic: false,
     createdAt: new Date("2026-01-01T00:00:00Z"),
     ...overrides,
   };
@@ -55,7 +56,9 @@ function makeTemplate(overrides: Partial<Template>): Template {
 // TemplateList is an async Server Component; Vitest/RTL can't render it directly
 // (see next.js testing docs), so we await the component function ourselves to
 // get the resolved element before handing it to render().
-async function renderTemplateList(props: { page?: number } = {}) {
+async function renderTemplateList(
+  props: { page?: number; scope?: "own" | "public"; pageParam?: string } = {}
+) {
   const { TemplateList } = await import("@/components/template-list");
   const element = await TemplateList(props);
   render(element);
@@ -77,6 +80,23 @@ describe("TemplateList", () => {
   it("shows an empty state when there are no templates", async () => {
     await renderTemplateList();
     expect(screen.getByText("No templates uploaded yet.")).toBeInTheDocument();
+  });
+
+  it("renders the public scope without a session and hides delete buttons", async () => {
+    sessionResult = null;
+    rowsResult = [makeTemplate({ id: "p1", name: "Shared NDA", userId: "someone-else", isPublic: true })];
+    totalResult = [{ total: 1 }];
+
+    await renderTemplateList({ scope: "public" });
+
+    expect(screen.getByText("Shared NDA")).toBeInTheDocument();
+    expect(screen.getByText("Public")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Delete template/ })).not.toBeInTheDocument();
+  });
+
+  it("shows a public-specific empty state", async () => {
+    await renderTemplateList({ scope: "public" });
+    expect(screen.getByText("No public templates yet.")).toBeInTheDocument();
   });
 
   it("lists templates with their field breakdown and filename", async () => {

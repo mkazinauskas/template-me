@@ -16,20 +16,21 @@ export const metadata: Metadata = {
 export default async function TemplatesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; q?: string }>;
+  searchParams: Promise<{ page?: string; ppage?: string; q?: string }>;
 }) {
-  const { page: pageParam, q } = await searchParams;
+  const { page: pageParam, ppage: ppageParam, q } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
+  const publicPage = Math.max(1, Number(ppageParam) || 1);
   const session = await auth.api.getSession({ headers: await headers() });
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
-      <AppHeader user={session?.user} />
-      <main className="mx-auto max-w-5xl px-6 py-10 flex flex-col gap-8">
+      <AppHeader user={session?.user} width="full" />
+      <main className="mx-auto max-w-none px-6 py-10 flex flex-col gap-8">
         <div className="animate-fade-in-up flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">Browse templates</h1>
           <p className="text-sm text-muted-foreground">
-            Search your uploaded templates and open one to fill it in.
+            Search templates and open one to fill it in.
           </p>
         </div>
 
@@ -37,12 +38,25 @@ export default async function TemplatesPage({
           <TemplateSearchForm defaultValue={q} />
         </div>
 
-        <Suspense
-          key={`${page}-${q ?? ""}`}
-          fallback={<p className="text-sm text-black/50">Loading…</p>}
-        >
-          <TemplateList page={page} q={q} />
-        </Suspense>
+        <div className="animate-fade-in-up flex flex-col gap-3" style={{ animationDelay: "0.15s" }}>
+          <h2 className="text-lg font-semibold">Your templates</h2>
+          <Suspense
+            key={`own-${page}-${q ?? ""}`}
+            fallback={<p className="text-sm text-black/50">Loading…</p>}
+          >
+            <TemplateList scope="own" page={page} q={q} pageParam="page" />
+          </Suspense>
+        </div>
+
+        <div className="animate-fade-in-up flex flex-col gap-3" style={{ animationDelay: "0.2s" }}>
+          <h2 className="text-lg font-semibold">Public templates</h2>
+          <Suspense
+            key={`public-${publicPage}-${q ?? ""}`}
+            fallback={<p className="text-sm text-black/50">Loading…</p>}
+          >
+            <TemplateList scope="public" page={publicPage} q={q} pageParam="ppage" />
+          </Suspense>
+        </div>
       </main>
     </div>
   );

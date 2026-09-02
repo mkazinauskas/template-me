@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { getDb } from "@/db";
 import { templates } from "@/db/schema";
 import type { TemplateFieldType } from "@/db/schema";
-import { and, count, desc, eq, ilike, or } from "drizzle-orm";
+import { and, count, desc, eq, ilike, ne, or, type SQL } from "drizzle-orm";
 import { DeleteTemplateButton } from "@/components/delete-template-button";
 import { auth } from "@/lib/auth";
 
@@ -24,9 +24,21 @@ const dateFormatter = new Intl.DateTimeFormat("en-US", {
   year: "numeric",
 });
 
-export async function TemplateList({ page = 1, q }: { page?: number; q?: string }) {
+export async function TemplateList({
+  page = 1,
+  q,
+  scope = "own",
+  pageParam = "page",
+}: {
+  page?: number;
+  q?: string;
+  /** "own" = the caller's own templates; "public" = public templates from other users. */
+  scope?: "own" | "public";
+  /** Query-param name for this list's pagination, so two lists on one page don't collide. */
+  pageParam?: string;
+}) {
   const session = await auth.api.getSession({ headers: await headers() });
-  if (!session) {
+  if (scope === "own" && !session) {
     return (
       <p className="text-sm text-muted-foreground">
         Sign in to see your templates.
@@ -36,10 +48,17 @@ export async function TemplateList({ page = 1, q }: { page?: number; q?: string 
 
   const db = getDb();
   const term = q?.trim();
-  const ownerFilter = eq(templates.userId, session.user.id);
-  const where = term
-    ? and(ownerFilter, or(ilike(templates.name, `%${term}%`), ilike(templates.originalFilename, `%${term}%`)))
-    : ownerFilter;
+  const scopeFilter =
+    scope === "own"
+      ? eq(templates.userId, session!.user.id)
+      : and(
+          eq(templates.isPublic, true),
+          session ? ne(templates.userId, session.user.id) : undefined
+        );
+  const termFilter = term
+    ? or(ilike(templates.name, `%${term}%`), ilike(templates.originalFilename, `%${term}%`))
+    : undefined;
+  const where = (termFilter ? and(scopeFilter, termFilter) : scopeFilter) as SQL;
 
   const [rows, [{ total }]] = await Promise.all([
     db
@@ -53,9 +72,14 @@ export async function TemplateList({ page = 1, q }: { page?: number; q?: string 
   ]);
 
   if (total === 0) {
+    const emptyLabel = scope === "public" ? "public templates" : "templates";
     return (
       <p className="text-sm text-muted-foreground">
-        {term ? `No templates match "${term}".` : "No templates uploaded yet."}
+        {term
+          ? `No ${emptyLabel} match "${term}".`
+          : scope === "public"
+            ? "No public templates yet."
+            : "No templates uploaded yet."}
       </p>
     );
   }
@@ -97,8 +121,15 @@ export async function TemplateList({ page = 1, q }: { page?: number; q?: string 
                       />
                     </svg>
                   </div>
-                  <div className="relative z-10">
-                    <DeleteTemplateButton templateId={t.id} variant="icon" />
+                  <div className="relative z-10 flex items-center gap-1.5">
+                    {t.isPublic && (
+                      <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                        Public
+                      </span>
+                    )}
+                    {scope === "own" && (
+                      <DeleteTemplateButton templateId={t.id} variant="icon" />
+                    )}
                   </div>
                 </div>
 
@@ -165,7 +196,7 @@ export async function TemplateList({ page = 1, q }: { page?: number; q?: string 
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-sm">
           <Link
-            href={page <= 2 ? `?${qParam}` : `?${qParam}page=${page - 1}`}
+            href={page <= 2 ? `?${qParam}` : `?${qParam}${pageParam}=${page - 1}`}
             aria-disabled={page <= 1}
             className={`rounded-md border border-black/10 dark:border-white/15 px-3 py-1.5 ${
               page <= 1
@@ -179,7 +210,7 @@ export async function TemplateList({ page = 1, q }: { page?: number; q?: string 
             Page {page} of {totalPages}
           </span>
           <Link
-            href={`?${qParam}page=${page + 1}`}
+            href={`?${qParam}${pageParam}=${page + 1}`}
             aria-disabled={page >= totalPages}
             className={`rounded-md border border-black/10 dark:border-white/15 px-3 py-1.5 ${
               page >= totalPages

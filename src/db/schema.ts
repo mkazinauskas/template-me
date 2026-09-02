@@ -141,11 +141,16 @@ export const templates = pgTable(
     // Nullable so templates that predate this column (no owner on record)
     // stay in the database but become inaccessible, instead of being deleted.
     userId: text("user_id").references(() => user.id, { onDelete: "cascade" }),
+    // When true, anyone (signed in or not) can find this template, open it, fill
+    // it in, and download the result. Only the owner can flip this flag or
+    // delete the template. Defaults to false — templates start private.
+    isPublic: boolean("is_public").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index("templates_userId_idx").on(table.userId),
     index("templates_userId_createdAt_idx").on(table.userId, table.createdAt),
+    index("templates_isPublic_createdAt_idx").on(table.isPublic, table.createdAt),
     uniqueIndex("templates_blobPathname_idx").on(table.blobPathname),
   ]
 );

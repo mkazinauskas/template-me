@@ -17,10 +17,11 @@ export const metadata: Metadata = {
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; ppage?: string }>;
 }) {
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, ppage: ppageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
+  const publicPage = Math.max(1, Number(ppageParam) || 1);
   const session = await auth.api.getSession({ headers: await headers() });
 
   return (
@@ -58,6 +59,27 @@ export default async function DashboardPage({
           </div>
           <Suspense key={page} fallback={<p className="text-sm text-black/50">Loading…</p>}>
             <TemplateList page={page} />
+          </Suspense>
+        </div>
+
+        <div
+          className="animate-fade-in-up flex flex-col gap-3"
+          style={{ animationDelay: "0.3s" }}
+        >
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold">Public templates</h2>
+            <Link
+              href="/templates"
+              className="text-sm text-black/50 dark:text-white/50 hover:underline"
+            >
+              Browse all →
+            </Link>
+          </div>
+          <Suspense
+            key={`public-${publicPage}`}
+            fallback={<p className="text-sm text-black/50">Loading…</p>}
+          >
+            <TemplateList scope="public" page={publicPage} pageParam="ppage" />
           </Suspense>
         </div>
       </main>

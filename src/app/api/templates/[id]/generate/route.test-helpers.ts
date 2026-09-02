@@ -38,14 +38,11 @@ export const state: {
 export function mockGenerateRouteDeps() {
   vi.doMock("@/db", () => ({
     getDb: () => ({
+      // The route now fetches by id and decides owner-vs-public access in code
+      // (see @/lib/template-access), so the mock just returns the fixture row.
       select: () => ({
         from: () => ({
-          where: () =>
-            Promise.resolve(
-              state.templateRow && state.templateRow.userId === state.session?.user.id
-                ? [state.templateRow]
-                : []
-            ),
+          where: () => Promise.resolve(state.templateRow ? [state.templateRow] : []),
         }),
       }),
     }),
@@ -112,6 +109,7 @@ export function makeTemplate(overrides: Partial<Template> = {}): Template {
     blobPathname: "templates/offer.docx",
     fields: FIELDS,
     userId: "user-1",
+    isPublic: false,
     createdAt: new Date("2026-01-01T00:00:00Z"),
     ...overrides,
   };

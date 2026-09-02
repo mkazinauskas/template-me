@@ -14,9 +14,9 @@ export function DeleteTemplateButton({
 }) {
   const router = useRouter();
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   async function handleDelete() {
-    if (!confirm("Delete this template? This cannot be undone.")) return;
     setIsDeleting(true);
     try {
       const res = await fetch(`/api/templates/${templateId}`, { method: "DELETE" });
@@ -26,15 +26,48 @@ export function DeleteTemplateButton({
       }
     } finally {
       setIsDeleting(false);
+      setIsConfirming(false);
     }
+  }
+
+  // A native confirm() blocks the main thread for as long as the dialog is open,
+  // and the browser bills that entire span to the click handler — which shows up
+  // as a ~1s INP. Use a non-blocking inline confirm step instead.
+  if (isConfirming) {
+    return (
+      <span
+        className="inline-flex items-center gap-2 text-sm"
+        onBlur={(e) => {
+          if (!isDeleting && !e.currentTarget.contains(e.relatedTarget)) setIsConfirming(false);
+        }}
+      >
+        <button
+          type="button"
+          autoFocus
+          onClick={handleDelete}
+          disabled={isDeleting}
+          className="text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
+        >
+          {isDeleting ? "Deleting…" : "Confirm delete"}
+        </button>
+        <button
+          type="button"
+          onClick={() => setIsConfirming(false)}
+          disabled={isDeleting}
+          className="text-muted-foreground hover:underline disabled:opacity-50"
+        >
+          Cancel
+        </button>
+      </span>
+    );
   }
 
   if (variant === "icon") {
     return (
       <button
-        onClick={handleDelete}
-        disabled={isDeleting}
-        aria-label={isDeleting ? "Deleting…" : "Delete template"}
+        type="button"
+        onClick={() => setIsConfirming(true)}
+        aria-label="Delete template"
         title="Delete template"
         className="rounded-md p-1.5 text-black/30 dark:text-white/30 hover:bg-red-600/10 hover:text-red-600 dark:hover:text-red-400 disabled:opacity-50 transition-colors"
       >
@@ -51,11 +84,11 @@ export function DeleteTemplateButton({
 
   return (
     <button
-      onClick={handleDelete}
-      disabled={isDeleting}
+      type="button"
+      onClick={() => setIsConfirming(true)}
       className="text-sm text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
     >
-      {isDeleting ? "Deleting…" : "Delete"}
+      Delete
     </button>
   );
 }
