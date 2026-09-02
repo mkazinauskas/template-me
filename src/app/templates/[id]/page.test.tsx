@@ -9,12 +9,11 @@ const state = vi.hoisted(() => ({
 
 vi.mock("@/db", () => ({
   getDb: () => ({
+    // The page fetches by id and decides owner-vs-public access in code
+    // (see @/lib/template-access), so the mock just returns the fixture row.
     select: () => ({
       from: () => ({
-        where: () =>
-          Promise.resolve(
-            state.template && state.template.userId === state.session?.user.id ? [state.template] : []
-          ),
+        where: () => Promise.resolve(state.template ? [state.template] : []),
       }),
     }),
   }),
@@ -47,6 +46,12 @@ vi.mock("@/components/fill-form", () => ({
 vi.mock("@/components/delete-template-button", () => ({
   DeleteTemplateButton: ({ templateId }: { templateId: string }) => (
     <button>Delete {templateId}</button>
+  ),
+}));
+
+vi.mock("@/components/publish-toggle", () => ({
+  PublishToggle: ({ templateId, isPublic }: { templateId: string; isPublic: boolean }) => (
+    <button>Publish {templateId} {String(isPublic)}</button>
   ),
 }));
 

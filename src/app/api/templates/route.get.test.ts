@@ -36,6 +36,7 @@ describe("GET /api/templates", () => {
         blobPathname: "templates/offer.docx",
         fields: [],
         userId: "user-1",
+        isPublic: false,
         createdAt: new Date("2026-01-01T00:00:00Z"),
       },
     ];
