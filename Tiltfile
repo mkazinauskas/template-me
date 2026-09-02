@@ -1,42 +1,21 @@
-# Local dev with auto-refresh, on top of docker-compose.yml.
+# Local dev with auto-refresh, layered on docker-compose.yml.
 #
-# Usage:
 #   tilt up
 #
-# The `app` service in docker-compose.yml already runs `next dev`
-# (Dockerfile.dev) rather than a production build. Tilt live-syncs changes to
-# `src`/`public` straight into the running container — no image rebuild —
-# and Next's own Turbopack watcher picks them up and refreshes the browser.
-# Everything else (package.json, Dockerfile.dev, config files, ...) falls
-# back to a normal image rebuild, since those need a fresh `npm ci` / process
-# restart anyway.
+# The `app` service runs `next dev` (Dockerfile.dev). Tilt live-syncs
+# src/ and public/ straight into the running container and Turbopack
+# refreshes the browser; any other change rebuilds the image. The build
+# context is whatever `.dockerignore` doesn't exclude — no second list to
+# keep in sync.
 
-docker_compose(['docker-compose.yml'])
+docker_compose('docker-compose.yml')
 
 docker_build(
     'template-me-app',
     context='.',
     dockerfile='Dockerfile.dev',
-    # `only` also scopes the Docker build context, so every path
-    # `Dockerfile.dev`'s `COPY . .` needs at `next dev` startup must be listed
-    # here — omitting the config files leaves Turbopack without the `@/*` path
-    # alias (tsconfig) and Tailwind's `@theme` support (postcss.config).
-    only=[
-        'package.json',
-        'package-lock.json',
-        'tsconfig.json',
-        'next.config.ts',
-        'postcss.config.mjs',
-        'next-env.d.ts',
-        'src',
-        'public',
-    ],
     live_update=[
         sync('src', '/app/src'),
         sync('public', '/app/public'),
     ],
 )
-
-dc_resource('db', labels=['app'])
-dc_resource('migrate', labels=['app'])
-dc_resource('app', labels=['app'])
