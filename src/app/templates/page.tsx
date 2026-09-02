@@ -28,7 +28,7 @@ export default async function TemplatesPage({
       <main className="mx-auto max-w-5xl px-6 py-10 flex flex-col gap-8">
         <div className="animate-fade-in-up flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">Browse templates</h1>
-          <p className="text-sm text-black/60 dark:text-white/60">
+          <p className="text-sm text-muted-foreground">
             Search your uploaded templates and open one to fill it in.
           </p>
         </div>

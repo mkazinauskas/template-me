@@ -25,21 +25,21 @@ export default async function DashboardPage({
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
-      <AppHeader user={session?.user} />
-      <main className="mx-auto max-w-5xl px-6 py-10 flex flex-col gap-10">
+      <AppHeader user={session?.user} width="full" />
+      <main className="mx-auto max-w-none px-6 py-10 flex flex-col gap-10">
         <div className="animate-fade-in-up flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
               Docx Template → PDF
             </h1>
-            <p className="text-sm text-black/60 dark:text-white/60 mt-1">
+            <p className="text-sm text-muted-foreground mt-1">
               Upload a Word template, fill in the detected fields, and download
               a filled-in PDF.
             </p>
           </div>
         </div>
 
-        <div className="animate-fade-in-up max-w-3xl" style={{ animationDelay: "0.1s" }}>
+        <div className="animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
           <UploadForm />
         </div>
 

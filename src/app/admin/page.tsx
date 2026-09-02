@@ -68,7 +68,7 @@ export default async function AdminPage() {
       <main className="mx-auto max-w-6xl px-6 py-10 flex flex-col gap-10">
         <div className="animate-fade-in-up">
           <h1 className="text-2xl font-semibold tracking-tight">Admin</h1>
-          <p className="text-sm text-black/60 dark:text-white/60 mt-1">
+          <p className="text-sm text-muted-foreground mt-1">
             All users and templates across the app.
           </p>
         </div>
@@ -95,19 +95,19 @@ export default async function AdminPage() {
                     className="border-b border-black/5 dark:border-white/10 last:border-0"
                   >
                     <td className="px-4 py-2.5 font-medium">{u.name}</td>
-                    <td className="px-4 py-2.5 text-black/60 dark:text-white/60">{u.email}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{u.email}</td>
                     <td className="px-4 py-2.5">
                       <span
                         className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] ${
                           u.role === "admin"
                             ? "bg-black text-white dark:bg-white dark:text-black"
-                            : "bg-black/[0.04] dark:bg-white/[0.08] text-black/60 dark:text-white/60"
+                            : "bg-black/[0.04] dark:bg-white/[0.08] text-muted-foreground"
                         }`}
                       >
                         {u.role}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5 text-black/60 dark:text-white/60">{u.templateCount}</td>
+                    <td className="px-4 py-2.5 text-muted-foreground">{u.templateCount}</td>
                     <td className="px-4 py-2.5 text-black/50 dark:text-white/50">
                       {dateFormatter.format(u.createdAt)}
                     </td>
@@ -143,13 +143,13 @@ export default async function AdminPage() {
                     className="border-b border-black/5 dark:border-white/10 last:border-0"
                   >
                     <td className="px-4 py-2.5 font-medium">{t.name}</td>
-                    <td className="px-4 py-2.5 text-black/60 dark:text-white/60">
+                    <td className="px-4 py-2.5 text-muted-foreground">
                       {t.originalFilename}
                     </td>
-                    <td className="px-4 py-2.5 text-black/60 dark:text-white/60">
+                    <td className="px-4 py-2.5 text-muted-foreground">
                       {t.ownerEmail ?? <span className="text-black/50 dark:text-white/50">— none —</span>}
                     </td>
-                    <td className="px-4 py-2.5 text-black/60 dark:text-white/60">
+                    <td className="px-4 py-2.5 text-muted-foreground">
                       {t.fields.length}
                     </td>
                     <td className="px-4 py-2.5 text-black/50 dark:text-white/50">

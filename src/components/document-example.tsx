@@ -71,7 +71,7 @@ export function DocumentExample() {
       <h2 className="animate-fade-in-up text-xl font-semibold tracking-tight text-center mb-2">
         Watch a template fill itself in
       </h2>
-      <p className="animate-fade-in-up text-sm text-black/60 dark:text-white/60 text-center mb-8">
+      <p className="animate-fade-in-up text-sm text-muted-foreground text-center mb-8">
         The same document, before and after — placeholders on the left become
         real values on the right.
       </p>

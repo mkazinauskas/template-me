@@ -19,7 +19,7 @@ export function AppHeader({
   width = "5xl",
 }: {
   user?: HeaderUser | null;
-  width?: "5xl" | "6xl";
+  width?: "5xl" | "6xl" | "full";
 }) {
   const pathname = usePathname();
 
@@ -39,7 +39,11 @@ export function AppHeader({
     <header className="sticky top-0 z-30 shrink-0 border-b border-border bg-zinc-50/80 dark:bg-black/80 backdrop-blur-md">
       <div
         className={`mx-auto flex h-14 items-center justify-between gap-4 px-6 ${
-          width === "6xl" ? "max-w-6xl" : "max-w-5xl"
+          width === "full"
+            ? "max-w-none"
+            : width === "6xl"
+              ? "max-w-6xl"
+              : "max-w-5xl"
         }`}
       >
         <div className="flex items-center gap-1 sm:gap-3">

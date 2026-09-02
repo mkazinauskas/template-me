@@ -28,7 +28,7 @@ export async function TemplateList({ page = 1, q }: { page?: number; q?: string 
   const session = await auth.api.getSession({ headers: await headers() });
   if (!session) {
     return (
-      <p className="text-sm text-black/60 dark:text-white/60">
+      <p className="text-sm text-muted-foreground">
         Sign in to see your templates.
       </p>
     );
@@ -54,7 +54,7 @@ export async function TemplateList({ page = 1, q }: { page?: number; q?: string 
 
   if (total === 0) {
     return (
-      <p className="text-sm text-black/60 dark:text-white/60">
+      <p className="text-sm text-muted-foreground">
         {term ? `No templates match "${term}".` : "No templates uploaded yet."}
       </p>
     );
@@ -119,7 +119,7 @@ export async function TemplateList({ page = 1, q }: { page?: number; q?: string 
                     {[...typeCounts.entries()].map(([type, n]) => (
                       <span
                         key={type}
-                        className="inline-flex items-center gap-1 rounded-full border border-black/10 dark:border-white/15 px-2 py-0.5 text-[11px] text-black/60 dark:text-white/60"
+                        className="inline-flex items-center gap-1 rounded-full border border-black/10 dark:border-white/15 px-2 py-0.5 text-[11px] text-muted-foreground"
                       >
                         <span className={`size-1.5 rounded-full ${TYPE_META[type].dot}`} aria-hidden="true" />
                         {n} {TYPE_META[type].label}

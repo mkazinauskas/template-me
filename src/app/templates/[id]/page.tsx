@@ -76,7 +76,7 @@ export default async function TemplatePage({
             <h1 className="text-xl font-semibold tracking-tight truncate">
               {template.name}
             </h1>
-            <p className="text-sm text-black/60 dark:text-white/60 mt-0.5 truncate">
+            <p className="text-sm text-muted-foreground mt-0.5 truncate">
               {template.originalFilename}
             </p>
           </div>

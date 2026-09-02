@@ -132,7 +132,7 @@ export function DockerRunTabs() {
                 {i + 1}
               </span>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-black/60 dark:text-white/60">
+                <p className="text-xs text-muted-foreground">
                   {step.text}
                 </p>
                 {step.code && (
@@ -144,9 +144,9 @@ export function DockerRunTabs() {
             </li>
           ))}
         </ol>
-        <p className="mt-4 text-xs text-black/40 dark:text-white/40">
+        <p className="mt-4 text-xs text-black/55 dark:text-white/40">
           Then open{" "}
-          <span className="font-mono text-black/60 dark:text-white/60">
+          <span className="font-mono text-muted-foreground">
             localhost:3000
           </span>{" "}
           — no cloud account required. Any Docker engine works; Rancher Desktop

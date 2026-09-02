@@ -57,7 +57,7 @@ export function PlaceholderTypes() {
       </summary>
 
       <div className="flex flex-col gap-3 px-3 pb-3">
-        <p className="text-xs text-black/60 dark:text-white/60">
+        <p className="text-xs text-muted-foreground">
           By default a tag is a plain text field. Add a{" "}
           <code className="font-mono">|type(...)</code> suffix to change what
           kind of input it gets, e.g.{" "}
@@ -97,7 +97,7 @@ export function PlaceholderTypes() {
           </table>
         </div>
 
-        <p className="text-xs text-black/60 dark:text-white/60">
+        <p className="text-xs text-muted-foreground">
           Group related fields with a dot prefix, e.g.{" "}
           <code className="px-1 py-0.5 rounded bg-black/5 dark:bg-white/10">
             {"{{person.first_name}}"}

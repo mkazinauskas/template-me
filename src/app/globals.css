@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Drive the `dark:` variant from an explicit `data-theme` on <html> so the
+ * theme toggle can override the OS preference. The no-flash script in the
+ * root layout always resolves "system" to a concrete light/dark value, so
+ * `data-theme` is set before first paint. */
+@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+
 :root {
   --background: #ffffff;
   --foreground: #171717;
@@ -7,8 +13,8 @@
    * a hairline border, muted-but-legible informational text, and the ring
    * shown around a focused input. Each has a light/dark pair below rather
    * than relying on a `dark:` utility at every call site. */
-  --border: rgb(0 0 0 / 0.1);
-  --muted-foreground: rgb(0 0 0 / 0.6);
+  --border: rgb(0 0 0 / 0.12);
+  --muted-foreground: rgb(0 0 0 / 0.68);
   --focus-ring: rgb(0 0 0 / 0.2);
 }
 
@@ -23,13 +29,21 @@
 }
 
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --background: #0a0a0a;
     --foreground: #ededed;
     --border: rgb(255 255 255 / 0.15);
     --muted-foreground: rgb(255 255 255 / 0.6);
     --focus-ring: rgb(255 255 255 / 0.3);
   }
+}
+
+:root[data-theme="dark"] {
+  --background: #0a0a0a;
+  --foreground: #ededed;
+  --border: rgb(255 255 255 / 0.15);
+  --muted-foreground: rgb(255 255 255 / 0.6);
+  --focus-ring: rgb(255 255 255 / 0.3);
 }
 
 body {
