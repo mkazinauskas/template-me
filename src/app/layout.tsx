@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { siteUrl } from "@/lib/site-url";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,15 +13,9 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-const siteUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
-  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-  : process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : "http://localhost:3000";
-
 const title = "Template Me — Turn Word Docs into Fillable PDF Templates";
 const description =
-  "Upload a .docx file with {{placeholder}} tags and Template Me turns it into a web form. Fill it in — one document at a time or in bulk from a CSV — and download a finished PDF.";
+  "Upload a .docx file with {{placeholder}} tags and Template Me turns it into a web form. Fill it in — one document at a time or in bulk from a CSV — and download a finished PDF. Free and open source.";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -31,22 +26,35 @@ export const metadata: Metadata = {
   description,
   keywords: [
     "docx to pdf",
+    "word to pdf",
     "word template",
+    "fillable pdf",
     "document automation",
     "pdf generator",
     "bulk pdf generation",
+    "generate pdf from csv",
     "mail merge",
+    "docxtemplater",
+    "open source document generator",
   ],
   applicationName: "Template Me",
+  authors: [{ name: "modakoda", url: "https://modakoda.com" }],
+  creator: "modakoda",
+  publisher: "modakoda",
+  category: "productivity",
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     title,
     description,
     siteName: "Template Me",
     type: "website",
     url: "/",
+    locale: "en_US",
   },
   twitter: {
-    card: "summary",
+    card: "summary_large_image",
     title,
     description,
   },

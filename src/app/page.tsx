@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { Logo } from "@/components/logo";
 import { DocumentExample } from "@/components/document-example";
 import { auth } from "@/lib/auth";
+import { siteUrl } from "@/lib/site-url";
 import { buttonClasses } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
@@ -49,16 +50,81 @@ const features = [
   },
 ];
 
+const faqs = [
+  {
+    question: "What files does Template Me work with?",
+    answer:
+      "You upload Microsoft Word .docx files that contain {{placeholder}} tags. Each finished document comes back as a PDF, and bulk runs are packaged as a .zip.",
+  },
+  {
+    question: "How do placeholders work?",
+    answer:
+      "Write tags like {{client_name}} directly in your Word document. Template Me scans the file on upload and builds a form field for every tag, including typed inputs for dates, numbers, dropdowns and yes/no toggles.",
+  },
+  {
+    question: "Can I generate many documents at once?",
+    answer:
+      "Yes. Upload a CSV where each row is one document and each column maps to a placeholder, and Template Me generates a filled PDF for every row in a single batch.",
+  },
+  {
+    question: "Is Template Me really free?",
+    answer:
+      "Yes. Template Me is free and open source. You can self-host it with Docker Compose in about a minute, and no account is required to run it locally.",
+  },
+  {
+    question: "Do I need to install Microsoft Word?",
+    answer:
+      "No. The hosted app runs entirely in your browser. To self-host you only need Docker — there is nothing else to install.",
+  },
+];
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      name: "Template Me",
+      url: siteUrl,
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      description:
+        "Upload a .docx file with {{placeholder}} tags and Template Me turns it into a web form. Fill it in — one document at a time or in bulk from a CSV — and download a finished PDF.",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+      },
+      isAccessibleForFree: true,
+      license: "https://github.com/mkazinauskas/template-me",
+      sameAs: ["https://github.com/mkazinauskas/template-me"],
+    },
+    {
+      "@type": "FAQPage",
+      mainEntity: faqs.map((faq) => ({
+        "@type": "Question",
+        name: faq.question,
+        acceptedAnswer: { "@type": "Answer", text: faq.answer },
+      })),
+    },
+  ],
+};
+
 export default async function LandingPage() {
   const session = await auth.api.getSession({ headers: await headers() });
+  const ctaHref = session ? "/dashboard" : "/sign-in";
+  const ctaLabel = session ? "Go to Dashboard" : "Get started free";
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black overflow-x-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <header className="mx-auto max-w-5xl px-6 py-6 flex items-center justify-between relative z-10">
-        <Link href="/" className="transition-transform hover:scale-[1.03]">
+        <Link href="/" className="transition-transform hover:scale-[1.03]" aria-label="Template Me home">
           <Logo />
         </Link>
-        <div className="flex items-center gap-4">
+        <nav aria-label="Primary" className="flex items-center gap-4">
           <Link
             href="/templates"
             className="text-sm font-medium text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white"
@@ -79,11 +145,14 @@ export default async function LandingPage() {
           >
             {session ? "Dashboard" : "Login"}
           </Link>
-        </div>
+        </nav>
       </header>
 
       <main>
-        <section className="relative mx-auto max-w-3xl px-6 pt-16 pb-20 text-center flex flex-col items-center gap-6 overflow-hidden">
+        <section
+          aria-labelledby="hero-heading"
+          className="relative mx-auto max-w-3xl px-6 pt-16 pb-20 text-center flex flex-col items-center gap-6 overflow-hidden"
+        >
           <div
             aria-hidden="true"
             className="pointer-events-none absolute -top-24 left-1/2 -translate-x-1/2 h-72 w-72 rounded-full bg-gradient-to-br from-zinc-300/40 to-zinc-400/10 dark:from-white/10 dark:to-white/0 blur-3xl animate-float"
@@ -100,8 +169,14 @@ export default async function LandingPage() {
           >
             100% free &amp; open source — self-host on your own machine
           </a>
-          <h1 className="animate-fade-in-up text-4xl sm:text-5xl font-semibold tracking-tight text-balance">
-            Turn Word docs into fillable PDF templates
+          <h1
+            id="hero-heading"
+            className="animate-fade-in-up text-4xl sm:text-5xl font-semibold tracking-tight text-balance"
+          >
+            Turn Word docs into{" "}
+            <span className="bg-gradient-to-r from-black to-zinc-500 dark:from-white dark:to-zinc-400 bg-clip-text text-transparent">
+              fillable PDF templates
+            </span>
           </h1>
           <p
             className="animate-fade-in-up text-base sm:text-lg text-black/60 dark:text-white/60 max-w-xl text-balance"
@@ -116,10 +191,10 @@ export default async function LandingPage() {
             style={{ animationDelay: "0.2s" }}
           >
             <Link
-              href={session ? "/dashboard" : "/sign-in"}
+              href={ctaHref}
               className={buttonClasses({ size: "lg", interactive: "hover" })}
             >
-              {session ? "Go to Dashboard" : "Login"}
+              {ctaLabel}
             </Link>
             <a
               href="/example-template.docx"
@@ -129,18 +204,21 @@ export default async function LandingPage() {
               Download example template
             </a>
           </div>
-          <p
-            className="animate-fade-in-up text-xs text-black/40 dark:text-white/40"
+          <ul
+            className="animate-fade-in-up flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-xs text-black/45 dark:text-white/45"
             style={{ animationDelay: "0.25s" }}
           >
-            No account needed to run it locally — clone the repo and it&apos;s
-            yours, free forever.
-          </p>
+            <li>No sign-up to self-host</li>
+            <li aria-hidden="true">·</li>
+            <li>Bulk-fill from CSV</li>
+            <li aria-hidden="true">·</li>
+            <li>Runs fully in your browser</li>
+          </ul>
         </section>
 
         <DocumentExample />
 
-        <section className="mx-auto max-w-5xl px-6 pb-20">
+        <section aria-label="How it works" className="mx-auto max-w-5xl px-6 pb-20">
           <div className="grid sm:grid-cols-3 gap-4">
             {steps.map((step, i) => (
               <div
@@ -185,8 +263,11 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-5xl px-6 pb-24">
-          <h2 className="text-xl font-semibold tracking-tight text-center mb-8">
+        <section aria-labelledby="features-heading" className="mx-auto max-w-5xl px-6 pb-24">
+          <h2
+            id="features-heading"
+            className="text-xl font-semibold tracking-tight text-center mb-8"
+          >
             Everything you need to automate document generation
           </h2>
           <div className="grid sm:grid-cols-2 gap-4">
@@ -205,8 +286,42 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-3xl px-6 pb-24 text-center flex flex-col items-center gap-4">
-          <h2 className="text-2xl font-semibold tracking-tight">
+        <section aria-labelledby="faq-heading" className="mx-auto max-w-3xl px-6 pb-24">
+          <h2
+            id="faq-heading"
+            className="text-xl font-semibold tracking-tight text-center mb-8"
+          >
+            Frequently asked questions
+          </h2>
+          <div className="flex flex-col gap-3">
+            {faqs.map((faq, i) => (
+              <details
+                key={faq.question}
+                className="animate-fade-in-up group rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-white/[0.02] p-5"
+                style={{ animationDelay: `${0.06 * i}s` }}
+              >
+                <summary className="flex cursor-pointer items-center justify-between gap-4 font-medium marker:content-none">
+                  {faq.question}
+                  <span
+                    aria-hidden="true"
+                    className="text-black/40 dark:text-white/40 transition-transform group-open:rotate-45"
+                  >
+                    +
+                  </span>
+                </summary>
+                <p className="mt-3 text-sm text-black/60 dark:text-white/60">
+                  {faq.answer}
+                </p>
+              </details>
+            ))}
+          </div>
+        </section>
+
+        <section
+          aria-labelledby="cta-heading"
+          className="mx-auto max-w-3xl px-6 pb-24 text-center flex flex-col items-center gap-4"
+        >
+          <h2 id="cta-heading" className="text-2xl font-semibold tracking-tight">
             Ready to automate your paperwork?
           </h2>
           <p className="text-sm text-black/60 dark:text-white/60 max-w-md">
@@ -214,10 +329,10 @@ export default async function LandingPage() {
             in under a minute.
           </p>
           <Link
-            href={session ? "/dashboard" : "/sign-in"}
+            href={ctaHref}
             className={buttonClasses({ size: "lg", interactive: "hover" })}
           >
-            {session ? "Go to Dashboard" : "Login"}
+            {ctaLabel}
           </Link>
         </section>
       </main>

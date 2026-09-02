@@ -16,7 +16,7 @@ vi.mock("@/lib/auth", () => ({
 async function renderLandingPage() {
   const { default: LandingPage } = await import("@/app/page");
   const element = await LandingPage();
-  render(element);
+  return render(element);
 }
 
 describe("LandingPage", () => {
@@ -29,16 +29,18 @@ describe("LandingPage", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows login links to /sign-in when logged out", async () => {
+  it("points the header login and hero call-to-action at /sign-in when logged out", async () => {
     getSession.mockResolvedValue(null);
     await renderLandingPage();
 
-    expect(screen.getAllByRole("link", { name: "Login" }).length).toBeGreaterThan(0);
-    expect(screen.queryByRole("link", { name: "Dashboard" })).not.toBeInTheDocument();
-    expect(screen.queryByRole("link", { name: "Go to Dashboard" })).not.toBeInTheDocument();
-    for (const link of screen.getAllByRole("link", { name: "Login" })) {
+    expect(screen.getByRole("link", { name: "Login" })).toHaveAttribute("href", "/sign-in");
+    const ctas = screen.getAllByRole("link", { name: "Get started free" });
+    expect(ctas.length).toBeGreaterThan(0);
+    for (const link of ctas) {
       expect(link).toHaveAttribute("href", "/sign-in");
     }
+    expect(screen.queryByRole("link", { name: "Dashboard" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Go to Dashboard" })).not.toBeInTheDocument();
   });
 
   it("shows dashboard links to /dashboard when logged in", async () => {
@@ -77,5 +79,25 @@ describe("LandingPage", () => {
     expect(screen.getByText("Bulk generation")).toBeInTheDocument();
     expect(screen.getByText("Typed fields")).toBeInTheDocument();
     expect(screen.getByText("No installs")).toBeInTheDocument();
+  });
+
+  it("renders an FAQ section", async () => {
+    getSession.mockResolvedValue(null);
+    await renderLandingPage();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Frequently asked questions" })
+    ).toBeInTheDocument();
+    expect(screen.getByText("What files does Template Me work with?")).toBeInTheDocument();
+  });
+
+  it("embeds SoftwareApplication and FAQPage JSON-LD", async () => {
+    getSession.mockResolvedValue(null);
+    const { container } = await renderLandingPage();
+    const script = container.querySelector('script[type="application/ld+json"]');
+    expect(script).not.toBeNull();
+    const data = JSON.parse(script!.textContent!);
+    const types = data["@graph"].map((node: { "@type": string }) => node["@type"]);
+    expect(types).toContain("SoftwareApplication");
+    expect(types).toContain("FAQPage");
   });
 });
