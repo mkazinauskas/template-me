@@ -17,7 +17,20 @@ docker_build(
     'template-me-app',
     context='.',
     dockerfile='Dockerfile.dev',
-    only=['package.json', 'package-lock.json', 'src', 'public'],
+    # `only` also scopes the Docker build context, so every path
+    # `Dockerfile.dev`'s `COPY . .` needs at `next dev` startup must be listed
+    # here — omitting the config files leaves Turbopack without the `@/*` path
+    # alias (tsconfig) and Tailwind's `@theme` support (postcss.config).
+    only=[
+        'package.json',
+        'package-lock.json',
+        'tsconfig.json',
+        'next.config.ts',
+        'postcss.config.mjs',
+        'next-env.d.ts',
+        'src',
+        'public',
+    ],
     live_update=[
         sync('src', '/app/src'),
         sync('public', '/app/public'),
