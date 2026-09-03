@@ -31,6 +31,7 @@ export async function TemplateList({
   scope = "own",
   pageParam = "page",
   preview,
+  hrefBase,
 }: {
   page?: number;
   q?: string;
@@ -38,6 +39,12 @@ export async function TemplateList({
   scope?: "own" | "public";
   /** Query-param name for this list's pagination, so two lists on one page don't collide. */
   pageParam?: string;
+  /**
+   * Path prefix for each card's "Open" link — the audience-specific templates
+   * route. `/client/dashboard/templates` for the signed-in pages,
+   * `/public/templates` for the logged-out browse.
+   */
+  hrefBase: string;
   /**
    * Logged-out preview mode: cap the grid at `limit` rows, drop pagination, and
    * render a sign-in call-to-action underneath (with a count of the templates
@@ -193,7 +200,7 @@ export async function TemplateList({
                     {dateFormatter.format(t.createdAt)}
                   </span>
                   <Link
-                    href={`/templates/${t.id}`}
+                    href={`${hrefBase}/${t.id}`}
                     className="inline-flex items-center gap-1 text-sm font-medium text-black dark:text-white after:content-['→'] after:transition-transform after:duration-200 group-hover:after:translate-x-0.5 before:absolute before:inset-0 before:z-0 before:content-['']"
                     aria-label={`Open ${t.name}`}
                   >
@@ -282,13 +289,13 @@ function SignInGate({ locked }: { locked: number }) {
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <Link
-          href="/sign-in?redirect=/templates"
+          href="/sign-in?redirect=/public/templates"
           className={buttonClasses({ interactive: "hover" })}
         >
           Sign in
         </Link>
         <Link
-          href="/sign-up?redirect=/templates"
+          href="/sign-up?redirect=/public/templates"
           className={buttonClasses({ variant: "secondary", interactive: "hover" })}
         >
           Create account

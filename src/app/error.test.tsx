@@ -11,7 +11,7 @@ describe("ErrorPage", () => {
     expect(screen.getByRole("alert")).toHaveTextContent(/unexpected error occurred/i);
     expect(screen.getByRole("link", { name: "Go to dashboard" })).toHaveAttribute(
       "href",
-      "/dashboard"
+      "/client/dashboard"
     );
   });
 

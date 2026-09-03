@@ -112,7 +112,7 @@ const jsonLd = {
 
 export default async function LandingPage() {
   const session = await auth.api.getSession({ headers: await headers() });
-  const ctaHref = session ? "/dashboard" : "/sign-in";
+  const ctaHref = session ? "/client/dashboard" : "/sign-in";
   const ctaLabel = session ? "Go to Dashboard" : "Get started free";
 
   return (
@@ -132,7 +132,7 @@ export default async function LandingPage() {
           </Link>
           <nav aria-label="Primary" className="flex items-center gap-1 sm:gap-2">
             <Link
-              href="/templates"
+              href="/public/templates"
               className="hidden sm:inline-flex rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
             >
               Browse templates
@@ -149,7 +149,7 @@ export default async function LandingPage() {
               </svg>
             </a>
             <Link
-              href={session ? "/dashboard" : "/sign-in"}
+              href={session ? "/client/dashboard" : "/sign-in"}
               className={buttonClasses({ interactive: "hover" })}
             >
               {session ? "Dashboard" : "Login"}

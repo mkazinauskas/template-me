@@ -15,7 +15,7 @@ export default function NotFound() {
             The page you&apos;re looking for doesn&apos;t exist or may have been moved.
           </p>
         </div>
-        <Link href="/dashboard" className={buttonClasses()}>
+        <Link href="/client/dashboard" className={buttonClasses()}>
           Go to dashboard
         </Link>
       </div>

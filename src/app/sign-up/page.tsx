@@ -18,6 +18,12 @@ export default function SignUpPage() {
       <Suspense>
         <AuthForm mode="sign-up" />
       </Suspense>
+      <Link
+        href="/"
+        className="text-sm text-muted-foreground underline underline-offset-2"
+      >
+        ← Back to home
+      </Link>
     </div>
   );
 }

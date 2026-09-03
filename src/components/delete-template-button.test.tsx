@@ -41,7 +41,7 @@ describe("DeleteTemplateButton", () => {
     await user.click(screen.getByRole("button", { name: "Delete" }));
     await user.click(screen.getByRole("button", { name: "Confirm delete" }));
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/dashboard"));
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/client/dashboard"));
     expect(globalThis.fetch).toHaveBeenCalledWith("/api/templates/abc", { method: "DELETE" });
     expect(refresh).toHaveBeenCalled();
   });

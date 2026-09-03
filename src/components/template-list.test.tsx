@@ -57,10 +57,18 @@ function makeTemplate(overrides: Partial<Template>): Template {
 // (see next.js testing docs), so we await the component function ourselves to
 // get the resolved element before handing it to render().
 async function renderTemplateList(
-  props: { page?: number; scope?: "own" | "public"; pageParam?: string } = {}
+  props: {
+    page?: number;
+    scope?: "own" | "public";
+    pageParam?: string;
+    hrefBase?: string;
+  } = {}
 ) {
   const { TemplateList } = await import("@/components/template-list");
-  const element = await TemplateList(props);
+  const element = await TemplateList({
+    hrefBase: "/client/dashboard/templates",
+    ...props,
+  });
   render(element);
 }
 
@@ -125,9 +133,23 @@ describe("TemplateList", () => {
     expect(screen.getByText("1 Text")).toBeInTheDocument();
     expect(screen.getByText("1 Date")).toBeInTheDocument();
 
-    const openLinks = screen.getAllByRole("link", { name: "Open" });
-    expect(openLinks[0]).toHaveAttribute("href", "/templates/t1");
-    expect(openLinks[1]).toHaveAttribute("href", "/templates/t2");
+    const openLinks = screen.getAllByRole("link", { name: /^Open/ });
+    expect(openLinks[0]).toHaveAttribute("href", "/client/dashboard/templates/t1");
+    expect(openLinks[1]).toHaveAttribute("href", "/client/dashboard/templates/t2");
+  });
+
+  it("prefixes each Open link with the given hrefBase", async () => {
+    rowsResult = [
+      makeTemplate({ id: "t1", name: "Offer Letter" }),
+      makeTemplate({ id: "t2", name: "NDA" }),
+    ];
+    totalResult = [{ total: 2 }];
+
+    await renderTemplateList({ hrefBase: "/public/templates" });
+
+    const openLinks = screen.getAllByRole("link", { name: /^Open/ });
+    expect(openLinks[0]).toHaveAttribute("href", "/public/templates/t1");
+    expect(openLinks[1]).toHaveAttribute("href", "/public/templates/t2");
   });
 
   it("groups fields under their group label as chips", async () => {

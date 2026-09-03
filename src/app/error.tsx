@@ -32,7 +32,7 @@ export default function Error({
           <button type="button" onClick={() => retry()} className={buttonClasses()}>
             Try again
           </button>
-          <Link href="/dashboard" className={buttonClasses({ variant: "secondary" })}>
+          <Link href="/client/dashboard" className={buttonClasses({ variant: "secondary" })}>
             Go to dashboard
           </Link>
         </div>

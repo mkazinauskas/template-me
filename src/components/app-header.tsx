@@ -9,10 +9,12 @@ import { authClient } from "@/lib/auth-client";
 type HeaderUser = { email: string; role?: string | null };
 
 /**
- * The single top-of-page navigation for every signed-in screen (dashboard,
+ * The single top-of-page navigation for every app screen (client dashboard,
  * browse, admin, fill). Previously each page hand-rolled its own row of faint
  * links that differed page to page; this centralises them into one bar with a
- * clear primary nav and an account menu.
+ * clear primary nav and an account menu. The "Templates" link points at the
+ * signed-in browse (`/client/dashboard/templates`) or the public one
+ * (`/public/templates`) depending on whether a `user` is passed.
  */
 export function AppHeader({
   user,
@@ -22,21 +24,27 @@ export function AppHeader({
   /**
    * `page` — the standard app content width (`max-w-6xl`), matching every
    * stacked page (dashboard, browse, admin). `full` — edge-to-edge, for the
-   * `/templates/[id]` workspace whose body is a full-bleed split pane.
+   * `templates/[id]` workspace whose body is a full-bleed split pane.
    */
   width?: "page" | "full";
 }) {
   const pathname = usePathname();
 
+  const templatesHref = user ? "/client/dashboard/templates" : "/public/templates";
   const navItems = [
-    { href: "/dashboard", label: "Upload", match: (p: string) => p === "/dashboard" },
     {
-      href: "/templates",
+      href: "/client/dashboard",
+      label: "Upload",
+      match: (p: string) => p === "/client/dashboard",
+    },
+    {
+      href: templatesHref,
       label: "Templates",
-      match: (p: string) => p === "/templates" || p.startsWith("/templates/"),
+      match: (p: string) =>
+        p.startsWith("/client/dashboard/templates") || p.startsWith("/public/templates"),
     },
     ...(user?.role === "admin"
-      ? [{ href: "/admin", label: "Admin", match: (p: string) => p.startsWith("/admin") }]
+      ? [{ href: "/admin/dashboard", label: "Admin", match: (p: string) => p.startsWith("/admin") }]
       : []),
   ];
 

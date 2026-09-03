@@ -43,15 +43,18 @@ describe("LandingPage", () => {
     expect(screen.queryByRole("link", { name: "Go to Dashboard" })).not.toBeInTheDocument();
   });
 
-  it("shows dashboard links to /dashboard when logged in", async () => {
+  it("shows dashboard links to /client/dashboard when logged in", async () => {
     getSession.mockResolvedValue({ user: { id: "user-1", email: "owner@example.com" } });
     await renderLandingPage();
 
-    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute("href", "/dashboard");
+    expect(screen.getByRole("link", { name: "Dashboard" })).toHaveAttribute(
+      "href",
+      "/client/dashboard"
+    );
     expect(screen.getAllByRole("link", { name: "Go to Dashboard" }).length).toBeGreaterThan(0);
     expect(screen.queryByRole("link", { name: "Login" })).not.toBeInTheDocument();
     for (const link of screen.getAllByRole("link", { name: "Go to Dashboard" })) {
-      expect(link).toHaveAttribute("href", "/dashboard");
+      expect(link).toHaveAttribute("href", "/client/dashboard");
     }
   });
 

@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+  usePathname: () => "/client/dashboard",
 }));
 
 vi.mock("@/lib/auth", () => ({

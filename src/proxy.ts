@@ -12,8 +12,10 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // `/templates` (browse) and `/templates/[id]` are intentionally NOT gated
-  // here: the list shows a public-template preview to logged-out visitors, and
-  // the detail page / generate API enforce `canViewTemplate` themselves.
-  matcher: ["/dashboard/:path*"],
+  // `/public/templates` (browse) and `/public/templates/[id]` are intentionally
+  // NOT gated here: the list shows a public-template preview to logged-out
+  // visitors, and the detail page / generate API enforce `canViewTemplate`
+  // themselves. Everything under `/client/*` and `/admin/*` requires a session
+  // (the admin pages additionally check `role === "admin"` in-page).
+  matcher: ["/client/:path*", "/admin/:path*"],
 };

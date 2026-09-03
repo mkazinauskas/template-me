@@ -18,6 +18,12 @@ export default function SignInPage() {
       <Suspense>
         <AuthForm mode="sign-in" />
       </Suspense>
+      <Link
+        href="/"
+        className="text-sm text-muted-foreground underline underline-offset-2"
+      >
+        ← Back to home
+      </Link>
     </div>
   );
 }

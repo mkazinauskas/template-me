@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
 import { cache } from "react";
-import type { Metadata } from "next";
 import { getDb } from "@/db";
 import { templates } from "@/db/schema";
 import { auth } from "@/lib/auth";
@@ -16,7 +15,13 @@ const getSession = cache(async () =>
   auth.api.getSession({ headers: await headers() })
 );
 
-const getTemplate = cache(async (id: string) => {
+/**
+ * Fetch a template by id, enforcing {@link canViewTemplate} (owner, or the
+ * template is public). Shared by the two route entry points
+ * (`/client/dashboard/templates/[id]` and `/public/templates/[id]`) and their
+ * `generateMetadata`, so the DB hit is de-duplicated per request.
+ */
+export const getTemplate = cache(async (id: string) => {
   const session = await getSession();
   const db = getDb();
   const [template] = await db.select().from(templates).where(eq(templates.id, id));
@@ -24,32 +29,20 @@ const getTemplate = cache(async (id: string) => {
   return template;
 });
 
-export async function generateMetadata({
-  params,
+/**
+ * The fill-a-template workspace: header bar with the template name, owner-only
+ * publish/delete controls, an optional tag-parsing warnings banner, and the
+ * {@link FillForm} split pane. Rendered by both the signed-in
+ * (`/client/dashboard/templates/[id]`) and public (`/public/templates/[id]`)
+ * route files — access control lives entirely in {@link getTemplate}.
+ */
+export async function TemplateDetail({
+  id,
+  warningsParam,
 }: {
-  params: Promise<{ id: string }>;
-}): Promise<Metadata> {
-  const { id } = await params;
-  const template = await getTemplate(id);
-
-  return {
-    title: template ? template.name : "Template not found",
-    description: template
-      ? `Fill in "${template.name}" and download it as a PDF.`
-      : undefined,
-    robots: { index: false, follow: false },
-  };
-}
-
-export default async function TemplatePage({
-  params,
-  searchParams,
-}: {
-  params: Promise<{ id: string }>;
-  searchParams: Promise<{ warnings?: string }>;
+  id: string;
+  warningsParam?: string;
 }) {
-  const { id } = await params;
-  const { warnings: warningsParam } = await searchParams;
   const [template, session] = await Promise.all([getTemplate(id), getSession()]);
 
   if (!template) {
@@ -82,27 +75,13 @@ export default async function TemplatePage({
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-3">
-            <a
-              href={`/api/templates/${template.id}/download`}
-              download
-              className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-                className="size-4"
-                aria-hidden="true"
-              >
-                <path d="M10.75 2.75a.75.75 0 0 0-1.5 0v8.614L6.295 8.235a.75.75 0 1 0-1.09 1.03l4.25 4.5a.75.75 0 0 0 1.09 0l4.25-4.5a.75.75 0 0 0-1.09-1.03l-2.955 3.129V2.75Z" />
-                <path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z" />
-              </svg>
-              Download template
-            </a>
             {isOwner ? (
               <>
                 <PublishToggle templateId={template.id} isPublic={template.isPublic} />
-                <DeleteTemplateButton templateId={template.id} />
+                <DeleteTemplateButton
+                  templateId={template.id}
+                  redirectTo="/client/dashboard/templates"
+                />
               </>
             ) : (
               template.isPublic && (

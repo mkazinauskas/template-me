@@ -9,7 +9,7 @@ describe("NotFound", () => {
     expect(screen.getByText("Page not found")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Go to dashboard" })).toHaveAttribute(
       "href",
-      "/dashboard"
+      "/client/dashboard"
     );
   });
 });

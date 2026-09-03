@@ -6,7 +6,7 @@ import { useState } from "react";
 export function DeleteTemplateButton({
   templateId,
   variant = "text",
-  redirectTo = "/dashboard",
+  redirectTo = "/client/dashboard",
 }: {
   templateId: string;
   variant?: "text" | "icon";

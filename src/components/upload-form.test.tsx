@@ -46,7 +46,9 @@ describe("UploadForm", () => {
     await user.type(screen.getByLabelText("Template name (optional)"), "Offer Letter");
     await user.click(screen.getByRole("button", { name: "Upload template" }));
 
-    await waitFor(() => expect(push).toHaveBeenCalledWith("/templates/new-id"));
+    await waitFor(() =>
+      expect(push).toHaveBeenCalledWith("/client/dashboard/templates/new-id")
+    );
     expect(refresh).toHaveBeenCalled();
 
     const [, options] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
@@ -88,7 +90,7 @@ describe("UploadForm", () => {
 
     await waitFor(() =>
       expect(push).toHaveBeenCalledWith(
-        `/templates/new-id?warnings=${encodeURIComponent(JSON.stringify(["Field \"x\" is odd"]))}`
+        `/client/dashboard/templates/new-id?warnings=${encodeURIComponent(JSON.stringify(["Field \"x\" is odd"]))}`
       )
     );
   });
