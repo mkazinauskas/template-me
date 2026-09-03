@@ -28,7 +28,7 @@ describe("PublishToggle", () => {
     await user.click(screen.getByRole("switch", { name: /make template public/i }));
     expect(globalThis.fetch).not.toHaveBeenCalled();
 
-    await user.click(screen.getByRole("button", { name: /^make public$/i }));
+    await user.click(screen.getByRole("button", { name: /confirm . make public/i }));
 
     expect(globalThis.fetch).toHaveBeenCalledWith("/api/templates/abc", {
       method: "PATCH",
@@ -69,7 +69,7 @@ describe("PublishToggle", () => {
     render(<PublishToggle templateId="abc" isPublic={false} />);
 
     await user.click(screen.getByRole("switch", { name: /make template public/i }));
-    await user.click(screen.getByRole("button", { name: /^make public$/i }));
+    await user.click(screen.getByRole("button", { name: /confirm . make public/i }));
 
     expect(await screen.findByText(/Couldn't update/i)).toBeInTheDocument();
     expect(refresh).not.toHaveBeenCalled();

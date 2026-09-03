@@ -4,7 +4,7 @@ import { deleteFile } from "@/lib/storage";
 import { getDb } from "@/db";
 import { templates } from "@/db/schema";
 import { auth } from "@/lib/auth";
-import { canViewTemplate, isTemplateOwner } from "@/lib/template-access";
+import { canViewTemplate, isTemplateOwner, publicTemplateView } from "@/lib/template-access";
 
 export async function GET(
   req: NextRequest,
@@ -17,7 +17,8 @@ export async function GET(
   if (!row || !canViewTemplate(row, session?.user.id)) {
     return NextResponse.json({ error: "Template not found" }, { status: 404 });
   }
-  return NextResponse.json({ template: row });
+  const template = isTemplateOwner(row, session?.user.id) ? row : publicTemplateView(row);
+  return NextResponse.json({ template });
 }
 
 export async function PATCH(

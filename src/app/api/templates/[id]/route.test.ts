@@ -104,7 +104,7 @@ describe("GET /api/templates/[id]", () => {
     expect(json.error).toBe("Template not found");
   });
 
-  it("returns the template when it exists and belongs to the caller", async () => {
+  it("returns the full template row (incl. owner + blob fields) to its owner", async () => {
     state.row = makeTemplate();
     const { GET } = await import("@/app/api/templates/[id]/route");
 
@@ -113,6 +113,9 @@ describe("GET /api/templates/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(json.template.id).toBe("t1");
+    expect(json.template.userId).toBe("user-1");
+    expect(json.template.blobUrl).toBe("https://blob/offer.docx");
+    expect(json.template.blobPathname).toBe("templates/offer.docx");
   });
 
   it("returns 404 when the template does not exist", async () => {
@@ -136,7 +139,7 @@ describe("GET /api/templates/[id]", () => {
     expect(json.error).toBe("Template not found");
   });
 
-  it("returns a public template to a different signed-in user", async () => {
+  it("returns a public template to a different signed-in user without owner/blob fields", async () => {
     state.session = { user: { id: "user-2", email: "other@example.com" } };
     state.row = makeTemplate({ userId: "someone-else", isPublic: true });
     const { GET } = await import("@/app/api/templates/[id]/route");
@@ -146,16 +149,24 @@ describe("GET /api/templates/[id]", () => {
 
     expect(res.status).toBe(200);
     expect(json.template.id).toBe("t1");
+    expect(json.template.name).toBe("Offer Letter");
+    expect(json.template).not.toHaveProperty("userId");
+    expect(json.template).not.toHaveProperty("blobUrl");
+    expect(json.template).not.toHaveProperty("blobPathname");
   });
 
-  it("returns a public template to an anonymous caller", async () => {
+  it("returns a public template to an anonymous caller without owner/blob fields", async () => {
     state.session = null;
     state.row = makeTemplate({ userId: "someone-else", isPublic: true });
     const { GET } = await import("@/app/api/templates/[id]/route");
 
     const res = await GET(getRequest("/api/templates/t1"), params("t1"));
+    const json = await res.json();
 
     expect(res.status).toBe(200);
+    expect(json.template).not.toHaveProperty("userId");
+    expect(json.template).not.toHaveProperty("blobUrl");
+    expect(json.template).not.toHaveProperty("blobPathname");
   });
 });
 

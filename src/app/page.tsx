@@ -122,7 +122,7 @@ export default async function LandingPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <header className="sticky top-0 z-30 border-b border-border bg-zinc-50/80 dark:bg-black/80 backdrop-blur-md">
-        <div className="mx-auto max-w-6xl px-6 h-14 flex items-center justify-between gap-4">
+        <div className="mx-auto max-w-[var(--content-max)] px-6 h-14 flex items-center justify-between gap-4">
           <Link
             href="/"
             className="transition-transform hover:scale-[1.03]"
@@ -161,7 +161,7 @@ export default async function LandingPage() {
       <main>
         <section
           aria-labelledby="hero-heading"
-          className="relative mx-auto max-w-6xl px-6 pt-16 pb-20 text-center flex flex-col items-center gap-6 overflow-hidden"
+          className="relative mx-auto max-w-[var(--content-max)] px-6 pt-16 pb-20 text-center flex flex-col items-center gap-6 overflow-hidden"
         >
           <div
             aria-hidden="true"
@@ -228,7 +228,7 @@ export default async function LandingPage() {
 
         <DocumentExample />
 
-        <section aria-label="How it works" className="mx-auto max-w-6xl px-6 pb-20">
+        <section aria-label="How it works" className="mx-auto max-w-[var(--content-max)] px-6 pb-20">
           <div className="grid sm:grid-cols-3 gap-4">
             {steps.map((step, i) => (
               <div
@@ -248,11 +248,11 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-6xl px-6 pb-20 flex flex-col items-center">
+        <section className="mx-auto max-w-[var(--content-max)] px-6 pb-20 flex flex-col items-center">
           <DockerRunTabs />
         </section>
 
-        <section aria-labelledby="features-heading" className="mx-auto max-w-6xl px-6 pb-24">
+        <section aria-labelledby="features-heading" className="mx-auto max-w-[var(--content-max)] px-6 pb-24">
           <h2
             id="features-heading"
             className="text-xl font-semibold tracking-tight text-center mb-8"
@@ -275,7 +275,7 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section aria-labelledby="faq-heading" className="mx-auto max-w-6xl px-6 pb-24">
+        <section aria-labelledby="faq-heading" className="mx-auto max-w-[var(--content-max)] px-6 pb-24">
           <h2
             id="faq-heading"
             className="text-xl font-semibold tracking-tight text-center mb-8"

@@ -19,3 +19,17 @@ export function canViewTemplate(row: AccessRow, userId?: string): boolean {
 export function isTemplateOwner(row: { userId: string | null }, userId?: string): boolean {
   return !!userId && row.userId === userId;
 }
+
+/**
+ * The subset of a template row that is safe to hand to someone who is *not*
+ * the owner (a public-template viewer, signed in or not). Drops the owner's
+ * account id and the blob storage identifiers (`blobUrl`, `blobPathname`) —
+ * internal fields a viewer never needs and which would otherwise leak the
+ * owner's identity and the storage layout / original upload filename.
+ */
+export function publicTemplateView<
+  T extends { userId?: unknown; blobUrl?: unknown; blobPathname?: unknown }
+>(row: T): Omit<T, "userId" | "blobUrl" | "blobPathname"> {
+  const { userId: _userId, blobUrl: _blobUrl, blobPathname: _blobPathname, ...safe } = row;
+  return safe;
+}

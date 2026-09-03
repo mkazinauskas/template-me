@@ -67,7 +67,7 @@ export function DocumentExample() {
   const done = effectiveIndex >= FIELDS.length;
 
   return (
-    <section className="mx-auto max-w-5xl px-6 pb-24">
+    <section className="mx-auto max-w-[var(--content-max)] px-6 pb-24">
       <h2 className="animate-fade-in-up text-xl font-semibold tracking-tight text-center mb-2">
         Watch a template fill itself in
       </h2>
