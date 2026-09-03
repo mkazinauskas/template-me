@@ -30,7 +30,11 @@ vi.mock("next/headers", () => ({
 const notFound = vi.hoisted(() => vi.fn(() => {
   throw new Error("NEXT_NOT_FOUND");
 }));
-vi.mock("next/navigation", () => ({ notFound }));
+vi.mock("next/navigation", () => ({
+  notFound,
+  usePathname: () => "/templates/t1",
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
 
 // FillForm is a heavy client component (fetches, debounced preview, etc.)
 // covered in full by fill-form.test.tsx; here we only need to assert the
@@ -64,6 +68,7 @@ function makeTemplate(overrides: Partial<Template> = {}): Template {
     blobPathname: "templates/offer.docx",
     fields: [{ key: "full_name", label: "Full name", type: "string", params: [] }],
     userId: "user-1",
+    isPublic: false,
     createdAt: new Date("2026-01-01T00:00:00Z"),
     ...overrides,
   };
@@ -90,26 +95,47 @@ describe("TemplatePage", () => {
     expect(notFound).toHaveBeenCalled();
   });
 
-  it("calls notFound() when there is no session", async () => {
+  it("calls notFound() for a private template when there is no session", async () => {
     state.template = makeTemplate();
     state.session = null;
     await expect(renderTemplatePage("t1")).rejects.toThrow("NEXT_NOT_FOUND");
     expect(notFound).toHaveBeenCalled();
   });
 
-  it("calls notFound() when the template belongs to a different user", async () => {
+  it("calls notFound() when a private template belongs to a different user", async () => {
     state.template = makeTemplate({ userId: "someone-else" });
     await expect(renderTemplatePage("t1")).rejects.toThrow("NEXT_NOT_FOUND");
     expect(notFound).toHaveBeenCalled();
   });
 
-  it("renders the template name, filename, and delete button", async () => {
+  it("renders the template name, filename, delete button, and publish toggle for the owner", async () => {
     state.template = makeTemplate({ name: "NDA", originalFilename: "nda.docx" });
     await renderTemplatePage("t1");
 
     expect(screen.getByRole("heading", { name: "NDA" })).toBeInTheDocument();
     expect(screen.getByText("nda.docx")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete t1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Publish t1 false" })).toBeInTheDocument();
+  });
+
+  it("shows a public template to a non-owner without owner controls", async () => {
+    state.session = { user: { id: "user-2", email: "other@example.com" } };
+    state.template = makeTemplate({ userId: "someone-else", isPublic: true });
+    await renderTemplatePage("t1");
+
+    expect(screen.getByRole("heading", { name: "Offer Letter" })).toBeInTheDocument();
+    expect(screen.getByText("Public template")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Delete/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Publish/ })).not.toBeInTheDocument();
+  });
+
+  it("shows a public template to an anonymous visitor", async () => {
+    state.session = null;
+    state.template = makeTemplate({ userId: "someone-else", isPublic: true });
+    await renderTemplatePage("t1");
+
+    expect(screen.getByRole("heading", { name: "Offer Letter" })).toBeInTheDocument();
+    expect(screen.getByText("Public template")).toBeInTheDocument();
   });
 
   it("passes the template's id, name, and fields through to FillForm", async () => {
