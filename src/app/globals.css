@@ -20,6 +20,14 @@
    * without every call site hand-rolling its own black/white opacity. */
   --muted-foreground-subtle: rgb(0 0 0 / 0.45);
   --focus-ring: rgb(0 0 0 / 0.2);
+  /* Max width of the app's centred content column (matches Tailwind's 6xl).
+   * The width toggle flips this to `none` on <html> for an edge-to-edge view;
+   * call sites use `max-w-[var(--content-max)]` instead of a fixed `max-w-*`. */
+  --content-max: 72rem;
+}
+
+:root[data-width="full"] {
+  --content-max: none;
 }
 
 @theme inline {

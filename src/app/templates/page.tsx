@@ -30,7 +30,7 @@ export default async function TemplatesPage({
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
       <AppHeader user={session?.user} />
-      <main className="mx-auto max-w-6xl px-6 py-10 flex flex-col gap-10">
+      <main className="mx-auto max-w-[var(--content-max)] px-6 py-10 flex flex-col gap-10">
         <div className="animate-fade-in-up flex flex-col gap-1">
           <h1 className="text-2xl font-semibold tracking-tight">Browse templates</h1>
           <p className="text-sm text-muted-foreground">

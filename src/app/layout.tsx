@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { siteUrl } from "@/lib/site-url";
 import { themeScript } from "@/lib/theme";
+import { widthScript } from "@/lib/width";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { WidthToggle } from "@/components/width-toggle";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -78,6 +80,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
          * paint, so the toggle can override the OS setting without a flash.
          * See node_modules/next/dist/docs/01-app/02-guides/preventing-flash-before-hydration.md */}
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        {/* Same trick for the centred/full-width layout preference. */}
+        <script dangerouslySetInnerHTML={{ __html: widthScript }} />
       </head>
       <body className="min-h-full flex flex-col">
         <div className="flex-1 flex flex-col">{children}</div>
@@ -93,6 +97,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           </a>
         </footer>
         <ThemeToggle />
+        <WidthToggle />
       </body>
     </html>
   );

@@ -44,7 +44,7 @@ export function AppHeader({
     <header className="sticky top-0 z-30 shrink-0 border-b border-border bg-zinc-50/80 dark:bg-black/80 backdrop-blur-md">
       <div
         className={`mx-auto flex h-14 items-center justify-between gap-4 px-6 ${
-          width === "full" ? "max-w-none" : "max-w-6xl"
+          width === "full" ? "max-w-none" : "max-w-[var(--content-max)]"
         }`}
       >
         <div className="flex items-center gap-1 sm:gap-3">

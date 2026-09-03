@@ -19,12 +19,16 @@ describe("PublishToggle", () => {
     vi.unstubAllGlobals();
   });
 
-  it("PATCHes isPublic:true from a private template and refreshes", async () => {
+  it("confirms before PATCHing isPublic:true from a private template", async () => {
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true });
     const user = userEvent.setup();
     render(<PublishToggle templateId="abc" isPublic={false} />);
 
+    // Flipping the switch only opens the inline confirm — no request yet.
     await user.click(screen.getByRole("switch", { name: /make template public/i }));
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: /^make public$/i }));
 
     expect(globalThis.fetch).toHaveBeenCalledWith("/api/templates/abc", {
       method: "PATCH",
@@ -34,7 +38,19 @@ describe("PublishToggle", () => {
     await waitFor(() => expect(refresh).toHaveBeenCalled());
   });
 
-  it("PATCHes isPublic:false from a public template", async () => {
+  it("cancelling the confirm makes no request", async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true });
+    const user = userEvent.setup();
+    render(<PublishToggle templateId="abc" isPublic={false} />);
+
+    await user.click(screen.getByRole("switch", { name: /make template public/i }));
+    await user.click(screen.getByRole("button", { name: /cancel/i }));
+
+    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(screen.getByRole("switch", { name: /make template public/i })).toBeInTheDocument();
+  });
+
+  it("PATCHes isPublic:false immediately from a public template (no confirm)", async () => {
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({ ok: true });
     const user = userEvent.setup();
     render(<PublishToggle templateId="abc" isPublic={true} />);
@@ -53,6 +69,7 @@ describe("PublishToggle", () => {
     render(<PublishToggle templateId="abc" isPublic={false} />);
 
     await user.click(screen.getByRole("switch", { name: /make template public/i }));
+    await user.click(screen.getByRole("button", { name: /^make public$/i }));
 
     expect(await screen.findByText(/Couldn't update/i)).toBeInTheDocument();
     expect(refresh).not.toHaveBeenCalled();
