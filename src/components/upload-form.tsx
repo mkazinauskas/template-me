@@ -63,7 +63,7 @@ export function UploadForm() {
     <form
       onSubmit={handleSubmit}
       aria-describedby={error ? "form-error" : undefined}
-      className="rounded-xl border border-black/10 dark:border-white/15 p-6 flex flex-col gap-4"
+      className="rounded-xl border border-border p-6 flex flex-col gap-4"
     >
       <div>
         <h2 className="text-lg font-semibold">Upload a template</h2>

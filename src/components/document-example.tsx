@@ -79,7 +79,7 @@ export function DocumentExample() {
       <div className="grid sm:grid-cols-2 gap-5 items-stretch relative">
         <div
           aria-hidden="true"
-          className="hidden sm:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 h-9 w-9 items-center justify-center rounded-full border border-black/10 dark:border-white/15 bg-zinc-50 dark:bg-black text-black/40 dark:text-white/40"
+          className="hidden sm:flex absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-10 h-9 w-9 items-center justify-center rounded-full border border-border bg-zinc-50 dark:bg-black text-muted-foreground-subtle"
         >
           <svg viewBox="0 0 20 20" fill="currentColor" className="size-4">
             <path
@@ -163,15 +163,15 @@ function DocCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="animate-fade-in-up rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-white/[0.02] overflow-hidden flex flex-col">
-      <div className="flex items-center justify-between px-4 py-2.5 border-b border-black/10 dark:border-white/15 bg-black/[0.02] dark:bg-white/[0.03]">
+    <div className="animate-fade-in-up rounded-xl border border-border bg-white dark:bg-white/[0.02] overflow-hidden flex flex-col">
+      <div className="flex items-center justify-between px-4 py-2.5 border-b border-border bg-black/[0.02] dark:bg-white/[0.03]">
         <div className="flex items-center gap-2">
           <span className="flex gap-1">
             <span className="size-2 rounded-full bg-black/15 dark:bg-white/20" />
             <span className="size-2 rounded-full bg-black/15 dark:bg-white/20" />
             <span className="size-2 rounded-full bg-black/15 dark:bg-white/20" />
           </span>
-          <span className="text-xs font-mono text-black/50 dark:text-white/50">
+          <span className="text-xs font-mono text-muted-foreground">
             {label}
           </span>
         </div>
@@ -181,7 +181,7 @@ function DocCard({
               ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
               : tone === "active"
                 ? "bg-amber-500/15 text-amber-700 dark:text-amber-400"
-                : "bg-black/5 dark:bg-white/10 text-black/50 dark:text-white/50"
+                : "bg-black/5 dark:bg-white/10 text-muted-foreground"
           }`}
         >
           {status}

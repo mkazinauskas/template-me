@@ -16,10 +16,15 @@ type HeaderUser = { email: string; role?: string | null };
  */
 export function AppHeader({
   user,
-  width = "5xl",
+  width = "page",
 }: {
   user?: HeaderUser | null;
-  width?: "5xl" | "6xl" | "full";
+  /**
+   * `page` — the standard app content width (`max-w-6xl`), matching every
+   * stacked page (dashboard, browse, admin). `full` — edge-to-edge, for the
+   * `/templates/[id]` workspace whose body is a full-bleed split pane.
+   */
+  width?: "page" | "full";
 }) {
   const pathname = usePathname();
 
@@ -39,11 +44,7 @@ export function AppHeader({
     <header className="sticky top-0 z-30 shrink-0 border-b border-border bg-zinc-50/80 dark:bg-black/80 backdrop-blur-md">
       <div
         className={`mx-auto flex h-14 items-center justify-between gap-4 px-6 ${
-          width === "full"
-            ? "max-w-none"
-            : width === "6xl"
-              ? "max-w-6xl"
-              : "max-w-5xl"
+          width === "full" ? "max-w-none" : "max-w-6xl"
         }`}
       >
         <div className="flex items-center gap-1 sm:gap-3">

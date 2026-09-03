@@ -121,8 +121,8 @@ export default async function LandingPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <header className="sticky top-0 z-50 border-b border-black/5 dark:border-white/10 bg-zinc-50/70 dark:bg-black/70 backdrop-blur-xl">
-        <div className="mx-auto max-w-5xl px-6 h-16 flex items-center justify-between gap-4">
+      <header className="sticky top-0 z-30 border-b border-border bg-zinc-50/80 dark:bg-black/80 backdrop-blur-md">
+        <div className="mx-auto max-w-6xl px-6 h-14 flex items-center justify-between gap-4">
           <Link
             href="/"
             className="transition-transform hover:scale-[1.03]"
@@ -133,7 +133,7 @@ export default async function LandingPage() {
           <nav aria-label="Primary" className="flex items-center gap-1 sm:gap-2">
             <Link
               href="/templates"
-              className="hidden sm:inline-flex rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+              className="hidden sm:inline-flex rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
             >
               Browse templates
             </Link>
@@ -142,7 +142,7 @@ export default async function LandingPage() {
               target="_blank"
               rel="noopener noreferrer"
               aria-label="View source on GitHub"
-              className="inline-flex items-center justify-center rounded-lg p-2 text-muted-foreground hover:text-black dark:hover:text-white hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
+              className="inline-flex items-center justify-center rounded-lg p-2 text-muted-foreground hover:text-foreground hover:bg-black/[0.04] dark:hover:bg-white/[0.06] transition-colors"
             >
               <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden="true">
                 <path d="M12 .5C5.37.5 0 5.87 0 12.5c0 5.3 3.44 9.8 8.21 11.39.6.11.82-.26.82-.58 0-.29-.01-1.04-.02-2.05-3.34.73-4.04-1.61-4.04-1.61-.55-1.39-1.34-1.76-1.34-1.76-1.09-.75.08-.73.08-.73 1.2.09 1.84 1.24 1.84 1.24 1.07 1.84 2.81 1.31 3.5 1 .11-.78.42-1.31.76-1.61-2.66-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.13-.31-.54-1.53.12-3.18 0 0 1.01-.32 3.3 1.23a11.5 11.5 0 0 1 6.01 0c2.29-1.55 3.29-1.23 3.29-1.23.66 1.65.25 2.87.12 3.18.77.84 1.24 1.91 1.24 3.22 0 4.61-2.81 5.63-5.49 5.93.43.37.82 1.1.82 2.22 0 1.61-.02 2.9-.02 3.29 0 .32.22.7.83.58A12 12 0 0 0 24 12.5C24 5.87 18.63.5 12 .5Z" />
@@ -161,7 +161,7 @@ export default async function LandingPage() {
       <main>
         <section
           aria-labelledby="hero-heading"
-          className="relative mx-auto max-w-5xl px-6 pt-16 pb-20 text-center flex flex-col items-center gap-6 overflow-hidden"
+          className="relative mx-auto max-w-6xl px-6 pt-16 pb-20 text-center flex flex-col items-center gap-6 overflow-hidden"
         >
           <div
             aria-hidden="true"
@@ -175,7 +175,7 @@ export default async function LandingPage() {
             href="https://github.com/mkazinauskas/template-me"
             target="_blank"
             rel="noopener noreferrer"
-            className="animate-fade-in-up inline-flex items-center gap-1.5 rounded-full border border-black/10 dark:border-white/15 bg-white dark:bg-white/[0.04] px-3 py-1 text-xs font-medium text-black/70 dark:text-white/70 hover:text-black dark:hover:text-white hover:scale-[1.03] transition-all"
+            className="animate-fade-in-up inline-flex items-center gap-1.5 rounded-full border border-border bg-white dark:bg-white/[0.04] px-3 py-1 text-xs font-medium text-muted-foreground hover:text-foreground hover:scale-[1.03] transition-all"
           >
             100% free &amp; open source — self-host on your own machine
           </a>
@@ -215,7 +215,7 @@ export default async function LandingPage() {
             </a>
           </div>
           <ul
-            className="animate-fade-in-up flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-xs text-black/55 dark:text-white/45"
+            className="animate-fade-in-up flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-xs text-muted-foreground-subtle"
             style={{ animationDelay: "0.25s" }}
           >
             <li>No sign-up to self-host</li>
@@ -228,15 +228,15 @@ export default async function LandingPage() {
 
         <DocumentExample />
 
-        <section aria-label="How it works" className="mx-auto max-w-5xl px-6 pb-20">
+        <section aria-label="How it works" className="mx-auto max-w-6xl px-6 pb-20">
           <div className="grid sm:grid-cols-3 gap-4">
             {steps.map((step, i) => (
               <div
                 key={step.title}
-                className="animate-fade-in-up rounded-xl border border-black/10 dark:border-white/15 p-6 flex flex-col gap-2 bg-white dark:bg-white/[0.02] transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-white/5"
+                className="animate-fade-in-up rounded-xl border border-border p-6 flex flex-col gap-2 bg-white dark:bg-white/[0.02] transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-white/5"
                 style={{ animationDelay: `${0.1 * i}s` }}
               >
-                <span className="text-xs font-semibold text-black/55 dark:text-white/40">
+                <span className="text-xs font-semibold text-muted-foreground-subtle">
                   Step {i + 1}
                 </span>
                 <h3 className="font-semibold">{step.title}</h3>
@@ -248,11 +248,11 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section className="mx-auto max-w-5xl px-6 pb-20 flex flex-col items-center">
+        <section className="mx-auto max-w-6xl px-6 pb-20 flex flex-col items-center">
           <DockerRunTabs />
         </section>
 
-        <section aria-labelledby="features-heading" className="mx-auto max-w-5xl px-6 pb-24">
+        <section aria-labelledby="features-heading" className="mx-auto max-w-6xl px-6 pb-24">
           <h2
             id="features-heading"
             className="text-xl font-semibold tracking-tight text-center mb-8"
@@ -263,7 +263,7 @@ export default async function LandingPage() {
             {features.map((feature, i) => (
               <div
                 key={feature.title}
-                className="animate-fade-in-up rounded-xl border border-black/10 dark:border-white/15 p-6 flex flex-col gap-1.5 transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-white/5"
+                className="animate-fade-in-up rounded-xl border border-border p-6 flex flex-col gap-1.5 transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-white/5"
                 style={{ animationDelay: `${0.08 * i}s` }}
               >
                 <h3 className="font-medium">{feature.title}</h3>
@@ -275,7 +275,7 @@ export default async function LandingPage() {
           </div>
         </section>
 
-        <section aria-labelledby="faq-heading" className="mx-auto max-w-5xl px-6 pb-24">
+        <section aria-labelledby="faq-heading" className="mx-auto max-w-6xl px-6 pb-24">
           <h2
             id="faq-heading"
             className="text-xl font-semibold tracking-tight text-center mb-8"
@@ -286,14 +286,14 @@ export default async function LandingPage() {
             {faqs.map((faq, i) => (
               <details
                 key={faq.question}
-                className="animate-fade-in-up group rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-white/[0.02] p-5"
+                className="animate-fade-in-up group rounded-xl border border-border bg-white dark:bg-white/[0.02] p-5"
                 style={{ animationDelay: `${0.06 * i}s` }}
               >
                 <summary className="flex cursor-pointer items-center justify-between gap-4 font-medium marker:content-none">
                   {faq.question}
                   <span
                     aria-hidden="true"
-                    className="text-black/40 dark:text-white/40 transition-transform group-open:rotate-45"
+                    className="text-muted-foreground-subtle transition-transform group-open:rotate-45"
                   >
                     +
                   </span>

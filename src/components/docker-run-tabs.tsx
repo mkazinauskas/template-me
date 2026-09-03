@@ -82,10 +82,10 @@ export function DockerRunTabs() {
 
   return (
     <div
-      className="animate-fade-in-up w-full rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-white/[0.02] p-5 text-left"
+      className="animate-fade-in-up w-full rounded-xl border border-border bg-white dark:bg-white/[0.02] p-5 text-left"
       style={{ animationDelay: "0.3s" }}
     >
-      <p className="text-xs font-medium text-black/50 dark:text-white/50 mb-3">
+      <p className="text-xs font-medium text-muted-foreground mb-3">
         Run it locally with Docker Compose
       </p>
 
@@ -111,7 +111,7 @@ export function DockerRunTabs() {
             className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
               i === active
                 ? "bg-white dark:bg-white/15 text-black dark:text-white shadow-sm"
-                : "text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white"
+                : "text-muted-foreground hover:text-foreground"
             }`}
           >
             {p.label}
@@ -128,7 +128,7 @@ export function DockerRunTabs() {
         <ol className="flex flex-col gap-3">
           {platform.steps.map((step, i) => (
             <li key={i} className="flex gap-3">
-              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-[11px] font-semibold text-black/50 dark:text-white/50">
+              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-[11px] font-semibold text-muted-foreground">
                 {i + 1}
               </span>
               <div className="flex-1 min-w-0">
@@ -144,7 +144,7 @@ export function DockerRunTabs() {
             </li>
           ))}
         </ol>
-        <p className="mt-4 text-xs text-black/55 dark:text-white/40">
+        <p className="mt-4 text-xs text-muted-foreground-subtle">
           Then open{" "}
           <span className="font-mono text-muted-foreground">
             localhost:3000

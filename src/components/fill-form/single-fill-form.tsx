@@ -96,7 +96,7 @@ export function SingleFillForm({ templateId, fields, templateName }: FillFormPro
         onSubmit={handleSubmit}
         style={{ "--form-width": `${formWidth}px` } as CSSProperties}
         aria-describedby={error ? "form-error" : undefined}
-        className="flex flex-col gap-4 p-6 overflow-y-auto lg:w-[var(--form-width)] lg:shrink-0 border-b lg:border-b-0 border-black/10 dark:border-white/15"
+        className="flex flex-col gap-4 p-6 overflow-y-auto lg:w-[var(--form-width)] lg:shrink-0 border-b lg:border-b-0 border-border"
       >
         <ValuesToolbar
           onExport={handleExportValues}
@@ -140,7 +140,7 @@ export function SingleFillForm({ templateId, fields, templateName }: FillFormPro
         error={previewError}
         loadingLabel="Updating preview…"
         emptyState={
-          <div className="flex items-center justify-center h-full text-sm text-black/50 dark:text-white/50">
+          <div className="flex items-center justify-center h-full text-sm text-muted-foreground">
             {isPreviewLoading ? "Rendering preview…" : "Preview will appear here"}
           </div>
         }

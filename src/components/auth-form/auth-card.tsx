@@ -19,7 +19,7 @@ export function AuthCard({
     <form
       onSubmit={onSubmit}
       aria-describedby={error ? "form-error" : undefined}
-      className="rounded-xl border border-black/10 dark:border-white/15 p-6 flex flex-col gap-4 w-full max-w-sm"
+      className="rounded-xl border border-border p-6 flex flex-col gap-4 w-full max-w-sm"
     >
       <div>
         <h1 className="text-lg font-semibold">

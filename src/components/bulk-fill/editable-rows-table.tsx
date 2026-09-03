@@ -33,31 +33,31 @@ export function EditableRowsTable({
       <table className="border-collapse text-xs">
         <thead>
           <tr>
-            <th className="text-left border-b border-black/10 dark:border-white/15 px-2 py-1.5 font-semibold w-8">
+            <th className="text-left border-b border-border px-2 py-1.5 font-semibold w-8">
               #
             </th>
             {columns.map((col) => (
               <th
                 key={col.key}
-                className="text-left border-b border-black/10 dark:border-white/15 px-2 py-1.5 font-semibold whitespace-nowrap"
+                className="text-left border-b border-border px-2 py-1.5 font-semibold whitespace-nowrap"
               >
                 <div className="flex items-center gap-1.5">
                   {col.label}
                   {col.sublabel && (
-                    <code className="text-[10px] normal-case tracking-normal text-black/50 dark:text-white/50 font-mono font-normal">
+                    <code className="text-[10px] normal-case tracking-normal text-muted-foreground font-mono font-normal">
                       {col.sublabel}
                     </code>
                   )}
                 </div>
               </th>
             ))}
-            <th className="border-b border-black/10 dark:border-white/15 px-2 py-1.5 w-8" />
+            <th className="border-b border-border px-2 py-1.5 w-8" />
           </tr>
         </thead>
         <tbody>
           {rows.map((row, i) => (
             <tr key={i} className="odd:bg-black/[0.02] dark:odd:bg-white/[0.03]">
-              <td className="px-2 py-1.5 border-b border-black/5 dark:border-white/10 text-black/50 dark:text-white/50">
+              <td className="px-2 py-1.5 border-b border-black/5 dark:border-white/10 text-muted-foreground">
                 {i + 1}
               </td>
               {columns.map((col) => (
@@ -70,7 +70,7 @@ export function EditableRowsTable({
                   type="button"
                   onClick={() => removeRow(i)}
                   aria-label={`Remove row ${i + 1}`}
-                  className="text-black/40 dark:text-white/40 hover:text-red-600 dark:hover:text-red-400"
+                  className="text-muted-foreground-subtle hover:text-red-600 dark:hover:text-red-400"
                 >
                   ✕
                 </button>
@@ -82,7 +82,7 @@ export function EditableRowsTable({
       <button
         type="button"
         onClick={addRow}
-        className="mt-3 rounded-md border border-dashed border-black/20 dark:border-white/25 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-black/40 dark:hover:border-white/40 hover:text-black dark:hover:text-white"
+        className="mt-3 rounded-md border border-dashed border-black/20 dark:border-white/25 px-3 py-1.5 text-xs font-medium text-muted-foreground hover:border-black/40 dark:hover:border-white/40 hover:text-foreground"
       >
         + Add row
       </button>

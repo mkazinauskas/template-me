@@ -18,7 +18,7 @@ export function FillForm(props: { templateId: string; fields: TemplateField[]; t
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="shrink-0 flex items-center gap-1 px-6 py-2 border-b border-black/10 dark:border-white/15">
+      <div className="shrink-0 flex items-center gap-1 px-6 py-2 border-b border-border">
         {MODE_TABS.map((tab) => (
           <button
             key={tab.value}

@@ -12,5 +12,8 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/templates/:path*"],
+  // `/templates` (browse) and `/templates/[id]` are intentionally NOT gated
+  // here: the list shows a public-template preview to logged-out visitors, and
+  // the detail page / generate API enforce `canViewTemplate` themselves.
+  matcher: ["/dashboard/:path*"],
 };

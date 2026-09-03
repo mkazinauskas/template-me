@@ -81,7 +81,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       </head>
       <body className="min-h-full flex flex-col">
         <div className="flex-1 flex flex-col">{children}</div>
-        <footer className="py-6 text-center text-xs text-black/55 dark:text-white/40">
+        <footer className="py-6 text-center text-xs text-muted-foreground-subtle">
           Made by{" "}
           <a
             href="https://modakoda.com"

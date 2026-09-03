@@ -90,7 +90,7 @@ export function BulkSetupPanel({
         [parseError && "csv-parse-error", submitError && "form-error"].filter(Boolean).join(" ") ||
         undefined
       }
-      className="flex flex-col gap-4 p-6 overflow-y-auto lg:w-[var(--form-width)] lg:shrink-0 border-b lg:border-b-0 border-black/10 dark:border-white/15"
+      className="flex flex-col gap-4 p-6 overflow-y-auto lg:w-[var(--form-width)] lg:shrink-0 border-b lg:border-b-0 border-border"
     >
       <div className="flex items-center gap-1 rounded-md bg-black/5 dark:bg-white/10 p-1 self-start">
         {SOURCE_TABS.map((tab) => (
@@ -118,7 +118,7 @@ export function BulkSetupPanel({
             <button
               type="button"
               onClick={onDownloadTemplate}
-              className="shrink-0 text-xs font-medium underline underline-offset-2 text-muted-foreground hover:text-black dark:hover:text-white"
+              className="shrink-0 text-xs font-medium underline underline-offset-2 text-muted-foreground hover:text-foreground"
             >
               Download CSV template
             </button>
@@ -132,7 +132,7 @@ export function BulkSetupPanel({
             className="text-sm file:mr-3 file:rounded-md file:border-0 file:bg-black/90 file:text-white dark:file:bg-white dark:file:text-black file:px-3 file:py-2 file:text-sm file:font-medium file:cursor-pointer cursor-pointer"
           />
           {fileName && (
-            <p className="text-xs text-black/50 dark:text-white/50">
+            <p className="text-xs text-muted-foreground">
               {fileName} — {csvRowCount} row{csvRowCount === 1 ? "" : "s"}
             </p>
           )}
@@ -145,7 +145,7 @@ export function BulkSetupPanel({
       ) : (
         <div className="flex flex-col gap-1.5">
           <p className="text-sm font-medium">Enter rows directly</p>
-          <p className="text-xs text-black/50 dark:text-white/50">
+          <p className="text-xs text-muted-foreground">
             Edit values in the table and use “+ Add row” to add another document. {editRowCount} row
             {editRowCount === 1 ? "" : "s"}.
           </p>

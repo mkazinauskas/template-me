@@ -26,8 +26,8 @@ export default async function DashboardPage({
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black">
-      <AppHeader user={session?.user} width="full" />
-      <main className="mx-auto max-w-none px-6 py-10 flex flex-col gap-10">
+      <AppHeader user={session?.user} />
+      <main className="mx-auto max-w-6xl px-6 py-10 flex flex-col gap-10">
         <div className="animate-fade-in-up flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
@@ -52,12 +52,12 @@ export default async function DashboardPage({
             <h2 className="text-lg font-semibold">Your templates</h2>
             <Link
               href="/templates"
-              className="text-sm text-black/50 dark:text-white/50 hover:underline"
+              className="text-sm text-muted-foreground hover:underline"
             >
               Browse all →
             </Link>
           </div>
-          <Suspense key={page} fallback={<p className="text-sm text-black/50">Loading…</p>}>
+          <Suspense key={page} fallback={<p className="text-sm text-muted-foreground">Loading…</p>}>
             <TemplateList page={page} />
           </Suspense>
         </div>
@@ -70,14 +70,14 @@ export default async function DashboardPage({
             <h2 className="text-lg font-semibold">Public templates</h2>
             <Link
               href="/templates"
-              className="text-sm text-black/50 dark:text-white/50 hover:underline"
+              className="text-sm text-muted-foreground hover:underline"
             >
               Browse all →
             </Link>
           </div>
           <Suspense
             key={`public-${publicPage}`}
-            fallback={<p className="text-sm text-black/50">Loading…</p>}
+            fallback={<p className="text-sm text-muted-foreground">Loading…</p>}
           >
             <TemplateList scope="public" page={publicPage} pageParam="ppage" />
           </Suspense>

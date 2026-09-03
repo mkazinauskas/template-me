@@ -71,7 +71,7 @@ export function ResultsPreviewPane({
             makeEmptyRow={makeEmptyCsvRow}
           />
         ) : (
-          <div className="flex items-center justify-center h-full text-sm text-black/50 dark:text-white/50 text-center px-6">
+          <div className="flex items-center justify-center h-full text-sm text-muted-foreground text-center px-6">
             Upload a .csv file with one row per document to get started.
           </div>
         )

@@ -39,14 +39,14 @@ const ROWS: { type: string; syntax: string; input: string; notes: string }[] = [
 
 export function PlaceholderTypes() {
   return (
-    <details className="group rounded-lg border border-black/10 dark:border-white/15">
+    <details className="group rounded-lg border border-border">
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-3 py-2 select-none text-sm">
         <span className="font-medium">Placeholder types &amp; syntax</span>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 20 20"
           fill="currentColor"
-          className="size-4 shrink-0 text-black/40 dark:text-white/40 transition-transform group-open:rotate-180"
+          className="size-4 shrink-0 text-muted-foreground-subtle transition-transform group-open:rotate-180"
         >
           <path
             fillRule="evenodd"
@@ -67,10 +67,10 @@ export function PlaceholderTypes() {
           .
         </p>
 
-        <div className="overflow-x-auto rounded-lg border border-black/10 dark:border-white/15">
+        <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-xs">
             <thead>
-              <tr className="border-b border-black/10 dark:border-white/15 bg-black/[0.03] dark:bg-white/[0.04] text-left">
+              <tr className="border-b border-border bg-black/[0.03] dark:bg-white/[0.04] text-left">
                 <th className="px-3 py-1.5 font-medium">Type</th>
                 <th className="px-3 py-1.5 font-medium">Syntax</th>
                 <th className="px-3 py-1.5 font-medium">Input</th>
@@ -81,7 +81,7 @@ export function PlaceholderTypes() {
               {ROWS.map((row, i) => (
                 <tr
                   key={row.type}
-                  className={i < ROWS.length - 1 ? "border-b border-black/10 dark:border-white/15" : ""}
+                  className={i < ROWS.length - 1 ? "border-b border-border" : ""}
                 >
                   <td className="px-3 py-2 align-top font-medium whitespace-nowrap">{row.type}</td>
                   <td className="px-3 py-2 align-top whitespace-nowrap">
@@ -90,7 +90,7 @@ export function PlaceholderTypes() {
                     </code>
                   </td>
                   <td className="px-3 py-2 align-top whitespace-nowrap">{row.input}</td>
-                  <td className="px-3 py-2 align-top text-black/70 dark:text-white/70">{row.notes}</td>
+                  <td className="px-3 py-2 align-top text-muted-foreground">{row.notes}</td>
                 </tr>
               ))}
             </tbody>

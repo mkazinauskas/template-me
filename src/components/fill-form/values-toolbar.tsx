@@ -15,7 +15,7 @@ export function ValuesToolbar({
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   return (
-    <div className="flex items-center gap-3 text-sm pb-2 border-b border-black/10 dark:border-white/15">
+    <div className="flex items-center gap-3 text-sm pb-2 border-b border-border">
       <button
         type="button"
         onClick={onExport}
@@ -40,7 +40,7 @@ export function ValuesToolbar({
       <button
         type="button"
         onClick={onClear}
-        className="ml-auto text-black/60 dark:text-white/60 underline-offset-2 hover:underline"
+        className="ml-auto text-muted-foreground underline-offset-2 hover:underline"
       >
         Clear values
       </button>

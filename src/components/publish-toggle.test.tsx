@@ -24,7 +24,7 @@ describe("PublishToggle", () => {
     const user = userEvent.setup();
     render(<PublishToggle templateId="abc" isPublic={false} />);
 
-    await user.click(screen.getByRole("button", { name: /make public/i }));
+    await user.click(screen.getByRole("switch", { name: /make template public/i }));
 
     expect(globalThis.fetch).toHaveBeenCalledWith("/api/templates/abc", {
       method: "PATCH",
@@ -39,7 +39,7 @@ describe("PublishToggle", () => {
     const user = userEvent.setup();
     render(<PublishToggle templateId="abc" isPublic={true} />);
 
-    await user.click(screen.getByRole("button", { name: /anyone with the link/i }));
+    await user.click(screen.getByRole("switch", { name: /make template public/i }));
 
     expect(globalThis.fetch).toHaveBeenCalledWith(
       "/api/templates/abc",
@@ -52,7 +52,7 @@ describe("PublishToggle", () => {
     const user = userEvent.setup();
     render(<PublishToggle templateId="abc" isPublic={false} />);
 
-    await user.click(screen.getByRole("button", { name: /make public/i }));
+    await user.click(screen.getByRole("switch", { name: /make template public/i }));
 
     expect(await screen.findByText(/Couldn't update/i)).toBeInTheDocument();
     expect(refresh).not.toHaveBeenCalled();

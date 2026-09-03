@@ -24,10 +24,10 @@ export function ColumnMappingFields({
         <div key={field.key} className="flex flex-col gap-1.5">
           <label htmlFor={`map-${field.key}`} className="text-sm font-medium flex items-center gap-2">
             {field.label}
-            <code className="text-[10px] normal-case tracking-normal text-black/50 dark:text-white/50 font-mono font-normal">
+            <code className="text-[10px] normal-case tracking-normal text-muted-foreground font-mono font-normal">
               {formatRawTag(field)}
             </code>
-            <span className="text-[10px] uppercase tracking-wide text-black/50 dark:text-white/50 font-normal">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-normal">
               {field.type}
             </span>
           </label>

@@ -7,7 +7,7 @@ export function TemplateSearchForm({ defaultValue }: { defaultValue?: string }) 
           viewBox="0 0 20 20"
           fill="currentColor"
           aria-hidden="true"
-          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-black/40 dark:text-white/40"
+          className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground-subtle"
         >
           <path
             fillRule="evenodd"

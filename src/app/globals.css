@@ -15,6 +15,10 @@
    * than relying on a `dark:` utility at every call site. */
   --border: rgb(0 0 0 / 0.12);
   --muted-foreground: rgb(0 0 0 / 0.68);
+  /* A second, fainter tier for genuinely tertiary text — footnotes, footer,
+   * timestamps, decorative chevrons — that should sit below `muted-foreground`
+   * without every call site hand-rolling its own black/white opacity. */
+  --muted-foreground-subtle: rgb(0 0 0 / 0.45);
   --focus-ring: rgb(0 0 0 / 0.2);
 }
 
@@ -23,6 +27,7 @@
   --color-foreground: var(--foreground);
   --color-border: var(--border);
   --color-muted-foreground: var(--muted-foreground);
+  --color-muted-foreground-subtle: var(--muted-foreground-subtle);
   --color-focus-ring: var(--focus-ring);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
@@ -34,6 +39,7 @@
     --foreground: #ededed;
     --border: rgb(255 255 255 / 0.15);
     --muted-foreground: rgb(255 255 255 / 0.6);
+    --muted-foreground-subtle: rgb(255 255 255 / 0.4);
     --focus-ring: rgb(255 255 255 / 0.3);
   }
 }
@@ -43,6 +49,7 @@
   --foreground: #ededed;
   --border: rgb(255 255 255 / 0.15);
   --muted-foreground: rgb(255 255 255 / 0.6);
+  --muted-foreground-subtle: rgb(255 255 255 / 0.4);
   --focus-ring: rgb(255 255 255 / 0.3);
 }
 

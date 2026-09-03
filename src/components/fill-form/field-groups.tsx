@@ -18,10 +18,10 @@ function FieldRow({
     <div className="flex flex-col gap-1.5">
       <label htmlFor={field.key} className="text-sm font-medium flex items-center gap-2">
         {field.label}
-        <code className="text-[10px] normal-case tracking-normal text-black/50 dark:text-white/50 font-mono font-normal">
+        <code className="text-[10px] normal-case tracking-normal text-muted-foreground font-mono font-normal">
           {formatRawTag(field)}
         </code>
-        <span className="text-[10px] uppercase tracking-wide text-black/50 dark:text-white/50 font-normal">
+        <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-normal">
           {field.type}
         </span>
       </label>
@@ -57,7 +57,7 @@ export function FieldGroups({
         return (
           <fieldset
             key={bucket.groupLabel + i}
-            className="flex flex-col gap-4 rounded-lg border border-black/10 dark:border-white/15 p-4"
+            className="flex flex-col gap-4 rounded-lg border border-border p-4"
           >
             <legend className="text-sm font-semibold px-1">{bucket.groupLabel}</legend>
             {rows}

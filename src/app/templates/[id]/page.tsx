@@ -71,8 +71,8 @@ export default async function TemplatePage({
   return (
     <div className="h-screen flex flex-col bg-zinc-50 dark:bg-black overflow-hidden">
       <AppHeader user={session?.user} />
-      <div className="shrink-0 px-6 py-4 border-b border-black/10 dark:border-white/15">
-        <div className="flex items-center justify-between gap-4">
+      <div className="shrink-0 border-b border-border">
+        <div className="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-4">
           <div className="min-w-0">
             <h1 className="text-xl font-semibold tracking-tight truncate">
               {template.name}
@@ -99,17 +99,19 @@ export default async function TemplatePage({
       </div>
 
       {warnings.length > 0 && (
-        <div className="shrink-0 border-b border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 px-6 py-3 text-sm text-amber-800 dark:text-amber-300">
-          <p className="font-medium">Some tags weren&apos;t fully understood</p>
-          <ul className="mt-1 list-disc list-inside space-y-0.5">
-            {warnings.map((warning) => (
-              <li key={warning}>{warning}</li>
-            ))}
-          </ul>
+        <div className="shrink-0 border-b border-amber-500/30 bg-amber-50 dark:bg-amber-500/10 text-sm text-amber-800 dark:text-amber-300">
+          <div className="mx-auto w-full max-w-6xl px-6 py-3">
+            <p className="font-medium">Some tags weren&apos;t fully understood</p>
+            <ul className="mt-1 list-disc list-inside space-y-0.5">
+              {warnings.map((warning) => (
+                <li key={warning}>{warning}</li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
 
-      <main className="flex-1 min-h-0">
+      <main className="mx-auto flex w-full max-w-6xl flex-1 min-h-0 flex-col">
         <FillForm
           templateId={template.id}
           fields={template.fields}

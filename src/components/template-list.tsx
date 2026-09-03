@@ -5,6 +5,7 @@ import { templates } from "@/db/schema";
 import type { TemplateFieldType } from "@/db/schema";
 import { and, count, desc, eq, ilike, ne, or, type SQL } from "drizzle-orm";
 import { DeleteTemplateButton } from "@/components/delete-template-button";
+import { buttonClasses } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
 
 const PAGE_SIZE = 12;
@@ -29,6 +30,7 @@ export async function TemplateList({
   q,
   scope = "own",
   pageParam = "page",
+  preview,
 }: {
   page?: number;
   q?: string;
@@ -36,6 +38,12 @@ export async function TemplateList({
   scope?: "own" | "public";
   /** Query-param name for this list's pagination, so two lists on one page don't collide. */
   pageParam?: string;
+  /**
+   * Logged-out preview mode: cap the grid at `limit` rows, drop pagination, and
+   * render a sign-in call-to-action underneath (with a count of the templates
+   * that stay locked behind an account).
+   */
+  preview?: { limit: number };
 }) {
   const session = await auth.api.getSession({ headers: await headers() });
   if (scope === "own" && !session) {
@@ -60,27 +68,32 @@ export async function TemplateList({
     : undefined;
   const where = (termFilter ? and(scopeFilter, termFilter) : scopeFilter) as SQL;
 
+  const pageSize = preview ? preview.limit : PAGE_SIZE;
+  const offset = preview ? 0 : (page - 1) * PAGE_SIZE;
+
   const [rows, [{ total }]] = await Promise.all([
     db
       .select()
       .from(templates)
       .where(where)
       .orderBy(desc(templates.createdAt))
-      .limit(PAGE_SIZE)
-      .offset((page - 1) * PAGE_SIZE),
+      .limit(pageSize)
+      .offset(offset),
     db.select({ total: count() }).from(templates).where(where),
   ]);
 
   if (total === 0) {
     const emptyLabel = scope === "public" ? "public templates" : "templates";
+    const message = term
+      ? `No ${emptyLabel} match "${term}".`
+      : scope === "public"
+        ? "No public templates yet."
+        : "No templates uploaded yet.";
     return (
-      <p className="text-sm text-muted-foreground">
-        {term
-          ? `No ${emptyLabel} match "${term}".`
-          : scope === "public"
-            ? "No public templates yet."
-            : "No templates uploaded yet."}
-      </p>
+      <div className="flex flex-col gap-4">
+        <p className="text-sm text-muted-foreground">{message}</p>
+        {preview && <SignInGate locked={0} />}
+      </div>
     );
   }
 
@@ -104,14 +117,14 @@ export async function TemplateList({
               className="animate-fade-in-up"
               style={{ animationDelay: `${Math.min(i, 8) * 0.05}s` }}
             >
-              <div className="group relative flex h-full flex-col gap-3 rounded-xl border border-black/10 dark:border-white/15 bg-white dark:bg-white/[0.02] p-5 transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-white/5">
+              <div className="group relative flex h-full flex-col gap-3 rounded-xl border border-border bg-white dark:bg-white/[0.02] p-5 transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-white/5">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-black/[0.04] dark:bg-white/[0.08]">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
                       viewBox="0 0 20 20"
                       fill="currentColor"
-                      className="size-4 text-black/50 dark:text-white/50"
+                      className="size-4 text-muted-foreground"
                       aria-hidden="true"
                     >
                       <path
@@ -138,7 +151,7 @@ export async function TemplateList({
                     {t.name}
                   </h3>
                   <p
-                    className="truncate text-xs text-black/50 dark:text-white/50"
+                    className="truncate text-xs text-muted-foreground"
                     title={t.originalFilename}
                   >
                     {t.originalFilename}
@@ -150,7 +163,7 @@ export async function TemplateList({
                     {[...typeCounts.entries()].map(([type, n]) => (
                       <span
                         key={type}
-                        className="inline-flex items-center gap-1 rounded-full border border-black/10 dark:border-white/15 px-2 py-0.5 text-[11px] text-muted-foreground"
+                        className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground"
                       >
                         <span className={`size-1.5 rounded-full ${TYPE_META[type].dot}`} aria-hidden="true" />
                         {n} {TYPE_META[type].label}
@@ -159,7 +172,7 @@ export async function TemplateList({
                     ))}
                   </div>
                 ) : (
-                  <p className="text-[11px] text-black/50 dark:text-white/50">No fields detected</p>
+                  <p className="text-[11px] text-muted-foreground">No fields detected</p>
                 )}
 
                 {groupLabels.size > 0 && (
@@ -167,7 +180,7 @@ export async function TemplateList({
                     {[...groupLabels].map((label) => (
                       <span
                         key={label}
-                        className="rounded-full bg-black/[0.04] dark:bg-white/[0.08] px-2 py-0.5 text-[11px] text-black/50 dark:text-white/50"
+                        className="rounded-full bg-black/[0.04] dark:bg-white/[0.08] px-2 py-0.5 text-[11px] text-muted-foreground"
                       >
                         {label}
                       </span>
@@ -176,7 +189,7 @@ export async function TemplateList({
                 )}
 
                 <div className="mt-auto flex items-center justify-between gap-2 pt-3 border-t border-black/5 dark:border-white/10">
-                  <span className="text-xs text-black/50 dark:text-white/50">
+                  <span className="text-xs text-muted-foreground">
                     {dateFormatter.format(t.createdAt)}
                   </span>
                   <Link
@@ -193,12 +206,15 @@ export async function TemplateList({
         })}
       </ul>
 
-      {totalPages > 1 && (
+      {preview ? (
+        <SignInGate locked={Math.max(0, total - preview.limit)} />
+      ) : (
+        totalPages > 1 && (
         <div className="flex items-center justify-between text-sm">
           <Link
             href={page <= 2 ? `?${qParam}` : `?${qParam}${pageParam}=${page - 1}`}
             aria-disabled={page <= 1}
-            className={`rounded-md border border-black/10 dark:border-white/15 px-3 py-1.5 ${
+            className={`rounded-md border border-border px-3 py-1.5 ${
               page <= 1
                 ? "pointer-events-none opacity-40"
                 : "hover:bg-black/[0.03] dark:hover:bg-white/[0.06]"
@@ -206,13 +222,13 @@ export async function TemplateList({
           >
             ← Previous
           </Link>
-          <span className="text-black/50 dark:text-white/50">
+          <span className="text-muted-foreground">
             Page {page} of {totalPages}
           </span>
           <Link
             href={`?${qParam}${pageParam}=${page + 1}`}
             aria-disabled={page >= totalPages}
-            className={`rounded-md border border-black/10 dark:border-white/15 px-3 py-1.5 ${
+            className={`rounded-md border border-border px-3 py-1.5 ${
               page >= totalPages
                 ? "pointer-events-none opacity-40"
                 : "hover:bg-black/[0.03] dark:hover:bg-white/[0.06]"
@@ -221,7 +237,63 @@ export async function TemplateList({
             Next →
           </Link>
         </div>
+        )
       )}
+    </div>
+  );
+}
+
+/**
+ * Call-to-action shown under the logged-out public-template preview. When
+ * `locked > 0` it names how many more public templates an account unlocks;
+ * otherwise it simply nudges the visitor to sign in and upload their own.
+ */
+function SignInGate({ locked }: { locked: number }) {
+  return (
+    <div className="animate-fade-in-up flex flex-col items-center gap-4 rounded-xl border border-dashed border-border bg-white p-6 text-center sm:flex-row sm:justify-between sm:text-left dark:bg-white/[0.02]">
+      <div className="flex items-center gap-3">
+        <div
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-black/[0.04] dark:bg-white/[0.08]"
+          aria-hidden="true"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="size-4 text-muted-foreground"
+          >
+            <path
+              fillRule="evenodd"
+              d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </div>
+        <div>
+          <p className="font-semibold">
+            {locked > 0
+              ? `${locked} more ${locked === 1 ? "template" : "templates"} with a free account`
+              : "Upload and manage your own templates"}
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Sign in to browse every public template and publish your own .docx files.
+          </p>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <Link
+          href="/sign-in?redirect=/templates"
+          className={buttonClasses({ interactive: "hover" })}
+        >
+          Sign in
+        </Link>
+        <Link
+          href="/sign-up?redirect=/templates"
+          className={buttonClasses({ variant: "secondary", interactive: "hover" })}
+        >
+          Create account
+        </Link>
+      </div>
     </div>
   );
 }
