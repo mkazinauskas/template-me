@@ -174,3 +174,40 @@ export const templatesRelations = relations(templates, ({ one }) => ({
 
 export type Template = typeof templates.$inferSelect;
 export type NewTemplate = typeof templates.$inferInsert;
+
+// A one-time, shareable link an owner generates for a template: a random
+// `code` stands in for a URL anyone can open (no sign-in) to fill in the
+// template's fields — but not preview the document itself. The first
+// successful submission stamps `filledAt` and the link is done: later opens
+// or submits are rejected, same as if the owner had revoked it themselves.
+// `revokedAt` covers the owner cancelling a link before anyone used it.
+export const fillRequests = pgTable(
+  "fill_requests",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    templateId: uuid("template_id")
+      .notNull()
+      .references(() => templates.id, { onDelete: "cascade" }),
+    code: text("code").notNull(),
+    // The submitted values, once filled — same shape as a template-generate
+    // request's `data`. Null until `filledAt` is set.
+    data: jsonb("data").$type<Record<string, string>>(),
+    filledAt: timestamp("filled_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("fill_requests_code_idx").on(table.code),
+    index("fill_requests_templateId_createdAt_idx").on(table.templateId, table.createdAt),
+  ]
+);
+
+export const fillRequestsRelations = relations(fillRequests, ({ one }) => ({
+  template: one(templates, {
+    fields: [fillRequests.templateId],
+    references: [templates.id],
+  }),
+}));
+
+export type FillRequest = typeof fillRequests.$inferSelect;
+export type NewFillRequest = typeof fillRequests.$inferInsert;

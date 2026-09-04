@@ -113,6 +113,7 @@ export function mockTemplatesRouterDeps() {
         ? { allowed: false, retryAfterSeconds: 30 }
         : { allowed: true, retryAfterSeconds: 0 }
     ),
+    clientIp: () => "127.0.0.1",
   }));
 
   vi.doMock("@/lib/storage", () => ({

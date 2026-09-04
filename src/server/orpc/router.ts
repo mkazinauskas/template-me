@@ -1,4 +1,5 @@
 import { templatesRouter } from "@/server/orpc/routers/templates";
+import { fillRequestsRouter } from "@/server/orpc/routers/fill-requests";
 
 /**
  * The application's entire API surface. Every endpoint the browser calls is a
@@ -11,6 +12,7 @@ import { templatesRouter } from "@/server/orpc/routers/templates";
  */
 export const router = {
   templates: templatesRouter,
+  fillRequests: fillRequestsRouter,
 };
 
 export type AppRouter = typeof router;

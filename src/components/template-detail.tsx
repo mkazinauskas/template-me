@@ -114,6 +114,7 @@ export async function TemplateDetail({
           templateId={template.id}
           fields={template.fields}
           templateName={template.name}
+          isOwner={isOwner}
         />
       </main>
     </div>

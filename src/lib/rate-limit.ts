@@ -20,6 +20,11 @@ import { rateLimit } from "@/db/schema";
  * duration of the statement, so concurrent requests for the same key can't
  * both read a stale count and both be allowed through.
  */
+/** Best-effort client IP from proxy headers, for keying anonymous callers. */
+export function clientIp(headers: Headers): string {
+  return headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
+}
+
 export async function checkRateLimit(
   key: string,
   { windowMs, max }: { windowMs: number; max: number }

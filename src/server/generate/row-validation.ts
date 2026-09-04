@@ -57,15 +57,23 @@ export function validateRow(
   return null;
 }
 
+/** Coerces one row's data to a `{ fieldKey: string }` map covering every field of the template. */
+export function toFieldStrings(
+  templateRow: Template,
+  data: Record<string, unknown>
+): Record<string, string> {
+  const stringData: Record<string, string> = {};
+  for (const field of templateRow.fields) {
+    stringData[field.key] = String(data[field.key] ?? "");
+  }
+  return stringData;
+}
+
 /** Fills the template's docx with one row's data, coercing every field value to a string first. */
 export function renderRow(
   templateRow: Template,
   originalDocx: Buffer,
   data: Record<string, unknown>
 ): Buffer {
-  const stringData: Record<string, string> = {};
-  for (const field of templateRow.fields) {
-    stringData[field.key] = String(data[field.key] ?? "");
-  }
-  return renderDocx(originalDocx, stringData);
+  return renderDocx(originalDocx, toFieldStrings(templateRow, data));
 }

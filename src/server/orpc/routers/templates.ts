@@ -7,7 +7,7 @@ import { auth } from "@/lib/auth";
 import { extractFields } from "@/lib/docx-template";
 import { convertDocxToPdf } from "@/lib/docx-to-pdf";
 import { deleteFile, getFile, putFile, type StoredFile } from "@/lib/storage";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import {
   canViewTemplate,
   isTemplateOwner,
@@ -105,7 +105,7 @@ async function loadViewableTemplate(id: string, session: Session): Promise<Templ
 }
 
 /** Fetches a template by id, requiring the caller to be its owner. */
-async function loadOwnedTemplate(id: string, userId: string): Promise<Template> {
+export async function loadOwnedTemplate(id: string, userId: string): Promise<Template> {
   const db = getDb();
   const [row] = await db.select().from(templates).where(eq(templates.id, id));
   if (!row || !isTemplateOwner(row, userId)) {
@@ -209,10 +209,6 @@ async function createFromBlob(
     userId,
   });
   return { template: row, warnings: validated.warnings };
-}
-
-function clientIp(headers: Headers): string {
-  return headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
 }
 
 async function enforceGenerateRateLimit(session: Session, headers: Headers): Promise<void> {
