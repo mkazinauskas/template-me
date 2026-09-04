@@ -41,7 +41,7 @@ export default async function DashboardPage({
         </div>
 
         <div className="animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
-          <UploadForm />
+          <UploadForm localMode={process.env.LOCAL_MODE === "true"} />
         </div>
 
         <div

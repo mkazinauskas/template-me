@@ -2,11 +2,24 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { upload } from "@vercel/blob/client";
 import { PlaceholderTypes } from "@/components/placeholder-types";
 import { inputClasses } from "@/components/ui/input";
 import { buttonClasses } from "@/components/ui/button";
 
-export function UploadForm() {
+const DOCX_CONTENT_TYPE =
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+/**
+ * `localMode` mirrors the server's `LOCAL_MODE` env var (Docker Compose,
+ * local-disk storage — no real Vercel Blob token available), so that path
+ * keeps posting the file straight to the API route. Everywhere else, the
+ * file goes directly from the browser to Blob storage: Vercel enforces a
+ * request body size limit on Functions independent of any app-level check,
+ * so routing the raw file through this route risks a FUNCTION_PAYLOAD_TOO_LARGE
+ * error before the app's own size check ever runs.
+ */
+export function UploadForm({ localMode }: { localMode: boolean }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
@@ -31,13 +44,9 @@ export function UploadForm() {
       return;
     }
 
-    const formData = new FormData();
-    formData.append("file", file);
-    if (name.trim()) formData.append("name", name.trim());
-
     setIsSubmitting(true);
     try {
-      const res = await fetch("/api/templates", { method: "POST", body: formData });
+      const res = localMode ? await uploadViaFormData(file, name) : await uploadViaBlob(file, name);
       const json = await res.json();
       if (!res.ok) {
         setError(json.error ?? "Upload failed");
@@ -52,11 +61,36 @@ export function UploadForm() {
         : "";
       router.push(`/client/dashboard/templates/${json.template.id}${query}`);
       router.refresh();
-    } catch {
-      setError("Upload failed");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Upload failed");
     } finally {
       setIsSubmitting(false);
     }
+  }
+
+  function uploadViaFormData(file: File, name: string) {
+    const formData = new FormData();
+    formData.append("file", file);
+    if (name.trim()) formData.append("name", name.trim());
+    return fetch("/api/templates", { method: "POST", body: formData });
+  }
+
+  async function uploadViaBlob(file: File, name: string) {
+    const blob = await upload(`templates/${crypto.randomUUID()}-${file.name}`, file, {
+      access: "private",
+      contentType: DOCX_CONTENT_TYPE,
+      handleUploadUrl: "/api/templates/upload",
+    });
+    return fetch("/api/templates", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        blobUrl: blob.url,
+        blobPathname: blob.pathname,
+        originalFilename: file.name,
+        name: name.trim(),
+      }),
+    });
   }
 
   return (

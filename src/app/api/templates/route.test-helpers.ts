@@ -11,6 +11,8 @@ export const state: {
   extractFieldsError: Error | null;
   putResult: { url: string; pathname: string };
   session: { user: { id: string; email: string } } | null;
+  storedFiles: Record<string, Buffer>;
+  deletedUrls: string[];
 } = {
   rows: [],
   insertedRow: null,
@@ -18,6 +20,8 @@ export const state: {
   extractFieldsError: null,
   putResult: { url: "https://blob.example/templates/abc.docx", pathname: "templates/abc.docx" },
   session: { user: { id: "user-1", email: "owner@example.com" } },
+  storedFiles: {},
+  deletedUrls: [],
 };
 
 /**
@@ -51,7 +55,13 @@ export function mockTemplatesRouteDeps() {
     auth: { api: { getSession: () => Promise.resolve(state.session) } },
   }));
 
-  vi.doMock("@/lib/storage", () => ({ putFile: vi.fn(async () => state.putResult) }));
+  vi.doMock("@/lib/storage", () => ({
+    putFile: vi.fn(async () => state.putResult),
+    getFile: vi.fn(async (url: string) => state.storedFiles[url] ?? null),
+    deleteFile: vi.fn(async (url: string) => {
+      state.deletedUrls.push(url);
+    }),
+  }));
 
   vi.doMock("@/lib/docx-template", () => ({
     extractFields: vi.fn(() => {
@@ -83,6 +93,15 @@ export function uploadRequest(fields: { file?: File | null; name?: string } = {}
   if (file) formData.set("file", file);
   if (fields.name !== undefined) formData.set("name", fields.name);
   return new NextRequest("http://localhost/api/templates", { method: "POST", body: formData });
+}
+
+/** Builds a `POST /api/templates` JSON finalize request for the client-direct-to-Blob flow. */
+export function finalizeRequest(body: Record<string, unknown>) {
+  return new NextRequest("http://localhost/api/templates", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }
 
 export async function importHandlers() {

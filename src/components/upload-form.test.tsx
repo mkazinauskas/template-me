@@ -5,9 +5,14 @@ import { UploadForm } from "@/components/upload-form";
 
 const push = vi.fn();
 const refresh = vi.fn();
+const blobUpload = vi.fn();
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push, refresh }),
+}));
+
+vi.mock("@vercel/blob/client", () => ({
+  upload: (...args: unknown[]) => blobUpload(...args),
 }));
 
 function docxFile(name = "template.docx") {
@@ -20,12 +25,13 @@ describe("UploadForm", () => {
   beforeEach(() => {
     push.mockReset();
     refresh.mockReset();
+    blobUpload.mockReset();
     vi.stubGlobal("fetch", vi.fn());
   });
 
   it("shows a validation error when submitting without a file", async () => {
     const user = userEvent.setup();
-    render(<UploadForm />);
+    render(<UploadForm localMode />);
 
     await user.click(screen.getByRole("button", { name: "Upload template" }));
 
@@ -39,7 +45,7 @@ describe("UploadForm", () => {
       json: async () => ({ template: { id: "new-id" }, warnings: [] }),
     });
     const user = userEvent.setup();
-    render(<UploadForm />);
+    render(<UploadForm localMode />);
 
     const fileInput = screen.getByLabelText("Word document (.docx)") as HTMLInputElement;
     await user.upload(fileInput, docxFile());
@@ -60,7 +66,7 @@ describe("UploadForm", () => {
 
   it("prefills the template name from the chosen file name", async () => {
     const user = userEvent.setup();
-    render(<UploadForm />);
+    render(<UploadForm localMode />);
 
     await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile("Offer Letter.docx"));
 
@@ -69,7 +75,7 @@ describe("UploadForm", () => {
 
   it("does not overwrite a manually entered template name when a file is chosen", async () => {
     const user = userEvent.setup();
-    render(<UploadForm />);
+    render(<UploadForm localMode />);
 
     await user.type(screen.getByLabelText("Template name (optional)"), "Custom Name");
     await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile("Offer Letter.docx"));
@@ -83,7 +89,7 @@ describe("UploadForm", () => {
       json: async () => ({ template: { id: "new-id" }, warnings: ["Field \"x\" is odd"] }),
     });
     const user = userEvent.setup();
-    render(<UploadForm />);
+    render(<UploadForm localMode />);
 
     await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile());
     await user.click(screen.getByRole("button", { name: "Upload template" }));
@@ -101,7 +107,7 @@ describe("UploadForm", () => {
       json: async () => ({ error: "No templated fields found." }),
     });
     const user = userEvent.setup();
-    render(<UploadForm />);
+    render(<UploadForm localMode />);
 
     await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile());
     await user.click(screen.getByRole("button", { name: "Upload template" }));
@@ -110,14 +116,82 @@ describe("UploadForm", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("shows a generic error message when the fetch itself throws", async () => {
+  it("shows the thrown error's message when the fetch itself throws", async () => {
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("network down"));
     const user = userEvent.setup();
-    render(<UploadForm />);
+    render(<UploadForm localMode />);
+
+    await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile());
+    await user.click(screen.getByRole("button", { name: "Upload template" }));
+
+    expect(await screen.findByText("network down")).toBeInTheDocument();
+  });
+
+  it("falls back to a generic error message for a non-Error rejection", async () => {
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockRejectedValue("boom");
+    const user = userEvent.setup();
+    render(<UploadForm localMode />);
 
     await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile());
     await user.click(screen.getByRole("button", { name: "Upload template" }));
 
     expect(await screen.findByText("Upload failed")).toBeInTheDocument();
+  });
+});
+
+describe("UploadForm (not localMode — client-direct-to-Blob)", () => {
+  beforeEach(() => {
+    push.mockReset();
+    refresh.mockReset();
+    blobUpload.mockReset();
+    vi.stubGlobal("fetch", vi.fn());
+  });
+
+  it("uploads straight to Blob, then finalizes with a JSON request", async () => {
+    blobUpload.mockResolvedValue({
+      url: "https://blob.example/templates/uuid-offer.docx",
+      pathname: "templates/uuid-offer.docx",
+    });
+    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
+      ok: true,
+      json: async () => ({ template: { id: "new-id" }, warnings: [] }),
+    });
+    const user = userEvent.setup();
+    render(<UploadForm localMode={false} />);
+
+    await user.type(screen.getByLabelText("Template name (optional)"), "Offer Letter");
+    await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile());
+    await user.click(screen.getByRole("button", { name: "Upload template" }));
+
+    await waitFor(() => expect(push).toHaveBeenCalledWith("/client/dashboard/templates/new-id"));
+
+    expect(blobUpload).toHaveBeenCalledTimes(1);
+    const [pathname, , options] = blobUpload.mock.calls[0];
+    expect(pathname).toMatch(/^templates\/.+-template\.docx$/);
+    expect(options).toMatchObject({ access: "private", handleUploadUrl: "/api/templates/upload" });
+
+    const [, fetchOptions] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
+    expect(fetchOptions.headers).toMatchObject({ "content-type": "application/json" });
+    const body = JSON.parse(fetchOptions.body as string);
+    expect(body).toEqual({
+      blobUrl: "https://blob.example/templates/uuid-offer.docx",
+      blobPathname: "templates/uuid-offer.docx",
+      originalFilename: "template.docx",
+      name: "Offer Letter",
+    });
+  });
+
+  it("shows the Blob upload's own error (e.g. a size-cap rejection) without ever calling the API", async () => {
+    blobUpload.mockRejectedValue(new Error("The uploaded file's size exceeds the maximum allowed size"));
+    const user = userEvent.setup();
+    render(<UploadForm localMode={false} />);
+
+    await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile());
+    await user.click(screen.getByRole("button", { name: "Upload template" }));
+
+    expect(
+      await screen.findByText("The uploaded file's size exceeds the maximum allowed size")
+    ).toBeInTheDocument();
+    expect(globalThis.fetch).not.toHaveBeenCalled();
   });
 });
