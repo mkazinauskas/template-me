@@ -9,6 +9,7 @@ import { inputClasses } from "@/components/ui/input";
 import { buttonClasses } from "@/components/ui/button";
 import { downloadBlob } from "@/lib/download";
 import { slugifyFilename } from "@/lib/slugify";
+import { orpc, orpcErrorMessage } from "@/lib/orpc";
 import { blankValues } from "./field-grouping";
 import { usePersistedValues } from "./use-persisted-values";
 import { useLivePreview } from "./use-live-preview";
@@ -38,21 +39,10 @@ export function SingleFillForm({ templateId, fields, templateName }: FillFormPro
     setError(null);
     setIsSubmitting(true);
     try {
-      const res = await fetch(`/api/templates/${templateId}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: values, format }),
-      });
-
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        setError(json.error ?? "Failed to generate document");
-        return;
-      }
-
-      downloadBlob(await res.blob(), `${slugifyFilename(templateName)}.${format}`);
-    } catch {
-      setError("Failed to generate document");
+      const file = await orpc.templates.generate({ id: templateId, data: values, format });
+      downloadBlob(file, `${slugifyFilename(templateName)}.${format}`);
+    } catch (err) {
+      setError(orpcErrorMessage(err, "Failed to generate document"));
     } finally {
       setIsSubmitting(false);
     }

@@ -24,6 +24,8 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
+    "@orpc/client": "^1.15.0",
+    "@orpc/server": "^1.15.0",
     "@vercel/blob": "^2.8.0",
     "@vercel/sandbox": "^3.2.1",
     "better-auth": "^1.7.2",
@@ -34,7 +36,8 @@
     "pg": "^8.16.3",
     "pizzip": "^3.2.0",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-dom": "19.2.8",
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@playwright/test": "^1.62.1",

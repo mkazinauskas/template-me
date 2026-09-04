@@ -3,6 +3,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BulkFillForm } from "@/components/bulk-fill-form";
 import type { TemplateField } from "@/db/schema";
+import { ORPCError, orpc } from "@/lib/orpc";
 import {
   csvFile,
   FIELDS,
@@ -11,18 +12,15 @@ import {
   spyOnAnchorClick,
 } from "./bulk-fill-form.test-helpers";
 
+vi.mock("@/lib/orpc");
+
 const HEADER_ROW = "Full name ({{full_name}}),Relocation ({{relocation|boolean}})";
-const mockFetch = () => globalThis.fetch as ReturnType<typeof vi.fn>;
 
 describe("BulkFillForm — edit-in-page & generation", () => {
   beforeEach(installBulkFillGlobals);
   afterEach(restoreBulkFillGlobals);
 
   it("generates all documents and downloads the resulting zip", async () => {
-    mockFetch().mockResolvedValue({
-      ok: true,
-      blob: async () => new Blob(["zip"], { type: "application/zip" }),
-    });
     const clickSpy = spyOnAnchorClick();
 
     const user = userEvent.setup();
@@ -37,10 +35,10 @@ describe("BulkFillForm — edit-in-page & generation", () => {
     await user.click(screen.getByRole("button", { name: "Generate 2 documents" }));
 
     await waitFor(() => expect(clickSpy).toHaveBeenCalled());
-    const [, options] = mockFetch().mock.calls[0];
-    const body = JSON.parse(options.body);
-    expect(body.rows).toHaveLength(2);
-    expect(body.rows[0].data.full_name).toBe("Jane Doe");
+    const [input] = vi.mocked(orpc.templates.generateBulk).mock.calls[0];
+    const { rows } = input as { rows: { data: Record<string, string> }[] };
+    expect(rows).toHaveLength(2);
+    expect(rows[0].data.full_name).toBe("Jane Doe");
     vi.restoreAllMocks();
   });
 
@@ -60,10 +58,6 @@ describe("BulkFillForm — edit-in-page & generation", () => {
   });
 
   it("renders a checkbox input in edit mode and includes its checked state when previewing", async () => {
-    mockFetch().mockResolvedValue({
-      ok: true,
-      blob: async () => new Blob(["pdf"], { type: "application/pdf" }),
-    });
     const checkboxFields: TemplateField[] = [
       { key: "full_name", label: "Full name", type: "string", params: [] },
       { key: "agreed", label: "Agreed", type: "checkbox", params: [] },
@@ -81,17 +75,12 @@ describe("BulkFillForm — edit-in-page & generation", () => {
 
     await user.click(screen.getByRole("button", { name: "Preview" }));
 
-    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(1));
-    const [, options] = mockFetch().mock.calls[0];
-    const body = JSON.parse(options.body);
-    expect(body.data).toEqual({ full_name: "Jane Doe", agreed: "true" });
+    await waitFor(() => expect(orpc.templates.generate).toHaveBeenCalledTimes(1));
+    const [input] = vi.mocked(orpc.templates.generate).mock.calls[0];
+    expect((input as { data: unknown }).data).toEqual({ full_name: "Jane Doe", agreed: "true" });
   });
 
   it("generates documents from manually entered rows", async () => {
-    mockFetch().mockResolvedValue({
-      ok: true,
-      blob: async () => new Blob(["zip"], { type: "application/zip" }),
-    });
     const clickSpy = spyOnAnchorClick();
 
     const user = userEvent.setup();
@@ -103,15 +92,17 @@ describe("BulkFillForm — edit-in-page & generation", () => {
     await user.click(screen.getByRole("button", { name: "Generate 1 document" }));
 
     await waitFor(() => expect(clickSpy).toHaveBeenCalled());
-    const [, options] = mockFetch().mock.calls[0];
-    const body = JSON.parse(options.body);
-    expect(body.rows).toHaveLength(1);
-    expect(body.rows[0].data).toEqual({ full_name: "Jane Doe", relocation: "false" });
+    const [input] = vi.mocked(orpc.templates.generateBulk).mock.calls[0];
+    const { rows } = input as { rows: { data: Record<string, string> }[] };
+    expect(rows).toHaveLength(1);
+    expect(rows[0].data).toEqual({ full_name: "Jane Doe", relocation: "false" });
     vi.restoreAllMocks();
   });
 
   it("shows an error message when bulk generation fails", async () => {
-    mockFetch().mockResolvedValue({ ok: false, json: async () => ({ error: "Too many rows" }) });
+    vi.mocked(orpc.templates.generateBulk).mockRejectedValue(
+      new ORPCError("BAD_REQUEST", { message: "Too many rows" })
+    );
     const user = userEvent.setup();
     render(<BulkFillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { orpc, orpcErrorMessage } from "@/lib/orpc";
 
 const PREVIEW_DEBOUNCE_MS = 700;
 const PREVIEW_DEBOUNCE_MS_FIRST = 150;
@@ -34,20 +35,12 @@ export function useLivePreview(templateId: string, values: Record<string, string
     const timer = setTimeout(async () => {
       setIsPreviewLoading(true);
       try {
-        const res = await fetch(`/api/templates/${templateId}/generate`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ data: values, preview: true }),
-          signal: controller.signal,
-        });
+        const file = await orpc.templates.generate(
+          { id: templateId, data: values, preview: true },
+          { signal: controller.signal }
+        );
 
-        if (!res.ok) {
-          const json = await res.json().catch(() => ({}));
-          setPreviewError(json.error ?? "Failed to update preview");
-          return;
-        }
-
-        const url = URL.createObjectURL(await res.blob());
+        const url = URL.createObjectURL(file);
         setPreviewUrl((prev) => {
           if (prev) URL.revokeObjectURL(prev);
           return url;
@@ -55,7 +48,7 @@ export function useLivePreview(templateId: string, values: Record<string, string
         setPreviewError(null);
       } catch (err) {
         if ((err as Error).name !== "AbortError") {
-          setPreviewError("Failed to update preview");
+          setPreviewError(orpcErrorMessage(err, "Failed to update preview"));
         }
       } finally {
         setIsPreviewLoading(false);

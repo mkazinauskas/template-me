@@ -93,6 +93,7 @@ upload so you know it wasn't silently mis-rendered.
 | Layer | Technology |
 | --- | --- |
 | Framework | [Next.js](https://nextjs.org) (App Router) — UI + API routes |
+| API | [oRPC](https://orpc.dev) with [Zod 4](https://zod.dev) validation — one typed router ([src/server/orpc](src/server/orpc)) served at `/api/rpc`, called from the browser via the typed client in [orpc.ts](src/lib/orpc.ts) |
 | Database | [Neon Postgres](https://neon.tech) (via Vercel Marketplace, `drizzle-orm`) — template metadata and detected fields ([schema.ts](src/db/schema.ts)) |
 | File storage | [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) (private) — stores uploaded `.docx` files |
 | Templating | [docxtemplater](https://docxtemplater.com) — extracts `{{field}}` placeholders and renders the final document ([docx-template.ts](src/lib/docx-template.ts)) |

@@ -2,13 +2,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FillForm } from "@/components/fill-form";
+import { ORPCError, orpc } from "@/lib/orpc";
 import {
-  fetchOkBlob,
   FIELDS,
   installFillFormGlobals,
+  pdfBlob,
   restoreFillFormGlobals,
   spyOnAnchorClick,
 } from "./fill-form.test-helpers";
+
+vi.mock("@/lib/orpc");
 
 describe("FillForm — submit, persistence & values import/export", () => {
   beforeEach(installFillFormGlobals);
@@ -29,24 +32,21 @@ describe("FillForm — submit, persistence & values import/export", () => {
     await user.click(screen.getByRole("button", { name: "Download PDF" }));
     await waitFor(() => expect(clickSpy).toHaveBeenCalled(), { timeout: 2000 });
 
-    const submitCall = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls.find(
-      ([, options]) => !JSON.parse(options.body).preview
-    );
+    const submitCall = vi
+      .mocked(orpc.templates.generate)
+      .mock.calls.find(([input]) => !(input as { preview?: boolean }).preview);
     expect(submitCall).toBeDefined();
-    const body = JSON.parse(submitCall![1].body);
-    expect(body.data.full_name).toBe("Jane Doe");
+    expect((submitCall![0] as { data: Record<string, string> }).data.full_name).toBe("Jane Doe");
 
     vi.restoreAllMocks();
   }, 10000);
 
   it("shows an error message when PDF generation fails", async () => {
-    (globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementation((_url, options) => {
-      const body = options?.body ? JSON.parse(options.body as string) : {};
-      if (body.preview) return Promise.resolve(fetchOkBlob());
-      return Promise.resolve({
-        ok: false,
-        json: async () => ({ error: "Missing values for: full_name" }),
-      });
+    vi.mocked(orpc.templates.generate).mockImplementation((input) => {
+      if ((input as { preview?: boolean }).preview) return Promise.resolve(pdfBlob());
+      return Promise.reject(
+        new ORPCError("BAD_REQUEST", { message: "Missing values for: full_name" })
+      );
     });
     const user = userEvent.setup();
     render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);

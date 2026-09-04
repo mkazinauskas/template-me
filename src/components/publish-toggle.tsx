@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { orpc } from "@/lib/orpc";
 
 const EXPLAINER =
   "When public, this template is accessible to others — anyone with the link can find, fill in, and download it.";
@@ -33,15 +34,7 @@ export function PublishToggle({
     setPending(true);
     setError(false);
     try {
-      const res = await fetch(`/api/templates/${templateId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ isPublic: next }),
-      });
-      if (!res.ok) {
-        setError(true);
-        return;
-      }
+      await orpc.templates.setPublic({ id: templateId, isPublic: next });
       router.refresh();
     } catch {
       setError(true);
