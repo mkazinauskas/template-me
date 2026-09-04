@@ -50,5 +50,5 @@ export function renderRow(
   for (const field of templateRow.fields) {
     stringData[field.key] = String(data[field.key] ?? "");
   }
-  return renderDocx(originalDocx, templateRow.fields, stringData);
+  return renderDocx(originalDocx, stringData);
 }

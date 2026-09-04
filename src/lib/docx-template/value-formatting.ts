@@ -26,7 +26,7 @@ function formatDate(isoDate: string, format: string): string {
 }
 
 /** Formats a raw form value according to the field's type before injection into the docx. */
-export function formatFieldValue(field: TemplateField, rawValue: string): string {
+export function formatFieldValue(field: Pick<TemplateField, "type" | "params">, rawValue: string): string {
   switch (field.type) {
     case "number": {
       if (rawValue.trim() === "") return "";

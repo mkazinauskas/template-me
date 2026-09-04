@@ -15,8 +15,8 @@ describe("renderDocx", () => {
     { key: "terms_accepted", label: "Terms accepted", type: "checkbox", params: [] },
   ];
 
-  function renderedText(fixtureFields: TemplateField[], data: Record<string, string>): string {
-    const output = renderDocx(readFixture(), fixtureFields, data);
+  function renderedText(data: Record<string, string>): string {
+    const output = renderDocx(readFixture(), data);
     const doc = new Docxtemplater(new PizZip(output), {
       delimiters: { start: "{{", end: "}}" },
       paragraphLoop: true,

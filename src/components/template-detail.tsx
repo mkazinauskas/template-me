@@ -8,6 +8,7 @@ import { auth } from "@/lib/auth";
 import { canViewTemplate, isTemplateOwner } from "@/lib/template-access";
 import { FillForm } from "@/components/fill-form";
 import { DeleteTemplateButton } from "@/components/delete-template-button";
+import { DownloadTemplateButton } from "@/components/download-template-button";
 import { PublishToggle } from "@/components/publish-toggle";
 import { AppHeader } from "@/components/app-header";
 
@@ -77,6 +78,7 @@ export async function TemplateDetail({
           <div className="flex shrink-0 items-center gap-3">
             {isOwner ? (
               <>
+                <DownloadTemplateButton templateId={template.id} />
                 <PublishToggle templateId={template.id} isPublic={template.isPublic} />
                 <DeleteTemplateButton
                   templateId={template.id}

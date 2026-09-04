@@ -53,6 +53,12 @@ vi.mock("@/components/delete-template-button", () => ({
   ),
 }));
 
+vi.mock("@/components/download-template-button", () => ({
+  DownloadTemplateButton: ({ templateId }: { templateId: string }) => (
+    <button>Download {templateId}</button>
+  ),
+}));
+
 vi.mock("@/components/publish-toggle", () => ({
   PublishToggle: ({ templateId, isPublic }: { templateId: string; isPublic: boolean }) => (
     <button>Publish {templateId} {String(isPublic)}</button>
@@ -105,13 +111,14 @@ describe("TemplateDetail", () => {
     expect(notFound).toHaveBeenCalled();
   });
 
-  it("renders the template name, filename, delete button, and publish toggle for the owner", async () => {
+  it("renders the template name, filename, delete button, download button, and publish toggle for the owner", async () => {
     state.template = makeTemplate({ name: "NDA", originalFilename: "nda.docx" });
     await renderTemplatePage("t1");
 
     expect(screen.getByRole("heading", { name: "NDA" })).toBeInTheDocument();
     expect(screen.getByText("nda.docx")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Delete t1" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Download t1" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Publish t1 false" })).toBeInTheDocument();
   });
 
@@ -123,6 +130,7 @@ describe("TemplateDetail", () => {
     expect(screen.getByRole("heading", { name: "Offer Letter" })).toBeInTheDocument();
     expect(screen.getByText("Public template")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Delete/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Download/ })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Publish/ })).not.toBeInTheDocument();
   });
 

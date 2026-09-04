@@ -9,12 +9,19 @@ export { isTruthyValue } from "./docx-template/value-formatting";
 
 const DELIMITERS = { start: "{{", end: "}}" };
 
-/** Looks up a tag's value by its key, ignoring the `|type(...)` suffix. */
+/**
+ * Looks up a tag's raw value by its key and formats it per that specific tag's
+ * own `|type(...)` suffix. Parsing the type/params from each tag occurrence
+ * (rather than from the deduped `fields` list) lets the same key appear more
+ * than once with different formats — e.g. one date shown as `yyyy-mm-dd` and
+ * another as `mm-dd-yyyy` — and have each resolve independently.
+ */
 function scopedParser(tag: string) {
-  const key = tag.split("|")[0].trim();
+  const { key, type, params } = parseTag(tag);
   return {
     get(scope: Record<string, unknown>) {
-      return scope[key];
+      const raw = String(scope[key] ?? "");
+      return formatFieldValue({ type, params }, raw);
     },
   };
 }
@@ -65,17 +72,9 @@ export function extractFields(buffer: Buffer): { fields: TemplateField[]; warnin
   return { fields: Array.from(seen.values()), warnings };
 }
 
-export function renderDocx(
-  buffer: Buffer,
-  fields: TemplateField[],
-  data: Record<string, string>
-): Buffer {
+export function renderDocx(buffer: Buffer, data: Record<string, string>): Buffer {
   const doc = loadDocxtemplater(buffer);
-  const formatted: Record<string, string> = {};
-  for (const field of fields) {
-    formatted[field.key] = formatFieldValue(field, data[field.key] ?? "");
-  }
-  doc.render(formatted);
+  doc.render(data);
   const zip = doc.getZip();
   sanitizeForLibreOffice(zip);
   return zip.generate({ type: "nodebuffer" });
