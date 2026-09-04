@@ -47,7 +47,18 @@ jobs:
             type=raw,value={{date 'YYYYMMDD-HHmmss'}}
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push image
+      - name: Build image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Push image
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -56,7 +67,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
 
   # The two jobs below publish the fully-offline demo variant used by
   # docker-compose.prebuilt.yml — a LOCAL_MODE build of the same app
@@ -102,7 +112,23 @@ jobs:
             type=raw,value={{date 'YYYYMMDD-HHmmss'}}
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push demo image
+      - name: Build demo image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: ${{ steps.meta-demo.outputs.tags }}
+          labels: ${{ steps.meta-demo.outputs.labels }}
+          build-args: |
+            LOCAL_MODE=true
+            NEXT_PUBLIC_LOCAL_MODE=true
+            NEXT_PUBLIC_LOCAL_AUTH_EMAIL=demo@example.com
+            NEXT_PUBLIC_LOCAL_AUTH_PASSWORD=localpassword123
+          cache-from: type=gha,scope=demo
+          cache-to: type=gha,mode=max,scope=demo
+
+      - name: Push demo image
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -116,7 +142,6 @@ jobs:
             NEXT_PUBLIC_LOCAL_AUTH_EMAIL=demo@example.com
             NEXT_PUBLIC_LOCAL_AUTH_PASSWORD=localpassword123
           cache-from: type=gha,scope=demo
-          cache-to: type=gha,mode=max,scope=demo
 
   build-migrator:
     name: Build and push (migrator)
@@ -155,7 +180,19 @@ jobs:
             type=raw,value={{date 'YYYYMMDD-HHmmss'}}
             type=raw,value=latest,enable={{is_default_branch}}
 
-      - name: Build and push migrator image
+      - name: Build migrator image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          target: migrator
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: ${{ steps.meta-migrator.outputs.tags }}
+          labels: ${{ steps.meta-migrator.outputs.labels }}
+          cache-from: type=gha,scope=migrator
+          cache-to: type=gha,mode=max,scope=migrator
+
+      - name: Push migrator image
         uses: docker/build-push-action@v7
         with:
           context: .
@@ -165,4 +202,3 @@ jobs:
           tags: ${{ steps.meta-migrator.outputs.tags }}
           labels: ${{ steps.meta-migrator.outputs.labels }}
           cache-from: type=gha,scope=migrator
-          cache-to: type=gha,mode=max,scope=migrator

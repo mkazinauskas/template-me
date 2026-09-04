@@ -47,11 +47,18 @@ jobs:
           NEXT_PUBLIC_LOCAL_AUTH_PASSWORD=localpassword123
           EOF
 
+      # Pre-builds the `template-me-app` image (shared by `migrate` and `app`,
+      # see docker-compose.yml) via plain `docker compose build` so an image
+      # build failure shows up here, distinct from the Tilt orchestration
+      # step below. Tilt's own `docker_build` (Tiltfile) reuses the Docker
+      # layer cache this leaves behind, so the next step stays fast.
+      - name: Build the stack image
+        run: docker compose build
+
       # `tilt ci` is Tilt's non-interactive counterpart to `tilt up` (see
-      # Tiltfile / README): it builds the same `template-me-app` image and
-      # brings up the same docker-compose stack (db -> migrate -> app), then
-      # exits once every resource is ready instead of staying attached the
-      # way `tilt up` does for local dev.
+      # Tiltfile / README): it brings up the same docker-compose stack
+      # (db -> migrate -> app), then exits once every resource is ready
+      # instead of staying attached the way `tilt up` does for local dev.
       - name: Start the stack with Tilt
         run: tilt ci --timeout 10m
 
