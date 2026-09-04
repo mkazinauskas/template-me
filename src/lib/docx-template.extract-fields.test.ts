@@ -98,11 +98,23 @@ describe("extractFields", () => {
     expect(warnings).toEqual([]);
   });
 
-  it("strips curly quotes from params, matching what Word's autocorrect rewrites straight quotes into", () => {
+  it("strips curly double quotes from params, matching what Word's autocorrect rewrites straight double quotes into", () => {
     const buf = buildDocx(paragraph("{{start_date|date(“yyyy-mm-dd”)}}"));
     const { fields, warnings } = extractFields(buf);
     expect(fields[0]).toEqual({ key: "start_date", label: "Start date", type: "date", params: ["yyyy-mm-dd"] });
     expect(warnings).toEqual([]);
+  });
+
+  it("strips curly single quotes from params, matching what Word's autocorrect rewrites straight single quotes into", () => {
+    const buf = buildDocx(paragraph("{{start_date|date(‘yyyy-mm-dd’)}}"));
+    const { fields } = extractFields(buf);
+    expect(fields[0].params).toEqual(["yyyy-mm-dd"]);
+  });
+
+  it("splits multiple curly-quoted params on the comma between them, not on commas inside a quoted param", () => {
+    const buf = buildDocx(paragraph("{{relocation|boolean(“Yes, sir”, “No”)}}"));
+    const { fields } = extractFields(buf);
+    expect(fields[0].params).toEqual(["Yes, sir", "No"]);
   });
 
   it("recognizes the currency type with a symbol and decimal-places param", () => {
