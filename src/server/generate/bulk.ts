@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { ORPCError } from "@orpc/server";
 import PizZip from "pizzip";
 import { getFile } from "@/lib/storage";
 import { convertDocxBuffersToPdf } from "@/lib/docx-to-pdf";
@@ -7,32 +7,30 @@ import { sanitizeFilename } from "./filename";
 import { startPdfSandbox } from "./pdf-sandbox";
 import { MAX_BULK_ROWS, renderRow, validateRow } from "./row-validation";
 
+export type BulkRow = { data: Record<string, unknown>; filename?: string };
+
 type BulkEntry = { data: Record<string, unknown>; filename: string };
 
-/** Parses and validates the incoming rows, or returns the 400 response describing the first problem. */
-function parseEntries(
-  templateRow: Template,
-  rows: unknown[]
-): { entries: BulkEntry[] } | { error: NextResponse } {
+/**
+ * Validates each already-schema-checked row against the template's fields,
+ * throwing a `BAD_REQUEST` describing the first problem.
+ */
+function parseEntries(templateRow: Template, rows: BulkRow[]): BulkEntry[] {
   const entries: BulkEntry[] = [];
   for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    const data = (row as { data?: unknown } | null)?.data;
-    if (!data || typeof data !== "object") {
-      return { error: NextResponse.json({ error: `Row ${i + 1}: missing field data` }, { status: 400 }) };
-    }
-    const validationError = validateRow(templateRow, data as Record<string, unknown>, false);
+    const { data } = rows[i];
+    const validationError = validateRow(templateRow, data, false);
     if (validationError) {
-      return { error: NextResponse.json({ error: `Row ${i + 1}: ${validationError}` }, { status: 400 }) };
+      throw new ORPCError("BAD_REQUEST", { message: `Row ${i + 1}: ${validationError}` });
     }
-    const rawFilename = (row as { filename?: unknown }).filename;
+    const rawFilename = rows[i].filename;
     const base =
       typeof rawFilename === "string" && rawFilename.trim() !== ""
         ? rawFilename.trim()
         : `${templateRow.name}-${i + 1}`;
-    entries.push({ data: data as Record<string, unknown>, filename: sanitizeFilename(base) });
+    entries.push({ data, filename: sanitizeFilename(base) });
   }
-  return { entries };
+  return entries;
 }
 
 /** Packs the output buffers into a zip, disambiguating repeated names with `-2`, `-3`, … suffixes. */
@@ -51,32 +49,35 @@ function zipOutputs(entries: BulkEntry[], outputs: Buffer[], extension: string):
   return zip.generate({ type: "nodebuffer" });
 }
 
-/** Handles a bulk generate request: many rows in, one zip of PDFs (or docx files) out. */
+/**
+ * Handles a bulk generate request: many rows in, one zip of PDFs (or docx
+ * files) out. Throws `ORPCError` for every failure mode; returns the raw zip
+ * bytes on success (the caller wraps them in a downloadable `File`).
+ */
 export async function handleBulk(
   templateRow: Template,
-  rows: unknown[],
+  rows: BulkRow[],
   format: "pdf" | "docx"
-): Promise<NextResponse> {
+): Promise<Buffer> {
   if (rows.length === 0) {
-    return NextResponse.json({ error: "No rows provided" }, { status: 400 });
+    throw new ORPCError("BAD_REQUEST", { message: "No rows provided" });
   }
   if (rows.length > MAX_BULK_ROWS) {
-    return NextResponse.json(
-      { error: `Too many rows (${rows.length}). Split into batches of ${MAX_BULK_ROWS} or fewer.` },
-      { status: 400 }
-    );
+    throw new ORPCError("BAD_REQUEST", {
+      message: `Too many rows (${rows.length}). Split into batches of ${MAX_BULK_ROWS} or fewer.`,
+    });
   }
 
-  const parsed = parseEntries(templateRow, rows);
-  if ("error" in parsed) return parsed.error;
-  const { entries } = parsed;
+  const entries = parseEntries(templateRow, rows);
 
   const { sandboxPromise, stopIfUnused } = startPdfSandbox(format === "pdf");
 
   const originalDocx = await getFile(templateRow.blobUrl);
   if (!originalDocx) {
     stopIfUnused();
-    return NextResponse.json({ error: "Template file is missing from storage" }, { status: 500 });
+    throw new ORPCError("INTERNAL_SERVER_ERROR", {
+      message: "Template file is missing from storage",
+    });
   }
 
   let renderedDocxBuffers: Buffer[];
@@ -84,7 +85,7 @@ export async function handleBulk(
     renderedDocxBuffers = entries.map((entry) => renderRow(templateRow, originalDocx, entry.data));
   } catch {
     stopIfUnused();
-    return NextResponse.json({ error: "Failed to fill in the document" }, { status: 500 });
+    throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "Failed to fill in the document" });
   }
 
   let outputBuffers: Buffer[];
@@ -95,16 +96,11 @@ export async function handleBulk(
       outputBuffers = await convertDocxBuffersToPdf(renderedDocxBuffers, sandboxPromise!);
     } catch (err) {
       console.error("Bulk PDF conversion failed", err);
-      return NextResponse.json({ error: "Failed to convert documents to PDF" }, { status: 500 });
+      throw new ORPCError("INTERNAL_SERVER_ERROR", {
+        message: "Failed to convert documents to PDF",
+      });
     }
   }
 
-  const zipBuffer = zipOutputs(entries, outputBuffers, format === "docx" ? "docx" : "pdf");
-  return new NextResponse(new Uint8Array(zipBuffer), {
-    status: 200,
-    headers: {
-      "Content-Type": "application/zip",
-      "Content-Disposition": `attachment; filename="${sanitizeFilename(templateRow.name)}.zip"`,
-    },
-  });
+  return zipOutputs(entries, outputBuffers, format === "docx" ? "docx" : "pdf");
 }

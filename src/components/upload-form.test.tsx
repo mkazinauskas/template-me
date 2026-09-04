@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { UploadForm } from "@/components/upload-form";
+import { ORPCError, orpc } from "@/lib/orpc";
+
+vi.mock("@/lib/orpc");
 
 const push = vi.fn();
 const refresh = vi.fn();
@@ -15,6 +18,8 @@ vi.mock("@vercel/blob/client", () => ({
   upload: (...args: unknown[]) => blobUpload(...args),
 }));
 
+const createMock = () => vi.mocked(orpc.templates.create);
+
 function docxFile(name = "template.docx") {
   return new File(["dummy content"], name, {
     type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -26,7 +31,7 @@ describe("UploadForm", () => {
     push.mockReset();
     refresh.mockReset();
     blobUpload.mockReset();
-    vi.stubGlobal("fetch", vi.fn());
+    createMock().mockReset().mockResolvedValue({ template: { id: "new-id" }, warnings: [] } as never);
   });
 
   it("shows a validation error when submitting without a file", async () => {
@@ -36,14 +41,10 @@ describe("UploadForm", () => {
     await user.click(screen.getByRole("button", { name: "Upload template" }));
 
     expect(await screen.findByText("Choose a .docx file first")).toBeInTheDocument();
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(orpc.templates.create).not.toHaveBeenCalled();
   });
 
   it("uploads the chosen file and navigates to the new template on success", async () => {
-    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-      json: async () => ({ template: { id: "new-id" }, warnings: [] }),
-    });
     const user = userEvent.setup();
     render(<UploadForm localMode />);
 
@@ -57,11 +58,10 @@ describe("UploadForm", () => {
     );
     expect(refresh).toHaveBeenCalled();
 
-    const [, options] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(options.method).toBe("POST");
-    const body = options.body as FormData;
-    expect((body.get("file") as File).name).toBe("template.docx");
-    expect(body.get("name")).toBe("Offer Letter");
+    const [arg] = createMock().mock.calls[0];
+    const { file, name } = arg as { file: File; name?: string };
+    expect(file.name).toBe("template.docx");
+    expect(name).toBe("Offer Letter");
   });
 
   it("prefills the template name from the chosen file name", async () => {
@@ -84,10 +84,10 @@ describe("UploadForm", () => {
   });
 
   it("appends warnings as a query param when the upload returns warnings", async () => {
-    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-      json: async () => ({ template: { id: "new-id" }, warnings: ["Field \"x\" is odd"] }),
-    });
+    createMock().mockResolvedValue({
+      template: { id: "new-id" },
+      warnings: ['Field "x" is odd'],
+    } as never);
     const user = userEvent.setup();
     render(<UploadForm localMode />);
 
@@ -102,10 +102,9 @@ describe("UploadForm", () => {
   });
 
   it("shows the server error message when the upload fails", async () => {
-    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: false,
-      json: async () => ({ error: "No templated fields found." }),
-    });
+    createMock().mockRejectedValue(
+      new ORPCError("BAD_REQUEST", { message: "No templated fields found." })
+    );
     const user = userEvent.setup();
     render(<UploadForm localMode />);
 
@@ -116,8 +115,8 @@ describe("UploadForm", () => {
     expect(push).not.toHaveBeenCalled();
   });
 
-  it("shows the thrown error's message when the fetch itself throws", async () => {
-    (globalThis.fetch as ReturnType<typeof vi.fn>).mockRejectedValue(new Error("network down"));
+  it("shows the thrown error's message when the request itself throws", async () => {
+    createMock().mockRejectedValue(new Error("network down"));
     const user = userEvent.setup();
     render(<UploadForm localMode />);
 
@@ -128,7 +127,7 @@ describe("UploadForm", () => {
   });
 
   it("falls back to a generic error message for a non-Error rejection", async () => {
-    (globalThis.fetch as ReturnType<typeof vi.fn>).mockRejectedValue("boom");
+    createMock().mockRejectedValue("boom");
     const user = userEvent.setup();
     render(<UploadForm localMode />);
 
@@ -144,17 +143,13 @@ describe("UploadForm (not localMode — client-direct-to-Blob)", () => {
     push.mockReset();
     refresh.mockReset();
     blobUpload.mockReset();
-    vi.stubGlobal("fetch", vi.fn());
+    createMock().mockReset().mockResolvedValue({ template: { id: "new-id" }, warnings: [] } as never);
   });
 
-  it("uploads straight to Blob, then finalizes with a JSON request", async () => {
+  it("uploads straight to Blob, then finalizes by referencing the stored object", async () => {
     blobUpload.mockResolvedValue({
       url: "https://blob.example/templates/uuid-offer.docx",
       pathname: "templates/uuid-offer.docx",
-    });
-    (globalThis.fetch as ReturnType<typeof vi.fn>).mockResolvedValue({
-      ok: true,
-      json: async () => ({ template: { id: "new-id" }, warnings: [] }),
     });
     const user = userEvent.setup();
     render(<UploadForm localMode={false} />);
@@ -170,10 +165,7 @@ describe("UploadForm (not localMode — client-direct-to-Blob)", () => {
     expect(pathname).toMatch(/^templates\/.+-template\.docx$/);
     expect(options).toMatchObject({ access: "private", handleUploadUrl: "/api/templates/upload" });
 
-    const [, fetchOptions] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(fetchOptions.headers).toMatchObject({ "content-type": "application/json" });
-    const body = JSON.parse(fetchOptions.body as string);
-    expect(body).toEqual({
+    expect(orpc.templates.create).toHaveBeenCalledWith({
       blobUrl: "https://blob.example/templates/uuid-offer.docx",
       blobPathname: "templates/uuid-offer.docx",
       originalFilename: "template.docx",
@@ -192,6 +184,6 @@ describe("UploadForm (not localMode — client-direct-to-Blob)", () => {
     expect(
       await screen.findByText("The uploaded file's size exceeds the maximum allowed size")
     ).toBeInTheDocument();
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(orpc.templates.create).not.toHaveBeenCalled();
   });
 });

@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { TemplateField } from "@/db/schema";
 import { downloadBlob } from "@/lib/download";
 import { slugifyFilename } from "@/lib/slugify";
+import { orpc, orpcErrorMessage } from "@/lib/orpc";
 import {
   buildRowData,
   getRowFileName,
@@ -52,19 +53,14 @@ export function useBulkGenerate(templateId: string, templateName: string) {
     setIsPreviewLoading(true);
     setPreviewError(null);
     try {
-      const res = await fetch(`/api/templates/${templateId}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data: buildRowData(row, ctx), preview: true }),
+      const file = await orpc.templates.generate({
+        id: templateId,
+        data: buildRowData(row, ctx),
+        preview: true,
       });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        setPreviewError(json.error ?? "Failed to render preview");
-        return;
-      }
-      swapPreviewUrl(URL.createObjectURL(await res.blob()));
-    } catch {
-      setPreviewError("Failed to render preview");
+      swapPreviewUrl(URL.createObjectURL(file));
+    } catch (err) {
+      setPreviewError(orpcErrorMessage(err, "Failed to render preview"));
     } finally {
       setIsPreviewLoading(false);
     }
@@ -82,19 +78,14 @@ export function useBulkGenerate(templateId: string, templateName: string) {
         data: buildRowData(row, ctx),
         filename: getRowFileName(row, ctx),
       }));
-      const res = await fetch(`/api/templates/${templateId}/generate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rows: payloadRows, format }),
+      const file = await orpc.templates.generateBulk({
+        id: templateId,
+        rows: payloadRows,
+        format,
       });
-      if (!res.ok) {
-        const json = await res.json().catch(() => ({}));
-        setSubmitError(json.error ?? "Failed to generate documents");
-        return;
-      }
-      downloadBlob(await res.blob(), `${slugifyFilename(templateName)}.zip`);
-    } catch {
-      setSubmitError("Failed to generate documents");
+      downloadBlob(file, `${slugifyFilename(templateName)}.zip`);
+    } catch (err) {
+      setSubmitError(orpcErrorMessage(err, "Failed to generate documents"));
     } finally {
       setIsSubmitting(false);
     }

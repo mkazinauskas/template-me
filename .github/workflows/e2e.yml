@@ -1,0 +1,82 @@
+name: E2E tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  e2e:
+    name: E2E (Tilt + Playwright)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # Installs Node and Tilt at the versions pinned in mise.toml — the same
+      # tool versions contributors get locally (see README's "Tilt" section).
+      - name: Set up mise (Node + Tilt)
+        uses: jdx/mise-action@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps chromium
+
+      # .env.docker is gitignored (like every .env* file — see .gitignore and
+      # README) since each developer creates their own locally. These are the
+      # same non-secret, LOCAL_MODE-only dev values documented in
+      # docker-compose.yml, written out fresh for CI.
+      - name: Create .env.docker
+        run: |
+          cat > .env.docker <<'EOF'
+          LOCAL_MODE=true
+          DATABASE_URL=postgres://app:app@db:5432/app
+          LOCAL_STORAGE_DIR=/data/blobs
+          BETTER_AUTH_SECRET=ci-local-secret-not-for-production-use
+          BETTER_AUTH_URL=http://localhost:3000
+          LOCAL_AUTH_EMAIL=demo@example.com
+          LOCAL_AUTH_PASSWORD=localpassword123
+          LOCAL_AUTH_NAME=Local User
+          NEXT_PUBLIC_LOCAL_MODE=true
+          NEXT_PUBLIC_LOCAL_AUTH_EMAIL=demo@example.com
+          NEXT_PUBLIC_LOCAL_AUTH_PASSWORD=localpassword123
+          EOF
+
+      # `tilt ci` is Tilt's non-interactive counterpart to `tilt up` (see
+      # Tiltfile / README): it builds the same `template-me-app` image and
+      # brings up the same docker-compose stack (db -> migrate -> app), then
+      # exits once every resource is ready instead of staying attached the
+      # way `tilt up` does for local dev.
+      - name: Start the stack with Tilt
+        run: tilt ci --timeout 10m
+
+      # The `app` container has no Docker healthcheck (only `db` does), so
+      # Tilt considers it "up" as soon as the container starts — not once
+      # `next dev` has actually finished its first compile and is accepting
+      # requests. Poll for that before pointing Playwright at it.
+      - name: Wait for the app to accept requests
+        run: npx wait-on http://localhost:3000 --timeout 120000
+
+      - name: Run Playwright E2E tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: playwright-report/
+          retention-days: 14
+
+      - name: Dump service logs on failure
+        if: failure()
+        run: docker compose logs --no-color
+
+      - name: Tear down the stack
+        if: always()
+        run: tilt down

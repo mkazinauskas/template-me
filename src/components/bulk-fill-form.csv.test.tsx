@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BulkFillForm } from "@/components/bulk-fill-form";
+import { orpc } from "@/lib/orpc";
 import {
   csvFile,
   FIELDS,
@@ -10,8 +11,9 @@ import {
   spyOnAnchorClick,
 } from "./bulk-fill-form.test-helpers";
 
+vi.mock("@/lib/orpc");
+
 const HEADER_ROW = "Full name ({{full_name}}),Relocation ({{relocation|boolean}})";
-const mockFetch = () => globalThis.fetch as ReturnType<typeof vi.fn>;
 
 describe("BulkFillForm — CSV upload", () => {
   beforeEach(installBulkFillGlobals);
@@ -97,10 +99,6 @@ describe("BulkFillForm — CSV upload", () => {
   });
 
   it("previews a specific row using the mapped values", async () => {
-    mockFetch().mockResolvedValue({
-      ok: true,
-      blob: async () => new Blob(["pdf"], { type: "application/pdf" }),
-    });
     const user = userEvent.setup();
     render(<BulkFillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
 
@@ -112,18 +110,16 @@ describe("BulkFillForm — CSV upload", () => {
 
     await user.click(screen.getByRole("button", { name: "Preview" }));
 
-    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(1));
-    const [, options] = mockFetch().mock.calls[0];
-    const body = JSON.parse(options.body);
-    expect(body.preview).toBe(true);
-    expect(body.data).toEqual({ full_name: "Jane Doe", relocation: "true" });
+    await waitFor(() => expect(orpc.templates.generate).toHaveBeenCalledTimes(1));
+    const [input] = vi.mocked(orpc.templates.generate).mock.calls[0];
+    expect((input as { preview?: boolean }).preview).toBe(true);
+    expect((input as { data: unknown }).data).toEqual({
+      full_name: "Jane Doe",
+      relocation: "true",
+    });
   });
 
   it("returns to the editable table from the preview via 'Back to editing'", async () => {
-    mockFetch().mockResolvedValue({
-      ok: true,
-      blob: async () => new Blob(["pdf"], { type: "application/pdf" }),
-    });
     const user = userEvent.setup();
     render(<BulkFillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
 

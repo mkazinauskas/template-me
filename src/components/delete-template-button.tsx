@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { orpc } from "@/lib/orpc";
 
 export function DeleteTemplateButton({
   templateId,
@@ -19,11 +20,11 @@ export function DeleteTemplateButton({
   async function handleDelete() {
     setIsDeleting(true);
     try {
-      const res = await fetch(`/api/templates/${templateId}`, { method: "DELETE" });
-      if (res.ok) {
-        if (redirectTo) router.push(redirectTo);
-        router.refresh();
-      }
+      await orpc.templates.delete({ id: templateId });
+      if (redirectTo) router.push(redirectTo);
+      router.refresh();
+    } catch {
+      // Leave the confirm UI; the caller re-enables on the next click.
     } finally {
       setIsDeleting(false);
       setIsConfirming(false);

@@ -7,7 +7,9 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./vitest.setup.ts"],
-    exclude: ["node_modules/**", ".next/**"],
+    // `e2e/**` holds Playwright specs (`*.spec.ts`) run via `npm run test:e2e`;
+    // Vitest's default `include` would otherwise try to collect them.
+    exclude: ["node_modules/**", ".next/**", "e2e/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html"],

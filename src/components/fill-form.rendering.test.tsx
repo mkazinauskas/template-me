@@ -2,11 +2,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FillForm } from "@/components/fill-form";
+import { orpc } from "@/lib/orpc";
 import {
   FIELDS,
   installFillFormGlobals,
   restoreFillFormGlobals,
 } from "./fill-form.test-helpers";
+
+vi.mock("@/lib/orpc");
 
 describe("FillForm — rendering, inputs & preview", () => {
   beforeEach(installFillFormGlobals);
@@ -32,17 +35,14 @@ describe("FillForm — rendering, inputs & preview", () => {
     expect(screen.getByRole("combobox", { name: /Employment type/ })).toBeInTheDocument();
   });
 
-  it("fetches a preview shortly after mount with the default values", async () => {
+  it("requests a preview shortly after mount with the default values", async () => {
     render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
 
     await waitFor(
       () =>
-        expect(globalThis.fetch).toHaveBeenCalledWith(
-          "/api/templates/t1/generate",
-          expect.objectContaining({
-            method: "POST",
-            body: expect.stringContaining('"preview":true'),
-          })
+        expect(orpc.templates.generate).toHaveBeenCalledWith(
+          expect.objectContaining({ id: "t1", preview: true }),
+          expect.objectContaining({ signal: expect.any(AbortSignal) })
         ),
       { timeout: 2000 }
     );
@@ -51,18 +51,18 @@ describe("FillForm — rendering, inputs & preview", () => {
   it("debounces the preview request while the user is still typing", async () => {
     const user = userEvent.setup();
     render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
-    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(1), { timeout: 2000 });
-    (globalThis.fetch as ReturnType<typeof vi.fn>).mockClear();
+    await waitFor(() => expect(orpc.templates.generate).toHaveBeenCalledTimes(1), { timeout: 2000 });
+    vi.mocked(orpc.templates.generate).mockClear();
 
     await user.type(screen.getByLabelText(/Full name/), "Jo");
 
     // Debounce window (700ms) hasn't elapsed yet.
     await new Promise((r) => setTimeout(r, 300));
-    expect(globalThis.fetch).not.toHaveBeenCalled();
+    expect(orpc.templates.generate).not.toHaveBeenCalled();
 
-    await waitFor(() => expect(globalThis.fetch).toHaveBeenCalledTimes(1), { timeout: 2000 });
-    const [, options] = (globalThis.fetch as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(JSON.parse(options.body).data.full_name).toBe("Jo");
+    await waitFor(() => expect(orpc.templates.generate).toHaveBeenCalledTimes(1), { timeout: 2000 });
+    const [input] = vi.mocked(orpc.templates.generate).mock.calls[0];
+    expect((input as { data: Record<string, string> }).data.full_name).toBe("Jo");
   }, 10000);
 
   it("toggles the boolean switch and reflects the on/off label", async () => {

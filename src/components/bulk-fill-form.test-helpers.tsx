@@ -1,4 +1,5 @@
 import { vi } from "vitest";
+import { orpc } from "@/lib/orpc";
 import type { TemplateField } from "@/db/schema";
 
 export const FIELDS: TemplateField[] = [
@@ -11,14 +12,19 @@ export function csvFile(content: string, name = "data.csv") {
 }
 
 /**
- * Stubs `fetch` and the object-URL helpers BulkFillForm relies on, and clears
- * localStorage (the form persists rows/mapping keyed by templateId and restores
- * them on mount, so state must not leak between tests — they all use "t1").
- * Pair with `restoreBulkFillGlobals` in afterEach.
+ * Resets the mocked oRPC client and the object-URL helpers BulkFillForm relies
+ * on, and clears localStorage (the form persists rows/mapping keyed by
+ * templateId and restores them on mount, so state must not leak between tests —
+ * they all use "t1"). Pair with `restoreBulkFillGlobals` in afterEach.
  */
 export function installBulkFillGlobals() {
   localStorage.clear();
-  vi.stubGlobal("fetch", vi.fn());
+  vi.mocked(orpc.templates.generate)
+    .mockReset()
+    .mockResolvedValue(new File(["pdf"], "preview.pdf", { type: "application/pdf" }));
+  vi.mocked(orpc.templates.generateBulk)
+    .mockReset()
+    .mockResolvedValue(new File(["zip"], "batch.zip", { type: "application/zip" }));
   vi.stubGlobal(
     "URL",
     Object.assign(URL, {
