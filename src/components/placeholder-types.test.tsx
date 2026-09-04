@@ -10,7 +10,11 @@ describe("PlaceholderTypes", () => {
     expect(screen.getByText("Date")).toBeInTheDocument();
     expect(screen.getByText("Boolean")).toBeInTheDocument();
     expect(screen.getByText("Select")).toBeInTheDocument();
-    expect(screen.getByText("Checkbox")).toBeInTheDocument();
+    expect(screen.getAllByText("Checkbox").length).toBeGreaterThan(0);
+    expect(screen.getByText("Textarea")).toBeInTheDocument();
+    expect(screen.getByText("Email")).toBeInTheDocument();
+    expect(screen.getByText("URL")).toBeInTheDocument();
+    expect(screen.getByText("Currency")).toBeInTheDocument();
   });
 
   it("renders the syntax example for the date type", () => {

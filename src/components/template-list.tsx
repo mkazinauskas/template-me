@@ -17,6 +17,10 @@ const TYPE_META: Record<TemplateFieldType, { label: string; dot: string }> = {
   boolean: { label: "Toggle", dot: "bg-emerald-500" },
   select: { label: "Select", dot: "bg-pink-500" },
   checkbox: { label: "Checkbox", dot: "bg-teal-500" },
+  textarea: { label: "Textarea", dot: "bg-indigo-500" },
+  email: { label: "Email", dot: "bg-cyan-500" },
+  url: { label: "URL", dot: "bg-blue-500" },
+  currency: { label: "Currency", dot: "bg-lime-500" },
 };
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {

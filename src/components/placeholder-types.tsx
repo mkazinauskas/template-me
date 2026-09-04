@@ -35,6 +35,30 @@ const ROWS: { type: string; syntax: string; input: string; notes: string }[] = [
     input: "Checkbox",
     notes: "Renders ☒ when checked, ☐ otherwise.",
   },
+  {
+    type: "Textarea",
+    syntax: "{{key|textarea}}",
+    input: "Multi-line text field",
+    notes: "For longer free-text content.",
+  },
+  {
+    type: "Email",
+    syntax: "{{key|email}}",
+    input: "Email field",
+    notes: "Browser-validated email format.",
+  },
+  {
+    type: "URL",
+    syntax: "{{key|url}}",
+    input: "URL field",
+    notes: "Browser-validated URL format.",
+  },
+  {
+    type: "Currency",
+    syntax: '{{key|currency("$",2)}}',
+    input: "Number field",
+    notes: "Symbol and decimal places (optional).",
+  },
 ];
 
 export function PlaceholderTypes() {

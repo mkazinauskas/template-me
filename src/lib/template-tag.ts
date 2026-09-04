@@ -1,4 +1,10 @@
-import type { TemplateField } from "@/db/schema";
+import type { TemplateField, TemplateFieldType } from "@/db/schema";
+
+/** Param positions (0-indexed) that hold a bare number rather than a quoted string, per type. */
+const NUMERIC_PARAM_INDEXES: Partial<Record<TemplateFieldType, number[]>> = {
+  number: [0],
+  currency: [1],
+};
 
 /**
  * Reconstructs the raw `{{key|type(...)}}` docx tag for a field, mirroring
@@ -12,7 +18,9 @@ export function formatRawTag(field: TemplateField): string {
   if (field.params.length === 0) {
     return `{{${field.key}|${field.type}}}`;
   }
-  const quoteParams = field.type !== "number";
-  const args = field.params.map((p) => (quoteParams ? `"${p}"` : p)).join(", ");
+  const numericIndexes = NUMERIC_PARAM_INDEXES[field.type] ?? [];
+  const args = field.params
+    .map((p, i) => (numericIndexes.includes(i) ? p : `"${p}"`))
+    .join(", ");
   return `{{${field.key}|${field.type}(${args})}}`;
 }

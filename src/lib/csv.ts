@@ -39,6 +39,15 @@ function dummyValueFor(field: TemplateField): string {
       return "true";
     case "select":
       return field.params[0] ?? "";
+    case "currency": {
+      const decimals = Number(field.params[1] ?? 2);
+      return decimals > 0 ? (1234.5).toFixed(decimals) : "1234";
+    }
+    case "email":
+      return "sample@example.com";
+    case "url":
+      return "https://example.com";
+    case "textarea":
     case "string":
     default:
       return `Sample ${field.label}`;

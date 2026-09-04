@@ -45,6 +45,33 @@ describe("buildCsvTemplate", () => {
     expect(csv.split("\n")[1]).toBe("true");
   });
 
+  it("uses a plain-text dummy for a textarea field", () => {
+    const csv = buildCsvTemplate([{ key: "bio", label: "Bio", type: "textarea", params: [] }]);
+    expect(csv.split("\n")[1]).toBe("Sample Bio");
+  });
+
+  it("uses a sample address for an email field", () => {
+    const csv = buildCsvTemplate([{ key: "contact_email", label: "Contact email", type: "email", params: [] }]);
+    expect(csv.split("\n")[1]).toBe("sample@example.com");
+  });
+
+  it("uses a sample link for a url field", () => {
+    const csv = buildCsvTemplate([{ key: "website", label: "Website", type: "url", params: [] }]);
+    expect(csv.split("\n")[1]).toBe("https://example.com");
+  });
+
+  it("uses a decimal number dummy for a currency field, matching its decimals param", () => {
+    const csv = buildCsvTemplate([
+      { key: "price", label: "Price", type: "currency", params: ["$", "2"] },
+    ]);
+    expect(csv.split("\n")[1]).toBe("1234.50");
+  });
+
+  it("uses a plain '1234' currency dummy when decimals is 0", () => {
+    const csv = buildCsvTemplate([{ key: "price", label: "Price", type: "currency", params: ["$", "0"] }]);
+    expect(csv.split("\n")[1]).toBe("1234");
+  });
+
   it("escapes an example row value containing commas or quotes in the label", () => {
     const csv = buildCsvTemplate([
       { key: "note", label: 'Note, "special"', type: "string", params: [] },

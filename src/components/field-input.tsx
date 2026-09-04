@@ -17,7 +17,8 @@ function toggleThumbClasses(checked: boolean) {
 
 /**
  * Renders the right input for a template field's type (text/number/date/
- * boolean toggle/checkbox/select). Shared by the single fill form (which
+ * boolean toggle/checkbox/select/textarea/email/url/currency). Shared by the
+ * single fill form (which
  * gives every field a stable `id` so its `<label htmlFor>` works, and marks
  * fields `required`) and the bulk fill form's per-row table cells (which
  * instead pass `aria-label` — a table cell has no room for a `<label>` — and
@@ -101,6 +102,51 @@ export function FieldInput({
           checked={value === "true"}
           onChange={(e) => onChange(e.target.checked ? "true" : "false")}
           className={checkboxClasses}
+        />
+      );
+    case "currency":
+      return (
+        <input
+          {...idProps}
+          type="number"
+          step="any"
+          required={required}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={fieldClasses}
+        />
+      );
+    case "email":
+      return (
+        <input
+          {...idProps}
+          type="email"
+          required={required}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={fieldClasses}
+        />
+      );
+    case "url":
+      return (
+        <input
+          {...idProps}
+          type="url"
+          required={required}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={fieldClasses}
+        />
+      );
+    case "textarea":
+      return (
+        <textarea
+          {...idProps}
+          required={required}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className={fieldClasses}
+          rows={3}
         />
       );
     case "select":

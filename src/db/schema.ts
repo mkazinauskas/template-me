@@ -1,7 +1,17 @@
 import { pgTable, text, timestamp, jsonb, uuid, boolean, integer, bigint, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 
-export type TemplateFieldType = "string" | "number" | "date" | "boolean" | "select" | "checkbox";
+export type TemplateFieldType =
+  | "string"
+  | "number"
+  | "date"
+  | "boolean"
+  | "select"
+  | "checkbox"
+  | "textarea"
+  | "email"
+  | "url"
+  | "currency";
 
 export type UserRole = "user" | "admin";
 

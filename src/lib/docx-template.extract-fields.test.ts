@@ -85,6 +85,38 @@ describe("extractFields", () => {
     expect(warnings).toEqual([]);
   });
 
+  it("recognizes the textarea, email, and url types with no params", () => {
+    const buf = buildDocx(
+      paragraph("{{bio|textarea}} {{contact_email|email}} {{website|url}}")
+    );
+    const { fields, warnings } = extractFields(buf);
+    expect(fields).toEqual([
+      { key: "bio", label: "Bio", type: "textarea", params: [] },
+      { key: "contact_email", label: "Contact email", type: "email", params: [] },
+      { key: "website", label: "Website", type: "url", params: [] },
+    ]);
+    expect(warnings).toEqual([]);
+  });
+
+  it("strips curly quotes from params, matching what Word's autocorrect rewrites straight quotes into", () => {
+    const buf = buildDocx(paragraph("{{start_date|date(“yyyy-mm-dd”)}}"));
+    const { fields, warnings } = extractFields(buf);
+    expect(fields[0]).toEqual({ key: "start_date", label: "Start date", type: "date", params: ["yyyy-mm-dd"] });
+    expect(warnings).toEqual([]);
+  });
+
+  it("recognizes the currency type with a symbol and decimal-places param", () => {
+    const buf = buildDocx(paragraph('{{price|currency("$", 2)}}'));
+    const { fields, warnings } = extractFields(buf);
+    expect(fields[0]).toEqual({
+      key: "price",
+      label: "Price",
+      type: "currency",
+      params: ["$", "2"],
+    });
+    expect(warnings).toEqual([]);
+  });
+
   it("finds tags even when split across separate formatting runs", () => {
     const buf = buildDocx(
       "<w:p><w:r><w:t>{{fir</w:t></w:r><w:r><w:t>st_name}}</w:t></w:r></w:p>"

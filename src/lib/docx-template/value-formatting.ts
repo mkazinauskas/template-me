@@ -45,8 +45,19 @@ export function formatFieldValue(field: Pick<TemplateField, "type" | "params">, 
     }
     case "checkbox":
       return isTruthyValue(rawValue) ? CHECKED_BOX : UNCHECKED_BOX;
+    case "currency": {
+      if (rawValue.trim() === "") return "";
+      const [symbol = "$", decimalsParam] = field.params;
+      const decimals = decimalsParam !== undefined ? parseInt(decimalsParam, 10) : 2;
+      const num = Number(rawValue);
+      if (Number.isNaN(num)) return rawValue;
+      return `${symbol}${Number.isNaN(decimals) ? String(num) : num.toFixed(decimals)}`;
+    }
     case "select":
     case "string":
+    case "textarea":
+    case "email":
+    case "url":
     default:
       return rawValue;
   }

@@ -3,6 +3,17 @@ import { renderDocx } from "@/lib/docx-template";
 
 export const MAX_BULK_ROWS = 100;
 
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function isValidUrl(value: string): boolean {
+  try {
+    new URL(value);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Validates one row's data against the template's fields. Returns an error
  * message, or null if valid. Previews skip the "required field is present"
@@ -27,10 +38,16 @@ export function validateRow(
   for (const field of templateRow.fields) {
     const value = String(data[field.key] ?? "");
     if (preview && value === "") continue;
-    if (field.type === "number" && value !== "" && Number.isNaN(Number(value))) {
+    if ((field.type === "number" || field.type === "currency") && value !== "" && Number.isNaN(Number(value))) {
       invalid.push(field.key);
     }
     if (field.type === "select" && field.params.length > 0 && !field.params.includes(value)) {
+      invalid.push(field.key);
+    }
+    if (field.type === "email" && value !== "" && !EMAIL_PATTERN.test(value)) {
+      invalid.push(field.key);
+    }
+    if (field.type === "url" && value !== "" && !isValidUrl(value)) {
       invalid.push(field.key);
     }
   }

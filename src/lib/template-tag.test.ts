@@ -50,4 +50,18 @@ describe("formatRawTag", () => {
       )
     ).toBe('{{employment_type|select("Full-time", "Part-time")}}');
   });
+
+  it("renders textarea, email, and url fields with no params as {{key|type}}", () => {
+    expect(formatRawTag(field({ key: "bio", type: "textarea", params: [] }))).toBe("{{bio|textarea}}");
+    expect(formatRawTag(field({ key: "contact_email", type: "email", params: [] }))).toBe(
+      "{{contact_email|email}}"
+    );
+    expect(formatRawTag(field({ key: "website", type: "url", params: [] }))).toBe("{{website|url}}");
+  });
+
+  it("quotes the currency symbol but not the decimal-places param", () => {
+    expect(formatRawTag(field({ key: "price", type: "currency", params: ["$", "2"] }))).toBe(
+      '{{price|currency("$", 2)}}'
+    );
+  });
 });

@@ -7,6 +7,10 @@ const KNOWN_TYPES: TemplateFieldType[] = [
   "boolean",
   "select",
   "checkbox",
+  "textarea",
+  "email",
+  "url",
+  "currency",
 ];
 
 /** Turns a machine key like `first_name` or `firstName` into a display label ("First name"). */
@@ -32,18 +36,29 @@ export function splitGroup(key: string): { group?: string; localKey: string } {
   return { group: key.slice(0, dotIndex), localKey: key.slice(dotIndex + 1) };
 }
 
-/** Splits `a, "b, c", 'd'` into ["a", "b, c", "d"], stripping quotes and empty entries. */
+// Maps each opening quote character to its matching closer, straight and
+// curly alike — Word's autocorrect rewrites a typed "..." into curly “...”
+// (and '...' into ‘...’) as soon as the template is saved, so a tag authored
+// directly in Word never has straight quotes even though the user typed them.
+const QUOTE_PAIRS: Record<string, string> = {
+  '"': '"',
+  "'": "'",
+  "“": "”", // “ ”
+  "‘": "’", // ‘ ’
+};
+
+/** Splits `a, "b, c", 'd'` into ["a", "b, c", "d"], stripping quotes (straight or curly) and empty entries. */
 function parseArgs(argsStr: string): string[] {
   const args: string[] = [];
   let current = "";
-  let quoteChar: '"' | "'" | null = null;
+  let closingQuote: string | null = null;
 
   for (const char of argsStr) {
-    if (quoteChar) {
-      if (char === quoteChar) quoteChar = null;
+    if (closingQuote) {
+      if (char === closingQuote) closingQuote = null;
       else current += char;
-    } else if (char === '"' || char === "'") {
-      quoteChar = char;
+    } else if (char in QUOTE_PAIRS) {
+      closingQuote = QUOTE_PAIRS[char];
     } else if (char === ",") {
       args.push(current.trim());
       current = "";
