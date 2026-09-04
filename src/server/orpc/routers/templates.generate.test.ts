@@ -197,6 +197,15 @@ describe("templates.generateBulk", () => {
     expect(error.message).toContain("Too many rows (101)");
   });
 
+  it("rejects with BAD_REQUEST when a row is missing its data object", async () => {
+    const router = await importRouter();
+    await expectORPCError(
+      // @ts-expect-error — deliberately invalid: a row with no `data`
+      call(router.generateBulk, { id: "t1", rows: [{ data: VALID_DATA }, {}] }, ctx()),
+      "BAD_REQUEST"
+    );
+  });
+
   it("rejects naming the offending row when one fails validation", async () => {
     const router = await importRouter();
     const error = await expectORPCError(
@@ -242,6 +251,26 @@ describe("templates.generateBulk", () => {
     );
     const zip = new PizZip(Buffer.from(await file.arrayBuffer()));
     expect(Object.keys(zip.files).sort()).toEqual(["same-2.pdf", "same.pdf"]);
+  });
+
+  it("rejects with INTERNAL_SERVER_ERROR when the template file is missing from storage", async () => {
+    state.storedFiles = {};
+    const router = await importRouter();
+    const error = await expectORPCError(
+      call(router.generateBulk, { id: "t1", rows: [{ data: VALID_DATA }] }, ctx()),
+      "INTERNAL_SERVER_ERROR"
+    );
+    expect(error.message).toBe("Template file is missing from storage");
+  });
+
+  it("rejects with INTERNAL_SERVER_ERROR when filling the docx fails", async () => {
+    state.renderDocxError = new Error("bad template");
+    const router = await importRouter();
+    const error = await expectORPCError(
+      call(router.generateBulk, { id: "t1", rows: [{ data: VALID_DATA }] }, ctx()),
+      "INTERNAL_SERVER_ERROR"
+    );
+    expect(error.message).toBe("Failed to fill in the document");
   });
 
   it("rejects with INTERNAL_SERVER_ERROR when bulk PDF conversion fails", async () => {

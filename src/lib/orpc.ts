@@ -23,9 +23,14 @@ export const orpc: RouterClient<typeof router> = createORPCClient(link);
 
 export { ORPCError };
 
-/** Extracts a user-facing message from a failed oRPC call, falling back to `fallback`. */
+/**
+ * Extracts a user-facing message from a failed oRPC call. Server-thrown
+ * `ORPCError`s carry a message meant for display; transport failures surface as
+ * a plain `Error` whose message is still more useful than a generic string.
+ * Anything else (or an empty message) falls back to `fallback`.
+ */
 export function orpcErrorMessage(error: unknown, fallback: string): string {
-  if (error instanceof ORPCError && typeof error.message === "string" && error.message) {
+  if (error instanceof Error && error.message) {
     return error.message;
   }
   return fallback;

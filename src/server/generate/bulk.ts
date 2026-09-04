@@ -11,14 +11,14 @@ export type BulkRow = { data: Record<string, unknown>; filename?: string };
 
 type BulkEntry = { data: Record<string, unknown>; filename: string };
 
-/** Parses and validates the incoming rows, throwing a `BAD_REQUEST` describing the first problem. */
+/**
+ * Validates each already-schema-checked row against the template's fields,
+ * throwing a `BAD_REQUEST` describing the first problem.
+ */
 function parseEntries(templateRow: Template, rows: BulkRow[]): BulkEntry[] {
   const entries: BulkEntry[] = [];
   for (let i = 0; i < rows.length; i++) {
     const { data } = rows[i];
-    if (!data || typeof data !== "object") {
-      throw new ORPCError("BAD_REQUEST", { message: `Row ${i + 1}: missing field data` });
-    }
     const validationError = validateRow(templateRow, data, false);
     if (validationError) {
       throw new ORPCError("BAD_REQUEST", { message: `Row ${i + 1}: ${validationError}` });

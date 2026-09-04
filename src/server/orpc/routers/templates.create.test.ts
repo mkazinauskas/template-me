@@ -49,6 +49,16 @@ describe("templates.create — multipart file (LOCAL_MODE)", () => {
     expect(error.message).toBe("File must be a .docx document");
   });
 
+  it("rejects a file over the 10 MB size cap", async () => {
+    const big = new Uint8Array(10 * 1024 * 1024 + 1);
+    const router = await importRouter();
+    const error = await expectORPCError(
+      call(router.create, { file: new File([big], "big.docx", { type: DOCX_TYPE }) }, ctx()),
+      "BAD_REQUEST"
+    );
+    expect(error.message).toContain("too large");
+  });
+
   it("rejects a .docx-named file that is not actually a zip", async () => {
     const router = await importRouter();
     const error = await expectORPCError(
@@ -125,6 +135,34 @@ describe("templates.create — client-direct-to-Blob finalize", () => {
       "BAD_REQUEST"
     );
     expect(error.message).toBe("Invalid upload");
+  });
+
+  it("rejects when the referenced original filename is not a .docx", async () => {
+    const router = await importRouter();
+    const error = await expectORPCError(
+      call(
+        router.create,
+        { blobUrl: BLOB_URL, blobPathname: BLOB_PATHNAME, originalFilename: "offer.pdf" },
+        ctx()
+      ),
+      "BAD_REQUEST"
+    );
+    expect(error.message).toBe("File must be a .docx document");
+  });
+
+  it("deletes the blob and rejects a stored file over the 10 MB size cap", async () => {
+    state.storedFiles = { [BLOB_URL]: Buffer.concat([Buffer.from(ZIP_MAGIC), Buffer.alloc(10 * 1024 * 1024 + 1)]) };
+    const router = await importRouter();
+    const error = await expectORPCError(
+      call(
+        router.create,
+        { blobUrl: BLOB_URL, blobPathname: BLOB_PATHNAME, originalFilename: "offer.docx" },
+        ctx()
+      ),
+      "BAD_REQUEST"
+    );
+    expect(error.message).toContain("too large");
+    expect(state.deletedBlobUrls).toContain(BLOB_URL);
   });
 
   it("rejects when the uploaded blob cannot be found", async () => {
