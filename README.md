@@ -248,8 +248,8 @@ npx dotenv -e .env.local -- npx drizzle-kit push
 ## Admin panel
 
 Signed-in users with `role: "admin"` on their `user` row can see every user
-and template in the app at `/admin` — everyone else gets a 404, same as
-requesting another user's template. New users default to `role: "user"`;
+and template in the app at `/admin/dashboard` — everyone else gets a 404, same
+as requesting another user's template. New users default to `role: "user"`;
 promote one to admin with:
 
 ```bash
