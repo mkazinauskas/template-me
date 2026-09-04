@@ -129,7 +129,7 @@ export function mockTemplatesRouterDeps() {
       if (state.extractFieldsError) throw state.extractFieldsError;
       return state.extractFieldsResult;
     }),
-    renderDocx: vi.fn((_buf: Buffer, _fields: TemplateField[], data: Record<string, string>) => {
+    renderDocx: vi.fn((_buf: Buffer, data: Record<string, string>) => {
       if (state.renderDocxError) throw state.renderDocxError;
       return Buffer.from(`docx:${JSON.stringify(data)}`);
     }),

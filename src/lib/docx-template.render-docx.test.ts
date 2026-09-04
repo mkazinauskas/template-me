@@ -2,19 +2,9 @@ import { describe, expect, it } from "vitest";
 import PizZip from "pizzip";
 import Docxtemplater from "docxtemplater";
 import { renderDocx } from "@/lib/docx-template";
-import type { TemplateField } from "@/db/schema";
 import { buildDocx, paragraph, readFixture } from "./docx-template.test-helpers";
 
 describe("renderDocx", () => {
-  const fields: TemplateField[] = [
-    { key: "full_name", label: "Full name", type: "string", params: [] },
-    { key: "salary", label: "Salary", type: "number", params: ["2"] },
-    { key: "start_date", label: "Start date", type: "date", params: ["dd/mm/yyyy"] },
-    { key: "relocation", label: "Relocation", type: "boolean", params: ["Yes", "No"] },
-    { key: "employment_type", label: "Employment type", type: "select", params: [] },
-    { key: "terms_accepted", label: "Terms accepted", type: "checkbox", params: [] },
-  ];
-
   function renderedText(data: Record<string, string>): string {
     const output = renderDocx(readFixture(), data);
     const doc = new Docxtemplater(new PizZip(output), {
@@ -25,16 +15,13 @@ describe("renderDocx", () => {
     return doc.getFullText();
   }
 
-  function renderTagText(bodyXml: string, field: TemplateField, data: Record<string, string>): string {
-    const output = renderDocx(buildDocx(bodyXml), [field], data);
+  function renderTagText(bodyXml: string, data: Record<string, string>): string {
+    const output = renderDocx(buildDocx(bodyXml), data);
     return new Docxtemplater(new PizZip(output), { delimiters: { start: "{{", end: "}}" } }).getFullText();
   }
 
-  const checkbox: TemplateField = { key: "agreed", label: "Agreed", type: "checkbox", params: [] };
-  const nameField: TemplateField = { key: "name", label: "Name", type: "string", params: [] };
-
   it("substitutes string, number, date, boolean, select, and checkbox values into the document", () => {
-    const text = renderedText(fields, {
+    const text = renderedText({
       full_name: "Jane Doe",
       salary: "1234.5",
       start_date: "2026-03-05",
@@ -51,7 +38,7 @@ describe("renderDocx", () => {
   });
 
   it("formats booleans using the field's false label when the value is falsy", () => {
-    const text = renderedText(fields, {
+    const text = renderedText({
       full_name: "Jane Doe",
       salary: "1000",
       start_date: "2026-01-01",
@@ -62,26 +49,31 @@ describe("renderDocx", () => {
   });
 
   it("renders a checked box for a truthy checkbox value", () => {
-    expect(renderTagText(paragraph("{{agreed|checkbox}}"), checkbox, { agreed: "true" })).toBe("☒");
+    expect(renderTagText(paragraph("{{agreed|checkbox}}"), { agreed: "true" })).toBe("☒");
   });
 
   it("renders an unchecked box for a falsy or missing checkbox value", () => {
-    expect(renderTagText(paragraph("{{agreed|checkbox}}"), checkbox, {})).toBe("☐");
+    expect(renderTagText(paragraph("{{agreed|checkbox}}"), {})).toBe("☐");
   });
 
   it.each(["true", "on", "1", "yes", "y", "YES", "Y"])("treats %j as truthy for a checkbox value", (value) => {
-    expect(renderTagText(paragraph("{{agreed|checkbox}}"), checkbox, { agreed: value })).toBe("☒");
+    expect(renderTagText(paragraph("{{agreed|checkbox}}"), { agreed: value })).toBe("☒");
   });
 
   it("renders an empty string for missing data", () => {
-    expect(renderTagText(paragraph("Hello {{name}}!"), nameField, {})).toBe("Hello !");
+    expect(renderTagText(paragraph("Hello {{name}}!"), {})).toBe("Hello !");
+  });
+
+  it("resolves the same key independently per tag when it appears with different formats", () => {
+    const body = paragraph("{{start_date|date(&quot;yyyy-mm-dd&quot;)}} / {{start_date|date(&quot;mm-dd-yyyy&quot;)}}");
+    expect(renderTagText(body, { start_date: "2026-03-05" })).toBe("2026-03-05 / 03-05-2026");
   });
 
   it("rounds fractional twip measurements (Google Docs exports) to integers, leaving the XML declaration alone", () => {
     const body =
       `<w:p><w:pPr><w:ind w:left="708.6614173228347" w:hanging="12.5"/></w:pPr><w:r><w:t>Hi {{name}}</w:t></w:r></w:p>` +
       `<w:sectPr><w:pgMar w:top="850.3937007874016" w:bottom="1134"/></w:sectPr>`;
-    const output = renderDocx(buildDocx(body), [nameField], { name: "Jo" });
+    const output = renderDocx(buildDocx(body), { name: "Jo" });
     const documentXml = new PizZip(output).file("word/document.xml")!.asText();
     expect(documentXml).toContain('w:top="850"');
     expect(documentXml).toContain('w:left="709"');
@@ -105,7 +97,7 @@ describe("renderDocx", () => {
       `<w:tbl><w:tblPr><w:tblLayout w:type="fixed"/></w:tblPr>` +
       `<w:tr><w:tc><w:p><w:r><w:t>Signature: {{name}}</w:t></w:r></w:p></w:tc></w:tr></w:tbl>`;
 
-    const output = renderDocx(buildDocx(body), [nameField], { name: "Jo" });
+    const output = renderDocx(buildDocx(body), { name: "Jo" });
     const documentXml = new PizZip(output).file("word/document.xml")!.asText();
 
     expect(documentXml).not.toContain("<w:tblpPr");
@@ -119,7 +111,6 @@ describe("renderDocx", () => {
   });
 
   it("leaves a non-numeric number value as-is instead of throwing", () => {
-    const amount: TemplateField = { key: "amount", label: "Amount", type: "number", params: ["2"] };
-    expect(renderTagText(paragraph("{{amount}}"), amount, { amount: "not-a-number" })).toBe("not-a-number");
+    expect(renderTagText(paragraph("{{amount|number(2)}}"), { amount: "not-a-number" })).toBe("not-a-number");
   });
 });
