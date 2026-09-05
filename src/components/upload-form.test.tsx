@@ -36,7 +36,7 @@ describe("UploadForm", () => {
 
   it("shows a validation error when submitting without a file", async () => {
     const user = userEvent.setup();
-    render(<UploadForm localMode />);
+    render(<UploadForm localMode userId="user-1" />);
 
     await user.click(screen.getByRole("button", { name: "Upload template" }));
 
@@ -46,7 +46,7 @@ describe("UploadForm", () => {
 
   it("uploads the chosen file and navigates to the new template on success", async () => {
     const user = userEvent.setup();
-    render(<UploadForm localMode />);
+    render(<UploadForm localMode userId="user-1" />);
 
     const fileInput = screen.getByLabelText("Word document (.docx)") as HTMLInputElement;
     await user.upload(fileInput, docxFile());
@@ -66,7 +66,7 @@ describe("UploadForm", () => {
 
   it("prefills the template name from the chosen file name", async () => {
     const user = userEvent.setup();
-    render(<UploadForm localMode />);
+    render(<UploadForm localMode userId="user-1" />);
 
     await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile("Offer Letter.docx"));
 
@@ -75,7 +75,7 @@ describe("UploadForm", () => {
 
   it("does not overwrite a manually entered template name when a file is chosen", async () => {
     const user = userEvent.setup();
-    render(<UploadForm localMode />);
+    render(<UploadForm localMode userId="user-1" />);
 
     await user.type(screen.getByLabelText("Template name (optional)"), "Custom Name");
     await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile("Offer Letter.docx"));
@@ -89,7 +89,7 @@ describe("UploadForm", () => {
       warnings: ['Field "x" is odd'],
     } as never);
     const user = userEvent.setup();
-    render(<UploadForm localMode />);
+    render(<UploadForm localMode userId="user-1" />);
 
     await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile());
     await user.click(screen.getByRole("button", { name: "Upload template" }));
@@ -106,7 +106,7 @@ describe("UploadForm", () => {
       new ORPCError("BAD_REQUEST", { message: "No templated fields found." })
     );
     const user = userEvent.setup();
-    render(<UploadForm localMode />);
+    render(<UploadForm localMode userId="user-1" />);
 
     await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile());
     await user.click(screen.getByRole("button", { name: "Upload template" }));
@@ -118,7 +118,7 @@ describe("UploadForm", () => {
   it("shows the thrown error's message when the request itself throws", async () => {
     createMock().mockRejectedValue(new Error("network down"));
     const user = userEvent.setup();
-    render(<UploadForm localMode />);
+    render(<UploadForm localMode userId="user-1" />);
 
     await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile());
     await user.click(screen.getByRole("button", { name: "Upload template" }));
@@ -129,7 +129,7 @@ describe("UploadForm", () => {
   it("falls back to a generic error message for a non-Error rejection", async () => {
     createMock().mockRejectedValue("boom");
     const user = userEvent.setup();
-    render(<UploadForm localMode />);
+    render(<UploadForm localMode userId="user-1" />);
 
     await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile());
     await user.click(screen.getByRole("button", { name: "Upload template" }));
@@ -152,7 +152,7 @@ describe("UploadForm (not localMode — client-direct-to-Blob)", () => {
       pathname: "templates/uuid-offer.docx",
     });
     const user = userEvent.setup();
-    render(<UploadForm localMode={false} />);
+    render(<UploadForm localMode={false} userId="user-1" />);
 
     await user.type(screen.getByLabelText("Template name (optional)"), "Offer Letter");
     await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile());
@@ -162,7 +162,7 @@ describe("UploadForm (not localMode — client-direct-to-Blob)", () => {
 
     expect(blobUpload).toHaveBeenCalledTimes(1);
     const [pathname, , options] = blobUpload.mock.calls[0];
-    expect(pathname).toMatch(/^templates\/.+-template\.docx$/);
+    expect(pathname).toMatch(/^templates\/user-1\/.+-template\.docx$/);
     expect(options).toMatchObject({ access: "private", handleUploadUrl: "/api/templates/upload" });
 
     expect(orpc.templates.create).toHaveBeenCalledWith({
@@ -176,7 +176,7 @@ describe("UploadForm (not localMode — client-direct-to-Blob)", () => {
   it("shows the Blob upload's own error (e.g. a size-cap rejection) without ever calling the API", async () => {
     blobUpload.mockRejectedValue(new Error("The uploaded file's size exceeds the maximum allowed size"));
     const user = userEvent.setup();
-    render(<UploadForm localMode={false} />);
+    render(<UploadForm localMode={false} userId="user-1" />);
 
     await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile());
     await user.click(screen.getByRole("button", { name: "Upload template" }));

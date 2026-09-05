@@ -9,6 +9,14 @@ import type PizZip from "pizzip";
 const MAX_UNCOMPRESSED_ZIP_BYTES = 50 * 1024 * 1024; // 50 MB
 
 /**
+ * Cap on the number of entries in the zip's central directory. A crafted zip
+ * can hold many thousands of tiny/empty entries while staying under both the
+ * upload size cap and `MAX_UNCOMPRESSED_ZIP_BYTES` — bounding the count keeps
+ * parsing overhead predictable regardless of entry sizes.
+ */
+const MAX_ZIP_ENTRIES = 2000;
+
+/**
  * Sums each zip entry's uncompressed size straight from the zip's central
  * directory metadata (populated by PizZip while parsing the archive structure)
  * and rejects if the total is implausibly large — without ever decompressing
@@ -21,8 +29,13 @@ const MAX_UNCOMPRESSED_ZIP_BYTES = 50 * 1024 * 1024; // 50 MB
  * doesn't trigger decompression.
  */
 export function assertSafeUncompressedSize(zip: PizZip): void {
+  const entryPaths = Object.keys(zip.files);
+  if (entryPaths.length > MAX_ZIP_ENTRIES) {
+    throw new Error("Document contains too many parts to process");
+  }
+
   let total = 0;
-  for (const relativePath of Object.keys(zip.files)) {
+  for (const relativePath of entryPaths) {
     const entry = zip.files[relativePath];
     if (entry.dir) continue;
     const uncompressedSize =
@@ -30,6 +43,53 @@ export function assertSafeUncompressedSize(zip: PizZip): void {
     total += uncompressedSize;
     if (total > MAX_UNCOMPRESSED_ZIP_BYTES) {
       throw new Error("Document contents are too large to process");
+    }
+  }
+}
+
+/**
+ * Rejects docx content that can make the PDF converter (headless LibreOffice)
+ * fetch an attacker-chosen URL during conversion — an SSRF primitive, since
+ * `generate`/`generateBulk` are reachable by anyone who can view a template
+ * (including anonymous visitors, for public templates). There's no legitimate
+ * need for these in a form-fill template:
+ *
+ * - `INCLUDEPICTURE`/`INCLUDETEXT` field codes can point at an arbitrary
+ *   `http(s)://` URL that LibreOffice fetches on render.
+ * - `<w:altChunk>` embeds another document part, which can itself be sourced
+ *   from an external relationship.
+ * - A `attachedTemplate` relationship with `TargetMode="External"` points
+ *   Word/LibreOffice at a remote `.dotx` to merge styles from.
+ */
+export function assertNoExternalContentReferences(zip: PizZip): void {
+  for (const relativePath of Object.keys(zip.files)) {
+    const entry = zip.files[relativePath];
+    if (entry.dir) continue;
+
+    if (/^word\/.*\.xml$/.test(relativePath)) {
+      const xml = entry.asText();
+      if (/INCLUDEPICTURE|INCLUDETEXT/i.test(xml)) {
+        throw new Error(
+          "Document contains an external field code (INCLUDEPICTURE/INCLUDETEXT), which isn't supported"
+        );
+      }
+      if (/<w:altChunk\b/i.test(xml)) {
+        throw new Error(
+          "Document contains an embedded external document chunk, which isn't supported"
+        );
+      }
+    }
+
+    if (/(^|\/)_rels\/.*\.rels$/.test(relativePath)) {
+      const xml = entry.asText();
+      const relationshipTags = xml.match(/<Relationship\b[^>]*\/>/g) ?? [];
+      for (const tag of relationshipTags) {
+        if (/Type="[^"]*attachedTemplate"/i.test(tag) && /TargetMode="External"/i.test(tag)) {
+          throw new Error(
+            "Document references an external attached template, which isn't supported"
+          );
+        }
+      }
     }
   }
 }

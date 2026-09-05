@@ -20,7 +20,7 @@ const DOCX_CONTENT_TYPE =
  * so routing the raw file through this route risks a FUNCTION_PAYLOAD_TOO_LARGE
  * error before the app's own size check ever runs.
  */
-export function UploadForm({ localMode }: { localMode: boolean }) {
+export function UploadForm({ localMode, userId }: { localMode: boolean; userId: string }) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
@@ -70,7 +70,7 @@ export function UploadForm({ localMode }: { localMode: boolean }) {
   }
 
   async function uploadViaBlob(file: File, name: string) {
-    const blob = await upload(`templates/${crypto.randomUUID()}-${file.name}`, file, {
+    const blob = await upload(`templates/${userId}/${crypto.randomUUID()}-${file.name}`, file, {
       access: "private",
       contentType: DOCX_CONTENT_TYPE,
       handleUploadUrl: "/api/templates/upload",

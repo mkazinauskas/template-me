@@ -103,8 +103,8 @@ describe("templates.create — multipart file (LOCAL_MODE)", () => {
 });
 
 describe("templates.create — client-direct-to-Blob finalize", () => {
-  const BLOB_URL = "https://blob.example/templates/uuid-offer.docx";
-  const BLOB_PATHNAME = "templates/uuid-offer.docx";
+  const BLOB_URL = "https://blob.example/templates/user-1/uuid-offer.docx";
+  const BLOB_PATHNAME = "templates/user-1/uuid-offer.docx";
 
   beforeEach(() => {
     resetState();
@@ -130,6 +130,23 @@ describe("templates.create — client-direct-to-Blob finalize", () => {
       call(
         router.create,
         { blobUrl: BLOB_URL, blobPathname: "other/uuid-offer.docx", originalFilename: "offer.docx" },
+        ctx()
+      ),
+      "BAD_REQUEST"
+    );
+    expect(error.message).toBe("Invalid upload");
+  });
+
+  it("rejects a blobPathname whose user segment doesn't match the caller", async () => {
+    const router = await importRouter();
+    const error = await expectORPCError(
+      call(
+        router.create,
+        {
+          blobUrl: BLOB_URL,
+          blobPathname: "templates/some-other-user/uuid-offer.docx",
+          originalFilename: "offer.docx",
+        },
         ctx()
       ),
       "BAD_REQUEST"
@@ -171,8 +188,8 @@ describe("templates.create — client-direct-to-Blob finalize", () => {
       call(
         router.create,
         {
-          blobUrl: "https://blob.example/templates/missing.docx",
-          blobPathname: "templates/missing.docx",
+          blobUrl: "https://blob.example/templates/user-1/missing.docx",
+          blobPathname: "templates/user-1/missing.docx",
           originalFilename: "offer.docx",
         },
         ctx()

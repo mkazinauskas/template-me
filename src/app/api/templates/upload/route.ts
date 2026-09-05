@@ -20,7 +20,10 @@ export async function POST(req: NextRequest) {
         if (!session) {
           throw new Error("Unauthorized");
         }
-        if (!pathname.startsWith("templates/")) {
+        // Binds the object's pathname to the uploading user so a blob URL
+        // learned some other way (logs, a shared proxy, ...) can't be
+        // registered as a template by a different user in `createFromBlob`.
+        if (!pathname.startsWith(`templates/${session.user.id}/`)) {
           throw new Error("Invalid upload path");
         }
         return {

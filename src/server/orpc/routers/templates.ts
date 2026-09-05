@@ -34,6 +34,13 @@ const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_USER = 10;
 const RATE_LIMIT_MAX_ANON = 4;
 
+// generateBulk allows up to MAX_BULK_ROWS (100) documents per call, which
+// combined with RATE_LIMIT_MAX_ANON would let an anonymous visitor to any
+// *public* template trigger 400 LibreOffice conversions/minute. Anonymous
+// callers can't be attributed to an account, so their bulk requests are
+// capped far lower regardless of the per-call rate limit above.
+const MAX_BULK_ROWS_ANON = 20;
+
 // The first 4 bytes of every zip (and therefore every .docx, which is a zip
 // container) — checked in addition to the ".docx" extension so a
 // renamed/spoofed non-zip file is rejected before it ever reaches PizZip.
@@ -179,7 +186,7 @@ async function createFromBlob(
 ): Promise<{ template: Template; warnings: string[] }> {
   const { blobUrl, blobPathname, originalFilename, name = "" } = input;
 
-  if (!blobPathname.startsWith("templates/")) {
+  if (!blobPathname.startsWith(`templates/${userId}/`)) {
     throw new ORPCError("BAD_REQUEST", { message: "Invalid upload" });
   }
   if (!originalFilename.toLowerCase().endsWith(".docx")) {
@@ -395,6 +402,11 @@ export const templatesRouter = {
     )
     .handler(async ({ input, context }) => {
       await enforceGenerateRateLimit(context.session, context.headers);
+      if (!context.session && input.rows.length > MAX_BULK_ROWS_ANON) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: `Too many rows for an anonymous request (${input.rows.length}). Sign in, or split into batches of ${MAX_BULK_ROWS_ANON} or fewer.`,
+        });
+      }
       const templateRow = await loadViewableTemplate(input.id, context.session);
       const format = input.format === "docx" ? "docx" : "pdf";
 

@@ -72,10 +72,20 @@ describe("POST /api/templates/upload", () => {
     expect(json.error).toBe("Invalid upload path");
   });
 
+  it("rejects a pathname whose user segment doesn't match the caller's session", async () => {
+    const { POST } = await import("./route");
+
+    const res = await POST(tokenRequest("templates/some-other-user/uuid-offer.docx"));
+    const json = await res.json();
+
+    expect(res.status).toBe(400);
+    expect(json.error).toBe("Invalid upload path");
+  });
+
   it("issues a client token constrained to the docx content type and size cap", async () => {
     const { POST } = await import("./route");
 
-    const res = await POST(tokenRequest("templates/uuid-offer.docx"));
+    const res = await POST(tokenRequest("templates/user-1/uuid-offer.docx"));
     const json = await res.json();
 
     expect(res.status).toBe(200);

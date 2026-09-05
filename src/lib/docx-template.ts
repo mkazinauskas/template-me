@@ -3,7 +3,11 @@ import Docxtemplater from "docxtemplater";
 import type { TemplateField } from "@/db/schema";
 import { parseTag, splitGroup, toLabel } from "./docx-template/tag-parsing";
 import { formatFieldValue } from "./docx-template/value-formatting";
-import { assertSafeUncompressedSize, sanitizeForLibreOffice } from "./docx-template/zip";
+import {
+  assertNoExternalContentReferences,
+  assertSafeUncompressedSize,
+  sanitizeForLibreOffice,
+} from "./docx-template/zip";
 
 export { isTruthyValue } from "./docx-template/value-formatting";
 
@@ -29,6 +33,7 @@ function scopedParser(tag: string) {
 function loadDocxtemplater(buffer: Buffer) {
   const zip = new PizZip(buffer);
   assertSafeUncompressedSize(zip);
+  assertNoExternalContentReferences(zip);
   return new Docxtemplater(zip, {
     delimiters: DELIMITERS,
     paragraphLoop: true,
