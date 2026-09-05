@@ -1,5 +1,6 @@
 import { createORPCClient, ORPCError } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
+import { SimpleCsrfProtectionLinkPlugin } from "@orpc/client/plugins";
 import type { RouterClient } from "@orpc/server";
 import type { router } from "@/server/orpc/router";
 
@@ -17,6 +18,10 @@ const link = new RPCLink({
     typeof window === "undefined"
       ? "http://localhost/api/rpc"
       : `${window.location.origin}/api/rpc`,
+  // Attaches the header that `SimpleCsrfProtectionHandlerPlugin` requires
+  // server-side (see src/server/orpc/handler.ts) — without it every call is
+  // rejected with 403.
+  plugins: [new SimpleCsrfProtectionLinkPlugin()],
 });
 
 export const orpc: RouterClient<typeof router> = createORPCClient(link);

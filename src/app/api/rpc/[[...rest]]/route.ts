@@ -14,5 +14,9 @@ async function handle(request: Request): Promise<Response> {
   return response ?? new Response("Not found", { status: 404 });
 }
 
-export const GET = handle;
+// Only POST is exported on purpose. oRPC matches procedures by pathname alone
+// (the method is never checked), and its codec reads GET input from a `?data=`
+// query param — so exporting GET would make every procedure, mutations
+// included, reachable by a cross-site navigation or `<img src>`. The typed
+// client in src/lib/orpc.ts always POSTs, so nothing legitimate needs GET.
 export const POST = handle;

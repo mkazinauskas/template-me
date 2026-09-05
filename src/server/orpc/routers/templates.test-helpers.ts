@@ -16,6 +16,9 @@ export const state: {
   deletedBlobUrls: string[];
   deleteBlobThrows: boolean;
   storedFiles: Record<string, Buffer>;
+  /** Pathname `statFile` reports for a url, when it differs from the url itself. */
+  statPathnames: Record<string, string>;
+  putPathnames: string[];
   putResult: { url: string; pathname: string };
   extractFieldsResult: { fields: TemplateField[]; warnings: string[] };
   extractFieldsError: Error | null;
@@ -32,6 +35,8 @@ export const state: {
   deletedBlobUrls: [],
   deleteBlobThrows: false,
   storedFiles: {},
+  statPathnames: {},
+  putPathnames: [],
   putResult: { url: "https://blob.example/templates/new.docx", pathname: "templates/new.docx" },
   extractFieldsResult: { fields: [], warnings: [] },
   extractFieldsError: null,
@@ -50,6 +55,8 @@ export function resetState() {
   state.deletedBlobUrls = [];
   state.deleteBlobThrows = false;
   state.storedFiles = {};
+  state.statPathnames = {};
+  state.putPathnames = [];
   state.putResult = { url: "https://blob.example/templates/new.docx", pathname: "templates/new.docx" };
   state.extractFieldsResult = {
     fields: [{ key: "name", label: "Name", type: "string", params: [] }],
@@ -117,8 +124,18 @@ export function mockTemplatesRouterDeps() {
   }));
 
   vi.doMock("@/lib/storage", () => ({
-    putFile: vi.fn(async () => state.putResult),
+    putFile: vi.fn(async (pathname: string) => {
+      state.putPathnames.push(pathname);
+      return state.putResult;
+    }),
     getFile: vi.fn(async (url: string) => state.storedFiles[url] ?? null),
+    statFile: vi.fn(async (url: string) => {
+      const buffer = state.storedFiles[url];
+      if (!buffer) return null;
+      // Stands in for what Blob reports actually lives at `url`. Tests that
+      // exercise the claimed-vs-actual pathname check override this.
+      return { pathname: state.statPathnames[url] ?? url, size: buffer.length };
+    }),
     deleteFile: vi.fn(async (url: string) => {
       if (state.deleteBlobThrows) throw new Error("blob delete failed");
       state.deletedBlobUrls.push(url);

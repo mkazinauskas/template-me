@@ -58,8 +58,15 @@ export function assertSafeUncompressedSize(zip: PizZip): void {
  *   `http(s)://` URL that LibreOffice fetches on render.
  * - `<w:altChunk>` embeds another document part, which can itself be sourced
  *   from an external relationship.
- * - A `attachedTemplate` relationship with `TargetMode="External"` points
- *   Word/LibreOffice at a remote `.dotx` to merge styles from.
+ * - Any relationship with `TargetMode="External"` — a linked (rather than
+ *   embedded) image via `<a:blip r:link>`, an `oleObject`, a `frame`, an
+ *   `attachedTemplate` pointing at a remote `.dotx` — is resolved by the
+ *   renderer while producing the document.
+ *
+ * The one external relationship type allowed through is `hyperlink`: its target
+ * is resolved only if a human clicks the link in the finished document, never
+ * during conversion, and links are common enough in real templates that
+ * rejecting them would be a false positive rather than a defense.
  */
 export function assertNoExternalContentReferences(zip: PizZip): void {
   for (const relativePath of Object.keys(zip.files)) {
@@ -82,13 +89,23 @@ export function assertNoExternalContentReferences(zip: PizZip): void {
 
     if (/(^|\/)_rels\/.*\.rels$/.test(relativePath)) {
       const xml = entry.asText();
-      const relationshipTags = xml.match(/<Relationship\b[^>]*\/>/g) ?? [];
+      // Matches both `<Relationship .../>` and `<Relationship ...>` forms, in
+      // either quote style (XML permits single quotes). Attribute values are
+      // consumed as whole quoted runs rather than with `[^>]*`, because `>` is
+      // legal inside an attribute value — a `Target="http://evil/?a=>"` would
+      // otherwise truncate the match before its `TargetMode` was ever seen.
+      const relationshipTags = xml.match(/<Relationship\b(?:[^>"']|"[^"]*"|'[^']*')*>/gi) ?? [];
       for (const tag of relationshipTags) {
-        if (/Type="[^"]*attachedTemplate"/i.test(tag) && /TargetMode="External"/i.test(tag)) {
-          throw new Error(
-            "Document references an external attached template, which isn't supported"
-          );
-        }
+        const targetMode = tag.match(/\bTargetMode\s*=\s*["']([^"']*)["']/i)?.[1];
+        // Absent or explicitly Internal means the target is a part inside this
+        // package, so nothing is fetched. Everything else counts as external —
+        // including a value obfuscated with XML character references, which a
+        // real parser decodes but a literal match on "External" would miss.
+        if (targetMode === undefined || /^internal$/i.test(targetMode)) continue;
+        if (/Type\s*=\s*["'][^"']*\/hyperlink["']/i.test(tag)) continue;
+        throw new Error(
+          "Document references external content (such as a linked image or attached template), which isn't supported"
+        );
       }
     }
   }

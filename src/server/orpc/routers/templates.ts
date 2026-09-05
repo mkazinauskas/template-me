@@ -6,7 +6,7 @@ import { templates, type Template, type TemplateField } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { extractFields } from "@/lib/docx-template";
 import { convertDocxToPdf } from "@/lib/docx-to-pdf";
-import { deleteFile, getFile, putFile, type StoredFile } from "@/lib/storage";
+import { deleteFile, getFile, putFile, statFile, type StoredFile } from "@/lib/storage";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import {
   canViewTemplate,
@@ -165,8 +165,14 @@ async function createFromFile(
     throw new ORPCError("BAD_REQUEST", { message: validated.error });
   }
 
+  // `file.name` is fully client-controlled (a `File` built in JS isn't limited
+  // to a bare filename the way a file picker is), and in LOCAL_MODE this
+  // pathname is joined onto a real directory — so it has to be flattened to a
+  // single safe segment before it can become a path. The `templates/{userId}/`
+  // prefix also keeps this branch on the same per-user layout `createFromBlob`
+  // enforces, rather than a second, unscoped one.
   const stored = await putFile(
-    `templates/${crypto.randomUUID()}-${file.name}`,
+    `templates/${userId}/${crypto.randomUUID()}-${sanitizeFilename(file.name)}`,
     buffer,
     DOCX_CONTENT_TYPE
   );
@@ -193,13 +199,29 @@ async function createFromBlob(
     throw new ORPCError("BAD_REQUEST", { message: "File must be a .docx document" });
   }
 
+  // The client supplies both the url to read and the pathname it claims that
+  // url has, and only the pathname is checked against the caller's own prefix
+  // above — nothing ties the two together. Ask storage what actually lives at
+  // the url so a caller who learned someone else's blob url can't pair it with
+  // a self-consistent pathname and adopt that content as their own template.
+  const stored = await statFile(blobUrl);
+  if (!stored) {
+    throw new ORPCError("BAD_REQUEST", { message: "Uploaded file not found" });
+  }
+  if (stored.pathname !== blobPathname) {
+    // Deliberately no `deleteFile` here: the object isn't confirmed to be this
+    // caller's, and deleting it would turn a mismatch into a way to destroy
+    // another user's upload.
+    throw new ORPCError("BAD_REQUEST", { message: "Invalid upload" });
+  }
+  if (stored.size > MAX_UPLOAD_BYTES) {
+    await deleteFile(blobUrl);
+    throw docxTooLargeError();
+  }
+
   const buffer = await getFile(blobUrl);
   if (!buffer) {
     throw new ORPCError("BAD_REQUEST", { message: "Uploaded file not found" });
-  }
-  if (buffer.length > MAX_UPLOAD_BYTES) {
-    await deleteFile(blobUrl);
-    throw docxTooLargeError();
   }
 
   const validated = validateDocxBuffer(buffer);
@@ -269,10 +291,19 @@ export const templatesRouter = {
   create: protectedProcedure
     .input(createInput)
     .handler(async ({ input, context }) => {
-      if ("file" in input) {
-        return createFromFile(input, context.session.user.id);
+      // Which of the two upload paths is valid is a property of the deployment,
+      // not of the request: LOCAL_MODE has no Blob store to have uploaded to,
+      // and a cloud deployment has no writable filesystem to accept multipart
+      // bytes into. Dispatching on the server's own mode rather than on
+      // whichever shape the client happened to send stops a caller from
+      // selecting the other deployment's code path.
+      const localMode = process.env.LOCAL_MODE === "true";
+      if (localMode !== ("file" in input)) {
+        throw new ORPCError("BAD_REQUEST", { message: "Invalid upload" });
       }
-      return createFromBlob(input, context.session.user.id);
+      return "file" in input
+        ? createFromFile(input, context.session.user.id)
+        : createFromBlob(input, context.session.user.id);
     }),
 
   /** Owner-only: flip a template between private and public. */

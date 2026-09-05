@@ -14,11 +14,15 @@ async function importPost() {
   return POST;
 }
 
-/** Builds an oRPC RPC-protocol request for `procedure` (dot path) with `input`. */
-function rpcRequest(procedure: string, input: unknown) {
+/**
+ * Builds an oRPC RPC-protocol request for `procedure` (dot path) with `input`.
+ * `x-csrf-token` is what `SimpleCsrfProtectionHandlerPlugin` requires; the real
+ * client attaches it via `SimpleCsrfProtectionLinkPlugin` (src/lib/orpc.ts).
+ */
+function rpcRequest(procedure: string, input: unknown, headers: Record<string, string> = {}) {
   return new Request(`http://localhost/api/rpc/${procedure.replace(/\./g, "/")}`, {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: { "content-type": "application/json", "x-csrf-token": "orpc", ...headers },
     body: JSON.stringify({ json: input }),
   });
 }
@@ -69,5 +73,26 @@ describe("POST /api/rpc/[[...rest]]", () => {
     const res = await POST(rpcRequest("templates.nope", {}));
 
     expect(res.status).toBe(404);
+  });
+
+  it("rejects a request that is missing the CSRF header", async () => {
+    state.rows = [makeTemplate()];
+    const POST = await importPost();
+
+    const res = await POST(
+      new Request("http://localhost/api/rpc/templates/list", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ json: {} }),
+      })
+    );
+
+    expect(res.status).toBe(403);
+  });
+
+  it("exports no GET handler, so no procedure is reachable by cross-site navigation", async () => {
+    const route = await import("./route");
+
+    expect("GET" in route).toBe(false);
   });
 });

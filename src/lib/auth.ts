@@ -19,6 +19,14 @@ export const auth = betterAuth({
   // in with a plain password instead — see AuthForm's LOCAL_MODE branch.
   emailAndPassword: {
     enabled: process.env.LOCAL_MODE === "true",
+    // Enabling credential login also exposes `POST /api/auth/sign-up/email`,
+    // which would let anyone who can reach a LOCAL_MODE deployment (the
+    // published demo image included) register an account by raw HTTP request,
+    // even though the UI only ever offers the one seeded login. The web server
+    // never sets LOCAL_ALLOW_SIGNUP, so sign-up stays closed there; only
+    // scripts/seed-local-user.ts — a separate process, run once at startup —
+    // sets it to create that static account.
+    disableSignUp: process.env.LOCAL_ALLOW_SIGNUP !== "true",
   },
   user: {
     additionalFields: {

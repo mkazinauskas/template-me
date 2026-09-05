@@ -1,5 +1,5 @@
 // @vitest-environment node
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { call, ORPCError } from "@orpc/server";
 import {
   ctx,
@@ -32,7 +32,15 @@ async function expectORPCError(promise: Promise<unknown>, code: string): Promise
 }
 
 describe("templates.create — multipart file (LOCAL_MODE)", () => {
-  beforeEach(resetState);
+  // `create` dispatches on the server's own mode, so the multipart branch is
+  // only reachable with LOCAL_MODE set.
+  beforeEach(() => {
+    resetState();
+    process.env.LOCAL_MODE = "true";
+  });
+  afterEach(() => {
+    delete process.env.LOCAL_MODE;
+  });
 
   it("rejects with UNAUTHORIZED when there is no session", async () => {
     state.session = null;
@@ -100,6 +108,40 @@ describe("templates.create — multipart file (LOCAL_MODE)", () => {
     await call(router.create, { file: docxFile("My Contract.docx") }, ctx());
     expect(state.insertedValues?.name).toBe("My Contract");
   });
+
+  it("stores under the caller's own prefix", async () => {
+    const router = await importRouter();
+    await call(router.create, { file: docxFile("offer.docx") }, ctx());
+    expect(state.putPathnames[0]).toMatch(/^templates\/user-1\//);
+  });
+
+  it("flattens a traversing filename so it can't escape the storage root", async () => {
+    const router = await importRouter();
+    await call(router.create, { file: docxFile("../../../../etc/passwd.docx") }, ctx());
+
+    const stored = state.putPathnames[0];
+    expect(stored).toMatch(/^templates\/user-1\//);
+    // Nothing after the per-user prefix may reintroduce a path separator or a
+    // parent-directory hop.
+    expect(stored.slice("templates/user-1/".length)).not.toMatch(/[/\\]|\.\./);
+  });
+
+  it("rejects the direct-to-Blob shape, which belongs to a cloud deployment", async () => {
+    const router = await importRouter();
+    const error = await expectORPCError(
+      call(
+        router.create,
+        {
+          blobUrl: "https://blob.example/templates/user-1/x.docx",
+          blobPathname: "templates/user-1/x.docx",
+          originalFilename: "x.docx",
+        },
+        ctx()
+      ),
+      "BAD_REQUEST"
+    );
+    expect(error.message).toBe("Invalid upload");
+  });
 });
 
 describe("templates.create — client-direct-to-Blob finalize", () => {
@@ -109,6 +151,9 @@ describe("templates.create — client-direct-to-Blob finalize", () => {
   beforeEach(() => {
     resetState();
     state.storedFiles = { [BLOB_URL]: Buffer.from(`${ZIP_MAGIC}dummy`) };
+    // What storage reports actually lives at BLOB_URL — matches what the
+    // client claims, except in the mismatch test below.
+    state.statPathnames = { [BLOB_URL]: BLOB_PATHNAME };
   });
 
   it("rejects with UNAUTHORIZED when there is no session", async () => {
@@ -211,6 +256,42 @@ describe("templates.create — client-direct-to-Blob finalize", () => {
       "BAD_REQUEST"
     );
     expect(state.deletedBlobUrls).toContain(BLOB_URL);
+  });
+
+  it("rejects a blobUrl whose stored pathname isn't the one claimed, without deleting it", async () => {
+    // The attacker knows someone else's blob url but pairs it with a pathname
+    // under their own prefix, so the prefix check alone would pass.
+    const VICTIM_URL = "https://blob.example/templates/victim/secret.docx";
+    state.storedFiles[VICTIM_URL] = Buffer.from(`${ZIP_MAGIC}dummy`);
+    state.statPathnames[VICTIM_URL] = "templates/victim/secret.docx";
+    const router = await importRouter();
+
+    const error = await expectORPCError(
+      call(
+        router.create,
+        {
+          blobUrl: VICTIM_URL,
+          blobPathname: BLOB_PATHNAME,
+          originalFilename: "offer.docx",
+        },
+        ctx()
+      ),
+      "BAD_REQUEST"
+    );
+
+    expect(error.message).toBe("Invalid upload");
+    expect(state.insertedValues).toBeNull();
+    // A rejected mismatch must not become a way to destroy another user's blob.
+    expect(state.deletedBlobUrls).toEqual([]);
+  });
+
+  it("rejects the multipart shape, which belongs to a LOCAL_MODE deployment", async () => {
+    const router = await importRouter();
+    const error = await expectORPCError(
+      call(router.create, { file: docxFile() }, ctx()),
+      "BAD_REQUEST"
+    );
+    expect(error.message).toBe("Invalid upload");
   });
 
   it("stores the template referencing the already-uploaded blob", async () => {

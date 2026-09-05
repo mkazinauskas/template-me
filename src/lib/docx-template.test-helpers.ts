@@ -8,8 +8,12 @@ export function readFixture(): Buffer {
   return fs.readFileSync(FIXTURE_PATH);
 }
 
-/** Builds a minimal .docx buffer from a document.xml body string. */
-export function buildDocx(bodyXml: string): Buffer {
+/**
+ * Builds a minimal .docx buffer from a document.xml body string.
+ * `documentRelsXml` is spliced into `word/_rels/document.xml.rels` for tests
+ * that need to exercise relationship handling.
+ */
+export function buildDocx(bodyXml: string, documentRelsXml = ""): Buffer {
   const zip = new PizZip();
   zip.file(
     "[Content_Types].xml",
@@ -30,7 +34,7 @@ export function buildDocx(bodyXml: string): Buffer {
   zip.file(
     "word/_rels/document.xml.rels",
     `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>`
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${documentRelsXml}</Relationships>`
   );
   zip.file(
     "word/document.xml",
