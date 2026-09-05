@@ -314,6 +314,77 @@ function FilledRow({
   );
 }
 
+function RevokedRow({
+  request,
+  onDeleted,
+}: {
+  request: FillRequest;
+  onDeleted: (id: string) => void;
+}) {
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleDelete() {
+    setIsDeleting(true);
+    try {
+      await orpc.fillRequests.delete({ id: request.id });
+      onDeleted(request.id);
+    } catch (err) {
+      setError(orpcErrorMessage(err, "Failed to delete"));
+      setIsDeleting(false);
+      setIsConfirming(false);
+    }
+  }
+
+  return (
+    <li className="rounded-lg border border-border p-3 text-sm text-muted-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <span>Revoked {formatDate(request.revokedAt!)}</span>
+        {isConfirming ? (
+          <span
+            className="inline-flex items-center gap-2"
+            onBlur={(e) => {
+              if (!isDeleting && !e.currentTarget.contains(e.relatedTarget)) setIsConfirming(false);
+            }}
+          >
+            <button
+              type="button"
+              autoFocus
+              onClick={handleDelete}
+              disabled={isDeleting}
+              className="text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
+            >
+              {isDeleting ? "Deleting…" : "Confirm"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsConfirming(false)}
+              disabled={isDeleting}
+              className="text-muted-foreground hover:underline disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setIsConfirming(true)}
+            className="text-red-600 dark:text-red-400 hover:underline"
+          >
+            Delete
+          </button>
+        )}
+      </div>
+      {error && (
+        <p role="alert" className="mt-2 text-red-600 dark:text-red-400">
+          {error}
+        </p>
+      )}
+    </li>
+  );
+}
+
 function PendingRow({
   request,
   onRevoked,
@@ -512,9 +583,7 @@ export function FillRequestsPanel({ templateId, templateName, fields }: FillRequ
               <h2 className="mb-2 text-sm font-semibold text-muted-foreground">Revoked</h2>
               <ul className="flex flex-col gap-2">
                 {revoked.map((r) => (
-                  <li key={r.id} className="rounded-lg border border-border p-3 text-sm text-muted-foreground">
-                    Revoked {formatDate(r.revokedAt!)}
-                  </li>
+                  <RevokedRow key={r.id} request={r} onDeleted={handleDeleted} />
                 ))}
               </ul>
             </div>

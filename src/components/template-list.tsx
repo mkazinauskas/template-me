@@ -152,7 +152,11 @@ export async function TemplateList({
                       </span>
                     )}
                     {scope === "own" && (
-                      <DeleteTemplateButton templateId={t.id} variant="icon" />
+                      <DeleteTemplateButton
+                        templateId={t.id}
+                        variant="icon"
+                        redirectTo={null}
+                      />
                     )}
                   </div>
                 </div>
