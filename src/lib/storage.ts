@@ -53,6 +53,16 @@ export async function putFile(
   return { url: blob.url, pathname: blob.pathname };
 }
 
+/**
+ * The `url` that `putFile` returns for `pathname` in LOCAL_MODE. Lets a
+ * LOCAL_MODE-only caller storing files under deterministic pathnames read them
+ * back from the pathname alone, rather than having to persist the url it was
+ * handed. Meaningless outside LOCAL_MODE, where Blob assigns the url.
+ */
+export function localFileUrl(pathname: string): string {
+  return `${LOCAL_URL_PREFIX}${pathname}`;
+}
+
 export async function getFile(url: string): Promise<Buffer | null> {
   if (LOCAL_MODE) {
     try {

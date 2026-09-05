@@ -6,6 +6,7 @@ import { getDb } from "@/db";
 import { templates } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { canViewTemplate, isTemplateOwner } from "@/lib/template-access";
+import { isDokobitConfigured } from "@/lib/dokobit";
 import { FillForm } from "@/components/fill-form";
 import { DeleteTemplateButton } from "@/components/delete-template-button";
 import { DownloadTemplateButton } from "@/components/download-template-button";
@@ -115,6 +116,7 @@ export async function TemplateDetail({
           fields={template.fields}
           templateName={template.name}
           isOwner={isOwner}
+          signingEnabled={Boolean(session) && isDokobitConfigured()}
         />
       </main>
     </div>

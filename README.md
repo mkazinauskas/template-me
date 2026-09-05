@@ -33,6 +33,7 @@ generate dozens of them at once, packaged into a `.zip`.
 - [Local development with Docker Compose](#local-development-with-docker-compose)
 - [Running with the prebuilt image](#running-with-the-prebuilt-image)
 - [LibreOffice sandbox snapshot](#libreoffice-sandbox-snapshot)
+- [E-signing with Dokobit](#e-signing-with-dokobit)
 - [Database schema changes](#database-schema-changes)
 
 ## How it works
@@ -67,6 +68,12 @@ generate dozens of them at once, packaged into a `.zip`.
    rows are rendered and converted to PDF in a single LibreOffice
    invocation, then zipped together for download — much cheaper than
    booting a sandbox per document.
+5. **Sign** — Instead of downloading the filled document, you can send it
+   straight to **Dokobit** to be e-signed. You enter the signer's email; the
+   server renders the PDF exactly as it would for a download, uploads it to
+   Dokobit's Documents Gateway, opens a signing, and Dokobit emails that
+   person their invitation. Locally this is faked end to end — no account
+   needed — see [below](#e-signing-with-dokobit).
 
 ## Supported field types
 
@@ -98,6 +105,7 @@ upload so you know it wasn't silently mis-rendered.
 | File storage | [Vercel Blob](https://vercel.com/docs/storage/vercel-blob) (private) — stores uploaded `.docx` files |
 | Templating | [docxtemplater](https://docxtemplater.com) — extracts `{{field}}` placeholders and renders the final document ([docx-template.ts](src/lib/docx-template.ts)) |
 | PDF conversion | [Vercel Sandbox](https://vercel.com/docs/vercel-sandbox) running headless LibreOffice — converts rendered `.docx` to PDF, one at a time or in bulk ([docx-to-pdf.ts](src/lib/docx-to-pdf.ts)) |
+| E-signing | [Dokobit Documents Gateway](https://gateway-sandbox.dokobit.com/api/doc) — uploads the filled PDF and invites a signer by email ([dokobit.ts](src/lib/dokobit.ts)), optional per deployment |
 
 ## Local development
 
@@ -239,6 +247,61 @@ npx dotenv -e .env.local -- npx tsx scripts/create-libreoffice-snapshot.ts
 then set `LIBREOFFICE_SANDBOX_SNAPSHOT_ID` locally and/or with
 `vercel env add LIBREOFFICE_SANDBOX_SNAPSHOT_ID` — it only takes effect
 when the build-time generated snapshot is unavailable.
+
+## E-signing with Dokobit
+
+The **Sign with Dokobit** button on a template's fill page sends the filled
+document off for a qualified e-signature (Mobile ID / Smart-ID / ID card) via
+Dokobit's [Documents Gateway](https://gateway-sandbox.dokobit.com/api/doc).
+The flow is: render the PDF → `POST /api/file/upload.json` → poll
+`/api/file/upload/{token}/status.json` → `POST /api/signing/create.json`.
+Passing the signer's email is what makes Dokobit send the invitation mail, so
+the app never delivers the signing link itself (it does show it, so it can be
+copied or re-sent).
+
+Signing is limited to signed-in users and rate-limited more tightly than
+plain document generation, since every call spends real Dokobit quota and
+mails a real person.
+
+### Locally, it's faked
+
+Running in `LOCAL_MODE` with no `DOKOBIT_ACCESS_TOKEN` swaps in a simulated
+gateway ([dokobit/fake.ts](src/lib/dokobit/fake.ts)) — the same substitution
+LOCAL_MODE already makes for Blob storage and the PDF sandbox. Nothing leaves
+the machine and no email is sent. Instead the rendered PDF is filed under
+`dokobit/` in local storage, the details are printed to the server console,
+and the signing link points at `/fake-dokobit/<token>`: a dev-only page that
+shows the document and lets you click **Sign** to simulate the signature.
+
+So `tilt up` gives you a working signing flow with no Dokobit account and no
+configuration at all. Setting a real `DOKOBIT_ACCESS_TOKEN` always wins, so a
+local stack can still be pointed at Dokobit's sandbox when you want to test
+the real wire protocol:
+
+```bash
+# .env.docker — the file the containers read (`env_file:` in docker-compose.yml)
+DOKOBIT_ACCESS_TOKEN=your-sandbox-token
+DOKOBIT_API_URL=https://gateway-sandbox.dokobit.com
+```
+
+`.env*` is gitignored *and* dockerignored, so editing it won't trigger a Tilt
+rebuild — restart with `tilt down && tilt up` to pick the change up.
+
+Outside `LOCAL_MODE` the fake can't engage: `isFakeDokobit()` is false, the
+`/fake-dokobit` route 404s, and its oRPC procedures refuse every call. Without
+a token, a real deployment simply doesn't show the button.
+
+| Variable | Required | Default | Notes |
+| --- | --- | --- | --- |
+| `DOKOBIT_ACCESS_TOKEN` | in production | — | Gateway access token; without it a real deployment doesn't offer signing. Not needed in `LOCAL_MODE`, which falls back to the fake. Sandbox and production tokens are different. |
+| `DOKOBIT_API_URL` | no | `https://gateway.dokobit.com` | Set to `https://gateway-sandbox.dokobit.com` to test against the sandbox. |
+| `DOKOBIT_SIGNING_TYPE` | no | `pdf` | Document type Dokobit creates. Use `pdflt` for the Lithuania-specific PDF signature some institutions require. |
+| `DOKOBIT_LANGUAGE` | no | `lt` | Language of the signing UI and the invitation email (`lt`, `lv`, `et`, `en`, `ru`, `is`). |
+
+Signing state isn't persisted: the app creates the signing and hands back the
+link, but doesn't track whether it was completed. Dokobit can post signing
+events back to a `postback_url` — wiring that up would be the next step if
+you need signed documents returned to the app.
 
 ## Database schema changes
 

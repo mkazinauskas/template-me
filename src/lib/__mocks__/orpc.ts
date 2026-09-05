@@ -15,6 +15,11 @@ export const orpc = {
     download: vi.fn(),
     generate: vi.fn(),
     generateBulk: vi.fn(),
+    sendForSigning: vi.fn(),
+  },
+  fakeDokobit: {
+    download: vi.fn(),
+    sign: vi.fn(),
   },
 };
 

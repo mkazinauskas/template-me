@@ -24,8 +24,9 @@ export function FillForm(props: {
   fields: TemplateField[];
   templateName: string;
   isOwner?: boolean;
+  signingEnabled?: boolean;
 }) {
-  const { isOwner = false, ...formProps } = props;
+  const { isOwner = false, signingEnabled = false, ...formProps } = props;
   const [mode, setMode] = useState<FillMode>("single");
   const tabs = MODE_TABS.filter((tab) => !("ownerOnly" in tab) || isOwner);
 
@@ -49,7 +50,7 @@ export function FillForm(props: {
       </div>
       <div className="flex-1 min-h-0">
         {mode === "single" ? (
-          <SingleFillForm {...formProps} />
+          <SingleFillForm {...formProps} signingEnabled={signingEnabled} />
         ) : mode === "bulk" ? (
           <BulkFillForm {...formProps} />
         ) : (

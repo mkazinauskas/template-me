@@ -27,6 +27,10 @@ export const state: {
   convertBulkError: Error | null;
   session: { user: { id: string; email: string } } | null;
   rateLimited: boolean;
+  dokobitConfigured: boolean;
+  /** Thrown by the mocked `createSigning`; use `DokobitError` for the handled path. */
+  dokobitError: Error | null;
+  dokobitCalls: Record<string, unknown>[];
 } = {
   rows: [],
   insertedValues: null,
@@ -45,6 +49,9 @@ export const state: {
   convertBulkError: null,
   session: { user: { id: "user-1", email: "owner@example.com" } },
   rateLimited: false,
+  dokobitConfigured: true,
+  dokobitError: null,
+  dokobitCalls: [],
 };
 
 export function resetState() {
@@ -68,7 +75,17 @@ export function resetState() {
   state.convertBulkError = null;
   state.session = { user: { id: "user-1", email: "owner@example.com" } };
   state.rateLimited = false;
+  state.dokobitConfigured = true;
+  state.dokobitError = null;
+  state.dokobitCalls = [];
 }
+
+/**
+ * Stand-in for the real `DokobitError`. The router narrows with `instanceof`,
+ * so tests must throw *this* class — the one the mocked module exports — for
+ * the handled (BAD_GATEWAY, message preserved) path.
+ */
+export class MockDokobitError extends Error {}
 
 export function mockTemplatesRouterDeps() {
   vi.doMock("@/db", () => ({
@@ -162,6 +179,19 @@ export function mockTemplatesRouterDeps() {
     convertDocxBuffersToPdf: vi.fn(async (bufs: Buffer[]) => {
       if (state.convertBulkError) throw state.convertBulkError;
       return bufs.map((b) => Buffer.from(`pdf:${b.toString()}`));
+    }),
+  }));
+
+  vi.doMock("@/lib/dokobit", () => ({
+    DokobitError: MockDokobitError,
+    isDokobitConfigured: vi.fn(() => state.dokobitConfigured),
+    createSigning: vi.fn(async (args: Record<string, unknown>) => {
+      state.dokobitCalls.push(args);
+      if (state.dokobitError) throw state.dokobitError;
+      return {
+        signingToken: "signing-token",
+        signingUrl: "https://gateway.dokobit.test/signing/signing-token?access_token=signer-token",
+      };
     }),
   }));
 

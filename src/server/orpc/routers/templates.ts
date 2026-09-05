@@ -6,6 +6,7 @@ import { templates, type Template, type TemplateField } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { extractFields } from "@/lib/docx-template";
 import { convertDocxToPdf } from "@/lib/docx-to-pdf";
+import { createSigning, DokobitError, isDokobitConfigured } from "@/lib/dokobit";
 import { deleteFile, getFile, putFile, statFile, type StoredFile } from "@/lib/storage";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import {
@@ -33,6 +34,11 @@ type Session = Awaited<ReturnType<typeof auth.api.getSession>>;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX_USER = 10;
 const RATE_LIMIT_MAX_ANON = 4;
+
+// `sendForSigning` renders a PDF *and* spends the deployment's Dokobit quota
+// (each call creates a real signing and mails a real person), so it gets its
+// own key at a tighter cap than plain document generation.
+const RATE_LIMIT_MAX_SIGNING = 5;
 
 // generateBulk allows up to MAX_BULK_ROWS (100) documents per call, which
 // combined with RATE_LIMIT_MAX_ANON would let an anonymous visitor to any
@@ -240,6 +246,33 @@ async function createFromBlob(
   return { template: row, warnings: validated.warnings };
 }
 
+/**
+ * Loads the template's stored .docx and fills it with one row of data. Both
+ * failure paths shut down the PDF sandbox that the caller has already started
+ * booting in parallel, since neither ever reaches conversion.
+ */
+async function renderFilledDocx(
+  templateRow: Template,
+  data: Record<string, unknown>,
+  stopIfUnused: () => void
+): Promise<Buffer> {
+  const originalDocx = await getFile(templateRow.blobUrl);
+  if (!originalDocx) {
+    stopIfUnused();
+    throw new ORPCError("INTERNAL_SERVER_ERROR", {
+      message: "Template file is missing from storage",
+    });
+  }
+  try {
+    return renderRow(templateRow, originalDocx, data);
+  } catch {
+    stopIfUnused();
+    throw new ORPCError("INTERNAL_SERVER_ERROR", {
+      message: "Failed to fill in the document",
+    });
+  }
+}
+
 async function enforceGenerateRateLimit(session: Session, headers: Headers): Promise<void> {
   const key = session
     ? `generate:${session.user.id}`
@@ -252,6 +285,19 @@ async function enforceGenerateRateLimit(session: Session, headers: Headers): Pro
     throw new ORPCError("TOO_MANY_REQUESTS", {
       message:
         "Too many document generation requests. Please wait a moment and try again.",
+      data: { retryAfterSeconds },
+    });
+  }
+}
+
+async function enforceSigningRateLimit(userId: string): Promise<void> {
+  const { allowed, retryAfterSeconds } = await checkRateLimit(`signing:${userId}`, {
+    windowMs: RATE_LIMIT_WINDOW_MS,
+    max: RATE_LIMIT_MAX_SIGNING,
+  });
+  if (!allowed) {
+    throw new ORPCError("TOO_MANY_REQUESTS", {
+      message: "Too many signing requests. Please wait a moment and try again.",
       data: { retryAfterSeconds },
     });
   }
@@ -378,23 +424,7 @@ export const templatesRouter = {
       const needsPdf = preview || format === "pdf";
       const { sandboxPromise, stopIfUnused } = startPdfSandbox(needsPdf);
 
-      const originalDocx = await getFile(templateRow.blobUrl);
-      if (!originalDocx) {
-        stopIfUnused();
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Template file is missing from storage",
-        });
-      }
-
-      let renderedDocx: Buffer;
-      try {
-        renderedDocx = renderRow(templateRow, originalDocx, input.data);
-      } catch {
-        stopIfUnused();
-        throw new ORPCError("INTERNAL_SERVER_ERROR", {
-          message: "Failed to fill in the document",
-        });
-      }
+      const renderedDocx = await renderFilledDocx(templateRow, input.data, stopIfUnused);
 
       const baseName = sanitizeFilename(templateRow.name);
 
@@ -417,6 +447,81 @@ export const templatesRouter = {
       return new File([new Uint8Array(pdfBuffer)], `${baseName}.pdf`, {
         type: "application/pdf",
       });
+    }),
+
+  /**
+   * Fills a template, renders it to PDF, and hands it to Dokobit's Documents
+   * Gateway to be e-signed. Dokobit mails the invitation to `signer.email`
+   * itself; the personal signing URL is returned as well so the caller can
+   * show it (or re-send it) without waiting for that mail.
+   *
+   * Signed-in callers only, unlike `generate` — every call spends real Dokobit
+   * quota and mails a real person, which is not something an anonymous visitor
+   * to a public template should be able to trigger.
+   */
+  sendForSigning: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        data: rowData,
+        signer: z.object({
+          email: z.email(),
+          name: z.string().trim().min(1).max(100),
+          surname: z.string().trim().min(1).max(100),
+        }),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      if (!isDokobitConfigured()) {
+        throw new ORPCError("NOT_IMPLEMENTED", {
+          message: "Document signing is not configured on this server",
+        });
+      }
+      await enforceSigningRateLimit(context.session.user.id);
+      const templateRow = await loadViewableTemplate(input.id, context.session);
+
+      // A document going out for a legally binding signature is never a draft:
+      // it gets the same full validation as a real download, never the
+      // preview's relaxed pass.
+      const validationError = validateRow(templateRow, input.data, false);
+      if (validationError) {
+        throw new ORPCError("BAD_REQUEST", { message: validationError });
+      }
+
+      const { sandboxPromise, stopIfUnused } = startPdfSandbox(true);
+      const renderedDocx = await renderFilledDocx(templateRow, input.data, stopIfUnused);
+
+      let pdfBuffer: Buffer;
+      try {
+        pdfBuffer = await convertDocxToPdf(renderedDocx, sandboxPromise!);
+      } catch (err) {
+        console.error("PDF conversion failed", err);
+        throw new ORPCError("INTERNAL_SERVER_ERROR", {
+          message: "Failed to convert document to PDF",
+        });
+      }
+
+      const baseName = sanitizeFilename(templateRow.name);
+      try {
+        const signing = await createSigning({
+          pdf: pdfBuffer,
+          filename: `${baseName}.pdf`,
+          signingName: templateRow.name,
+          signer: input.signer,
+          signerId: crypto.randomUUID(),
+        });
+        return { ...signing, email: input.signer.email };
+      } catch (err) {
+        if (err instanceof DokobitError) {
+          // Dokobit's own messages name the offending parameter, so they're
+          // worth surfacing rather than flattening to "something went wrong".
+          throw new ORPCError("BAD_GATEWAY", { message: err.message });
+        }
+        console.error("Dokobit signing failed", err);
+        throw new ORPCError("BAD_GATEWAY", {
+          message: "Failed to send the document for signing",
+        });
+      }
     }),
 
   /**

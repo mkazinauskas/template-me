@@ -1,5 +1,6 @@
 import { templatesRouter } from "@/server/orpc/routers/templates";
 import { fillRequestsRouter } from "@/server/orpc/routers/fill-requests";
+import { fakeDokobitRouter } from "@/server/orpc/routers/fake-dokobit";
 
 /**
  * The application's entire API surface. Every endpoint the browser calls is a
@@ -13,6 +14,8 @@ import { fillRequestsRouter } from "@/server/orpc/routers/fill-requests";
 export const router = {
   templates: templatesRouter,
   fillRequests: fillRequestsRouter,
+  // Dev-only: inert unless the app runs on the simulated Dokobit gateway.
+  fakeDokobit: fakeDokobitRouter,
 };
 
 export type AppRouter = typeof router;

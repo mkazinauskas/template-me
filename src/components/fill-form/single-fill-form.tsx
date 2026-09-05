@@ -15,11 +15,23 @@ import { usePersistedValues } from "./use-persisted-values";
 import { useLivePreview } from "./use-live-preview";
 import { ValuesToolbar } from "./values-toolbar";
 import { FieldGroups } from "./field-groups";
+import { DokobitSignPanel } from "./dokobit-sign-panel";
 
-type FillFormProps = { templateId: string; fields: TemplateField[]; templateName: string };
+type FillFormProps = {
+  templateId: string;
+  fields: TemplateField[];
+  templateName: string;
+  /** Whether this deployment has Dokobit credentials — see `isDokobitConfigured`. */
+  signingEnabled?: boolean;
+};
 type OutputFormat = "pdf" | "docx";
 
-export function SingleFillForm({ templateId, fields, templateName }: FillFormProps) {
+export function SingleFillForm({
+  templateId,
+  fields,
+  templateName,
+  signingEnabled = false,
+}: FillFormProps) {
   const { values, setValues, persist } = usePersistedValues(templateId, fields);
   const { previewUrl, isPreviewLoading, previewError } = useLivePreview(templateId, values);
 
@@ -120,6 +132,8 @@ export function SingleFillForm({ templateId, fields, templateName }: FillFormPro
             <option value="docx">Word (.docx)</option>
           </select>
         </div>
+
+        {signingEnabled && <DokobitSignPanel templateId={templateId} values={values} />}
       </form>
 
       <ResizeHandle onPointerDown={startResizing} onReset={resetWidth} />
