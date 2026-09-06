@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import type { FillRequest, TemplateField } from "@/db/schema";
 import { buttonClasses } from "@/components/ui/button";
 import { downloadBlob } from "@/lib/download";
@@ -10,6 +11,7 @@ import { blankValues } from "@/components/fill-form/field-grouping";
 import { FieldGroups } from "@/components/fill-form/field-groups";
 import { useLivePreview } from "@/components/fill-form/use-live-preview";
 import { DocumentPreviewPane } from "@/components/document-preview-pane";
+import { useResizablePaneWidth, ResizeHandle } from "@/hooks/use-resizable-pane-width";
 
 type FillRequestsPanelProps = {
   templateId: string;
@@ -160,6 +162,13 @@ function EditFilledData({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { previewUrl, isPreviewLoading, previewError } = useLivePreview(templateId, values);
+  const { width: fieldsWidth, containerRef, startResizing, resetWidth } =
+    useResizablePaneWidth({
+      storageKey: "fillRequestEditPaneWidth",
+      min: 240,
+      max: 640,
+      defaultWidth: 288,
+    });
 
   async function handleSave() {
     setIsSaving(true);
@@ -173,8 +182,11 @@ function EditFilledData({
   }
 
   return (
-    <div className="flex h-[28rem] flex-col gap-4 lg:flex-row">
-      <div className="flex flex-col gap-4 overflow-y-auto lg:w-72 lg:shrink-0">
+    <div ref={containerRef} className="flex h-[28rem] flex-col gap-4 lg:flex-row lg:gap-0">
+      <div
+        style={{ "--fields-width": `${fieldsWidth}px` } as CSSProperties}
+        className="flex flex-col gap-4 overflow-y-auto lg:w-[var(--fields-width)] lg:shrink-0"
+      >
         <FieldGroups
           fields={fields}
           values={values}
@@ -204,6 +216,9 @@ function EditFilledData({
           </button>
         </div>
       </div>
+
+      <ResizeHandle onPointerDown={startResizing} onReset={resetWidth} />
+
       <DocumentPreviewPane
         url={previewUrl}
         loading={isPreviewLoading}

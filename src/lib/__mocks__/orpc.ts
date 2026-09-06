@@ -16,6 +16,15 @@ export const orpc = {
     generate: vi.fn(),
     generateBulk: vi.fn(),
   },
+  fillRequests: {
+    create: vi.fn(),
+    list: vi.fn(),
+    revoke: vi.fn(),
+    updateData: vi.fn(),
+    delete: vi.fn(),
+    getByCode: vi.fn(),
+    submit: vi.fn(),
+  },
 };
 
 export class ORPCError extends Error {
