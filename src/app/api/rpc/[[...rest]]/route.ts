@@ -1,3 +1,7 @@
+// Side-effect import: validates the environment as soon as this route is
+// loaded, which is also what makes `next build`'s route-data collection fail
+// on a misconfigured build. Belt-and-braces alongside src/instrumentation.ts,
+// which validates once per server start.
 import "@/lib/env";
 import { rpcHandler } from "@/server/orpc/handler";
 

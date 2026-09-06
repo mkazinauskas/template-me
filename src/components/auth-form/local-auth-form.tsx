@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
-import { clientEnv } from "@/lib/env";
+import { clientEnv } from "@/lib/env-client";
 import { inputClasses } from "@/components/ui/input";
 import { buttonClasses } from "@/components/ui/button";
 import { AuthCard, FormError } from "./auth-card";

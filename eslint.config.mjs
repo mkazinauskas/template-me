@@ -17,13 +17,15 @@ const eslintConfig = defineConfig([
     },
   },
   {
-    // Environment variables have exactly one entry point: src/lib/env.ts,
-    // which declares, validates and types every var the app reads (see the
-    // header comment there). Reading `process.env` anywhere else in src/
-    // would reintroduce an unvalidated, undocumented var.
+    // Environment variables have exactly two entry points: src/lib/env.ts
+    // (server) and src/lib/env-client.ts (the NEXT_PUBLIC_* vars), which
+    // declare, validate and type every var the app reads. Reading
+    // `process.env` anywhere else in src/ would reintroduce an unvalidated,
+    // undocumented var.
     files: ["src/**/*.{ts,tsx}"],
     ignores: [
       "src/lib/env.ts",
+      "src/lib/env-client.ts",
       // Tests set up their own environment before importing the module under test.
       "src/**/*.test.{ts,tsx}",
       "src/**/*.test-helpers.ts",

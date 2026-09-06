@@ -137,11 +137,19 @@ What the app reads from it:
 | `VERCEL_OIDC_TOKEN` | Authenticates Vercel Sandbox for PDF conversion. **Development tokens expire after 12 hours** — re-run `vercel env pull` when previews suddenly stop rendering. |
 | `LIBREOFFICE_SANDBOX_SNAPSHOT_ID` | Optional. Boots the sandbox from a pre-built snapshot instead of installing LibreOffice per request (see [below](#libreoffice-sandbox-snapshot)). |
 
-[`src/lib/env.ts`](src/lib/env.ts) is the single place the app reads
-environment variables: one Zod schema declaring every variable, its type, its
-default, and which are required where. Nothing else in `src/` touches
-`process.env` — an ESLint rule ([eslint.config.mjs](eslint.config.mjs))
-enforces that, so a new variable has to be declared in the schema to be usable.
+Environment variables have exactly two entry points, split along the
+server/client boundary:
+
+- [`src/lib/env.ts`](src/lib/env.ts) — the server environment. One Zod schema
+  declaring every variable, its type, its default, and which are required
+  where. Never reaches the browser bundle.
+- [`src/lib/env-client.ts`](src/lib/env-client.ts) — the `NEXT_PUBLIC_*`
+  variables, exported as `clientEnv`. The only env module a client component
+  may import.
+
+Nothing else in `src/` touches `process.env` — an ESLint rule
+([eslint.config.mjs](eslint.config.mjs)) enforces that, so a new variable has
+to be declared in one of the two schemas to be usable.
 
 That schema is validated on **every startup**: at import time on the server,
 and again from `register()` in
@@ -154,9 +162,11 @@ start with pieces missing and only fails when you reach the feature that needs
 them — but malformed values (say a `BETTER_AUTH_URL` that isn't a URL) are
 rejected everywhere.
 
-Client-visible variables (`NEXT_PUBLIC_*`) are validated in the same file and
-exported as `clientEnv`, spelled out as literal `process.env.NEXT_PUBLIC_*`
-reads so Next.js still inlines them into the browser bundle at build time.
+`env-client.ts` spells its variables out as literal `process.env.NEXT_PUBLIC_*`
+reads, which is what lets Next.js inline them into the browser bundle at build
+time. The one place the two files meet is `NEXT_PUBLIC_LOCAL_AUTH_PASSWORD`:
+the server schema refuses a production build that has it set, since only the
+server can fail a build.
 
 Other commands:
 

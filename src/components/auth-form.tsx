@@ -2,7 +2,7 @@
 
 import { LocalAuthForm } from "@/components/auth-form/local-auth-form";
 import { OtpAuthForm } from "@/components/auth-form/otp-auth-form";
-import { clientEnv } from "@/lib/env";
+import { clientEnv } from "@/lib/env-client";
 
 // Local Docker Compose has no Resend account to send OTP emails with, so it
 // signs in with a plain email/password form instead of the OTP flow.

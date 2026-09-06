@@ -1,11 +1,15 @@
 import { z } from "zod";
 
 /**
- * The single place this app reads environment variables. Everything else
- * imports `env` (server) or `clientEnv` (browser) from here instead of
- * touching `process.env`, so the full set of vars, their types, their
- * defaults, and the rules for which are required where all live in one
- * schema — enforced by the `no-restricted-syntax` rule in eslint.config.mjs.
+ * The server half of this app's environment: one schema declaring every
+ * variable the server reads, its type, its default, and which are required
+ * where. The browser half — the `NEXT_PUBLIC_*` vars — lives in
+ * src/lib/env-client.ts, which is the only env module a client component may
+ * import; nothing here ever reaches the client bundle.
+ *
+ * Between them the two files are the only place this app touches
+ * `process.env`, enforced by the `no-restricted-syntax` rule in
+ * eslint.config.mjs.
  *
  * Validation runs on every startup: at import time on the server (this module
  * is pulled in by auth.ts, the db client, storage, etc.) and again explicitly
@@ -72,9 +76,10 @@ const serverObject = z.object({
   LIBREOFFICE_SANDBOX_SNAPSHOT_ID: z.string().min(1).optional(),
 
   /**
-   * Validated (not consumed) on the server: it is inlined into the client
-   * bundle, so a production build must never have it set. See the refinement
-   * below and `clientEnv`.
+   * The one `NEXT_PUBLIC_*` var this file declares, and it is validated
+   * rather than consumed: it is inlined into the client bundle, so a
+   * production build must never have it set, and only the server can refuse
+   * a build. Read as a value from src/lib/env-client.ts.
    */
   NEXT_PUBLIC_LOCAL_AUTH_PASSWORD: z.string().min(1).optional(),
 });
@@ -180,8 +185,7 @@ export function validateEnv(source: EnvSource = process.env): Env {
  * request- or startup-frequency, not a hot loop.
  *
  * Server-only: none of these vars exist in the browser. Client components
- * read `clientEnv` instead, and eslint.config.mjs's `no-restricted-syntax`
- * rule keeps anything else from reaching for `process.env` directly.
+ * import `clientEnv` from src/lib/env-client.ts instead.
  */
 export const env = new Proxy({} as Env, {
   get(_target, key) {
@@ -200,34 +204,12 @@ export const env = new Proxy({} as Env, {
   },
 });
 
-const clientSchema = z.object({
-  NEXT_PUBLIC_LOCAL_MODE: flag,
-  NEXT_PUBLIC_LOCAL_AUTH_EMAIL: z.string().default(""),
-  NEXT_PUBLIC_LOCAL_AUTH_PASSWORD: z.string().default(""),
-});
-
-/**
- * The browser-visible half of the environment, validated at module load in
- * both runtimes.
- *
- * Next.js only inlines a `NEXT_PUBLIC_*` var into the client bundle when the
- * source spells it out as a literal `process.env.NEXT_PUBLIC_X` member
- * expression — a loop over key names or `process.env[key]` is left untouched
- * and arrives as `undefined` in the browser. Hence the explicit object
- * literal here rather than reuse of `readRaw`.
- */
-export const clientEnv = clientSchema.parse({
-  NEXT_PUBLIC_LOCAL_MODE: process.env.NEXT_PUBLIC_LOCAL_MODE || undefined,
-  NEXT_PUBLIC_LOCAL_AUTH_EMAIL: process.env.NEXT_PUBLIC_LOCAL_AUTH_EMAIL || undefined,
-  NEXT_PUBLIC_LOCAL_AUTH_PASSWORD: process.env.NEXT_PUBLIC_LOCAL_AUTH_PASSWORD || undefined,
-});
-
 // Fail fast on the server as soon as anything imports this module — which
 // covers `next build`, the scripts under scripts/, and every server start,
-// including runtimes that never call instrumentation's `register()`. Skipped
-// in the browser, where client components pull this module in for `clientEnv`
-// and none of the server vars exist. (It is also skipped under jsdom in the
-// unit tests, which is harmless — `validateEnv` is tested directly.)
+// including runtimes that never call instrumentation's `register()`. The
+// `window` guard is belt-and-braces — no client component imports this module
+// — and it also skips the parse under jsdom in the unit tests, which is
+// harmless: `validateEnv` is tested directly.
 if (typeof window === "undefined") {
   validateEnv();
 }
