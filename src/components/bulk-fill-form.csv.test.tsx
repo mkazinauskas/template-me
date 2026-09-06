@@ -37,7 +37,11 @@ describe("BulkFillForm — CSV upload", () => {
     expect(screen.getByDisplayValue("Jane Doe")).toBeInTheDocument();
     expect(screen.getByDisplayValue("John Roe")).toBeInTheDocument();
 
-    const fullNameMapping = screen.getByLabelText(/^Full name$/) as HTMLSelectElement;
+    // The mapping label carries the raw tag and type badge alongside the field
+    // label, so its accessible name reads "Full name {{full_name}} string".
+    const fullNameMapping = screen.getByRole("combobox", {
+      name: /^Full name\b/,
+    }) as HTMLSelectElement;
     expect(fullNameMapping.value).toBe("Full name ({{full_name}})");
   });
 

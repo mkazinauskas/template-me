@@ -1,9 +1,11 @@
 import "@/lib/env";
 import { betterAuth } from "better-auth";
+import { createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { emailOTP } from "better-auth/plugins/email-otp";
 import { getDb } from "@/db";
 import * as schema from "@/db/schema";
+import { logAuthEvent } from "@/lib/auth-events";
 import { sendEmail } from "@/lib/email";
 
 const siteUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
@@ -54,6 +56,52 @@ export const auth = betterAuth({
   // the limit actually hold across instances.
   rateLimit: {
     storage: "database",
+    // These paths are the entire brute-force surface of sign-in, and until now
+    // their limits came from better-auth's own defaults — which a version bump
+    // could loosen without anything here noticing. Pinned at the values the
+    // library currently applies so the posture is explicit and a regression
+    // shows up as a diff. 3 per minute on `/sign-in/email-otp` also matches the
+    // OTP's own 3-wrong-guesses-and-the-code-dies cap (emailOTP's
+    // `allowedAttempts` default), so a looser limit here would buy an attacker
+    // nothing anyway.
+    customRules: {
+      "/sign-in/email-otp": { window: 60, max: 3 },
+      "/email-otp/send-verification-otp": { window: 60, max: 3 },
+      "/email-otp/verify-email": { window: 60, max: 3 },
+      // Only reachable in LOCAL_MODE (see `emailAndPassword` above), where a
+      // password is accepted — but the seeded demo account's password is
+      // guessable, so keep the published demo image throttled too.
+      "/sign-in/email": { window: 10, max: 3 },
+    },
+  },
+  advanced: {
+    ipAddress: {
+      // better-auth reads `x-forwarded-for` by default and, with no
+      // `trustedProxies` configured, refuses to trust it whenever it carries
+      // more than one hop — falling back to a single shared per-path bucket for
+      // *every* caller. Behind a self-hosted proxy that appends a hop, that
+      // turns a 3-per-minute sign-in limit into a global one: one attacker
+      // hammering sign-in would lock every user out. These headers are all
+      // single-valued on Vercel, and `x-vercel-forwarded-for` additionally
+      // survives a proxy stacked on top of it.
+      ipAddressHeaders: ["x-vercel-forwarded-for", "x-real-ip", "x-forwarded-for"],
+    },
+  },
+  hooks: {
+    // Runs after every auth endpoint, for both successes and failures (a failed
+    // endpoint leaves an APIError in `context.returned` rather than throwing).
+    // `logAuthEvent` filters down to the sign-in paths and swallows its own
+    // errors — a throw here that isn't an APIError would propagate out of the
+    // request, so it must never be able to break sign-in.
+    after: createAuthMiddleware(async (ctx) => {
+      logAuthEvent({
+        path: ctx.path,
+        body: ctx.body,
+        headers: ctx.headers,
+        returned: ctx.context.returned,
+        newSession: ctx.context.newSession,
+      });
+    }),
   },
   secret: process.env.BETTER_AUTH_SECRET,
   baseURL: siteUrl,

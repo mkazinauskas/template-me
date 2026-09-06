@@ -88,8 +88,10 @@ describe("escapeCsvField", () => {
   });
 
   it("prefixes a leading '+' formula with a single-quote", () => {
+    // The defanged value still contains commas and quotes, so RFC 4180 quoting
+    // applies on top of the prefix (quotes doubled, whole field wrapped).
     expect(escapeCsvField('+HYPERLINK("http://evil.example","click")')).toBe(
-      '\'+HYPERLINK("http://evil.example","click")'
+      '"\'+HYPERLINK(""http://evil.example"",""click"")"'
     );
   });
 
@@ -103,7 +105,8 @@ describe("escapeCsvField", () => {
 
   it("prefixes a value starting with a tab or carriage return", () => {
     expect(escapeCsvField("\t=1+1")).toBe("'\t=1+1");
-    expect(escapeCsvField("\r=1+1")).toBe("'\r=1+1");
+    // A carriage return additionally forces RFC 4180 quoting; a tab doesn't.
+    expect(escapeCsvField("\r=1+1")).toBe('"\'\r=1+1"');
   });
 
   it("still applies RFC 4180 quoting after defanging a formula that also contains a comma", () => {

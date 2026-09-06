@@ -20,9 +20,47 @@ import { rateLimit } from "@/db/schema";
  * duration of the statement, so concurrent requests for the same key can't
  * both read a stale count and both be allowed through.
  */
-/** Best-effort client IP from proxy headers, for keying anonymous callers. */
+/**
+ * Headers to read the client address from, most trustworthy first. Vercel sets
+ * all three to the real client IP, and deliberately *overwrites* any
+ * `x-forwarded-for` a client sends rather than forwarding it, so the value is
+ * unspoofable there — but `x-vercel-forwarded-for` is the one that survives a
+ * proxy stacked on top of Vercel, so it's preferred.
+ */
+const IP_HEADERS = ["x-vercel-forwarded-for", "x-real-ip", "x-forwarded-for"] as const;
+
+/** Longest possible textual IPv6 address (an IPv4-mapped one, e.g. `::ffff:255.255.255.255`). */
+const MAX_IP_LENGTH = 45;
+
+/**
+ * Best-effort client IP from proxy headers, for keying anonymous callers.
+ *
+ * Reads the *last* hop of a forwarded chain, not the first. The first entry is
+ * whatever the original caller claimed: the self-hosted deployment (see
+ * Dockerfile/docker-compose.yml) sits behind whatever proxy the operator runs,
+ * and the stock nginx `$proxy_add_x_forwarded_for` appends the peer address to
+ * the client-supplied header — so an attacker sending `X-Forwarded-For: 9.9.9.9`
+ * arrives as `9.9.9.9, <their real ip>`. Trusting the first entry there would
+ * let anyone mint a fresh rate-limit bucket per request just by varying a
+ * header, defeating the throttles on document generation and on guessing
+ * fill-request codes. The last entry is the hop the nearest proxy added, which
+ * is the only one we can attribute. On Vercel the chain is a single value, so
+ * first and last are the same address.
+ *
+ * Falls back to a single shared `"unknown"` bucket when no address can be read,
+ * which over-throttles rather than under-throttles.
+ */
 export function clientIp(headers: Headers): string {
-  return headers.get("x-forwarded-for")?.split(",")[0].trim() || "unknown";
+  for (const header of IP_HEADERS) {
+    const lastHop = headers.get(header)?.split(",").at(-1)?.trim();
+    // Bounded and charset-checked because this value becomes part of a rate
+    // limit key — a unique-indexed text column — so an unvalidated header
+    // would let a caller write arbitrary rows into it.
+    if (lastHop && lastHop.length <= MAX_IP_LENGTH && /^[0-9a-fA-F.:]+$/.test(lastHop)) {
+      return lastHop;
+    }
+  }
+  return "unknown";
 }
 
 export async function checkRateLimit(

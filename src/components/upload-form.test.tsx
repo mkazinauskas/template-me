@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { UploadForm } from "@/components/upload-form";
 import { ORPCError, orpc } from "@/lib/orpc";
@@ -34,11 +34,23 @@ describe("UploadForm", () => {
     createMock().mockReset().mockResolvedValue({ template: { id: "new-id" }, warnings: [] } as never);
   });
 
-  it("shows a validation error when submitting without a file", async () => {
+  it("keeps the submit button disabled until a file is chosen", async () => {
     const user = userEvent.setup();
     render(<UploadForm localMode userId="user-1" />);
 
-    await user.click(screen.getByRole("button", { name: "Upload template" }));
+    const submit = screen.getByRole("button", { name: "Upload template" });
+    expect(submit).toBeDisabled();
+
+    await user.upload(screen.getByLabelText("Word document (.docx)"), docxFile());
+    expect(submit).toBeEnabled();
+  });
+
+  it("shows a validation error if a submit gets through without a file", async () => {
+    render(<UploadForm localMode userId="user-1" />);
+
+    // The disabled submit button above is what stops this in the UI, so drive
+    // the form directly to reach the handler's own guard behind it.
+    fireEvent.submit(screen.getByRole("button", { name: "Upload template" }).closest("form")!);
 
     expect(await screen.findByText("Choose a .docx file first")).toBeInTheDocument();
     expect(orpc.templates.create).not.toHaveBeenCalled();
@@ -50,7 +62,11 @@ describe("UploadForm", () => {
 
     const fileInput = screen.getByLabelText("Word document (.docx)") as HTMLInputElement;
     await user.upload(fileInput, docxFile());
-    await user.type(screen.getByLabelText("Template name (optional)"), "Offer Letter");
+    // Choosing a file prefills the name from the filename, so clear it before
+    // typing a different one (see "prefills the template name" below).
+    const nameInput = screen.getByLabelText("Template name (optional)");
+    await user.clear(nameInput);
+    await user.type(nameInput, "Offer Letter");
     await user.click(screen.getByRole("button", { name: "Upload template" }));
 
     await waitFor(() =>
