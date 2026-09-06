@@ -34,6 +34,10 @@ export async function convertWithLocalSoffice(docxBuffers: Buffer[]): Promise<Bu
           dir,
           ...names.map((name) => path.join(dir, name)),
         ],
+        // Forwards the whole environment to the child process (PATH included)
+        // rather than reading a specific var, so it does not go through
+        // src/lib/env.ts.
+        // eslint-disable-next-line no-restricted-syntax
         { timeout: 120_000, env: { ...process.env, HOME: dir } }
       );
     } catch (err) {

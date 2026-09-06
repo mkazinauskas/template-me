@@ -13,6 +13,7 @@
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
 import { buildLibreOfficeSnapshot } from "./build-libreoffice-snapshot";
+import { env } from "../src/lib/env";
 
 const GENERATED_FILE = path.join(
   import.meta.dirname,
@@ -30,7 +31,7 @@ async function writeSnapshotId(snapshotId: string | undefined) {
 }
 
 async function main() {
-  if (process.env.LOCAL_MODE === "true") {
+  if (env.LOCAL_MODE) {
     console.log("[libreoffice-snapshot] LOCAL_MODE is set, skipping (no sandbox is used).");
     return;
   }

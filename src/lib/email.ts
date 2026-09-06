@@ -1,3 +1,5 @@
+import { env } from "@/lib/env";
+
 const RESEND_API_URL = "https://api.resend.com/emails";
 
 export async function sendEmail({
@@ -9,8 +11,8 @@ export async function sendEmail({
   subject: string;
   text: string;
 }) {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.RESEND_FROM_EMAIL;
+  const apiKey = env.RESEND_API_KEY;
+  const from = env.RESEND_FROM_EMAIL;
   if (!apiKey || !from) {
     throw new Error("RESEND_API_KEY and RESEND_FROM_EMAIL must be set to send email");
   }

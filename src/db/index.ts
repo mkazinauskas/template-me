@@ -2,6 +2,7 @@ import { neon } from "@neondatabase/serverless";
 import { drizzle as drizzleNeon } from "drizzle-orm/neon-http";
 import { drizzle as drizzleNodePg } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import { env } from "@/lib/env";
 import * as schema from "./schema";
 
 function createDb() {
@@ -11,8 +12,10 @@ function createDb() {
   // Both drivers implement the same drizzle query builder surface that this
   // app relies on (select/insert/update/delete), so the two are used
   // interchangeably behind `getDb()`.
-  if (process.env.LOCAL_MODE === "true") {
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
+  if (env.LOCAL_MODE) {
+    // Non-null: DATABASE_URL is required in production (see src/lib/env.ts),
+    // and both local modes set it explicitly.
+    const pool = new Pool({ connectionString: env.DATABASE_URL! });
     // Without this listener, an error on an idle pooled client (e.g. the
     // backend restarting the connection) is emitted as an unhandled "error"
     // event and crashes the process — see node-postgres's Pool docs.
@@ -21,7 +24,7 @@ function createDb() {
     });
     return drizzleNodePg(pool, { schema }) as unknown as ReturnType<typeof drizzleNeon>;
   }
-  const sql = neon(process.env.DATABASE_URL!);
+  const sql = neon(env.DATABASE_URL!);
   return drizzleNeon(sql, { schema });
 }
 

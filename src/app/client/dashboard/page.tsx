@@ -6,6 +6,7 @@ import { UploadForm } from "@/components/upload-form";
 import { TemplateList } from "@/components/template-list";
 import { AppHeader } from "@/components/app-header";
 import { auth } from "@/lib/auth";
+import { env } from "@/lib/env";
 
 export const dynamic = "force-dynamic";
 
@@ -42,7 +43,7 @@ export default async function DashboardPage({
 
         <div className="animate-fade-in-up" style={{ animationDelay: "0.1s" }}>
           <UploadForm
-            localMode={process.env.LOCAL_MODE === "true"}
+            localMode={env.LOCAL_MODE}
             userId={session?.user.id ?? ""}
           />
         </div>

@@ -1,4 +1,4 @@
-import "@/lib/env";
+import { env } from "@/lib/env";
 import { betterAuth } from "better-auth";
 import { createAuthMiddleware } from "better-auth/api";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
@@ -8,19 +8,13 @@ import * as schema from "@/db/schema";
 import { logAuthEvent } from "@/lib/auth-events";
 import { sendEmail } from "@/lib/email";
 
-const siteUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL
-  ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
-  : process.env.VERCEL_URL
-    ? `https://${process.env.VERCEL_URL}`
-    : process.env.BETTER_AUTH_URL || "http://localhost:3000";
-
 export const auth = betterAuth({
   database: drizzleAdapter(getDb(), { provider: "pg", schema }),
   // Local Docker Compose has no Resend account to send OTP emails with, so
   // it seeds one static account (see scripts/seed-local-user.ts) and signs
   // in with a plain password instead — see AuthForm's LOCAL_MODE branch.
   emailAndPassword: {
-    enabled: process.env.LOCAL_MODE === "true",
+    enabled: env.LOCAL_MODE,
     // Enabling credential login also exposes `POST /api/auth/sign-up/email`,
     // which would let anyone who can reach a LOCAL_MODE deployment (the
     // published demo image included) register an account by raw HTTP request,
@@ -28,7 +22,7 @@ export const auth = betterAuth({
     // never sets LOCAL_ALLOW_SIGNUP, so sign-up stays closed there; only
     // scripts/seed-local-user.ts — a separate process, run once at startup —
     // sets it to create that static account.
-    disableSignUp: process.env.LOCAL_ALLOW_SIGNUP !== "true",
+    disableSignUp: !env.LOCAL_ALLOW_SIGNUP,
   },
   user: {
     additionalFields: {
@@ -103,10 +97,10 @@ export const auth = betterAuth({
       });
     }),
   },
-  secret: process.env.BETTER_AUTH_SECRET,
-  baseURL: siteUrl,
+  secret: env.BETTER_AUTH_SECRET,
+  baseURL: env.SITE_URL,
   // `next dev` picks a different port when the default is already in use,
   // so pin the origin check to the deployed URL but allow any localhost
   // port in development instead of hardcoding one.
-  trustedOrigins: process.env.NODE_ENV === "production" ? undefined : ["http://localhost:*"],
+  trustedOrigins: env.NODE_ENV === "production" ? undefined : ["http://localhost:*"],
 });

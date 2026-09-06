@@ -9,10 +9,9 @@ process.env.LOCAL_ALLOW_SIGNUP = "true";
 
 async function main() {
   const { auth } = await import("../src/lib/auth");
+  const { env } = await import("../src/lib/env");
 
-  const email = process.env.LOCAL_AUTH_EMAIL || "demo@example.com";
-  const password = process.env.LOCAL_AUTH_PASSWORD || "localpassword123";
-  const name = process.env.LOCAL_AUTH_NAME || "Local User";
+  const { LOCAL_AUTH_EMAIL: email, LOCAL_AUTH_PASSWORD: password, LOCAL_AUTH_NAME: name } = env;
 
   try {
     await auth.api.signUpEmail({ body: { email, password, name } });

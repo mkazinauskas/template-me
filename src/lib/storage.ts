@@ -6,9 +6,10 @@ import {
 } from "@vercel/blob";
 import { mkdir, readFile, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { env } from "@/lib/env";
 
-const LOCAL_MODE = process.env.LOCAL_MODE === "true";
-const LOCAL_STORAGE_DIR = process.env.LOCAL_STORAGE_DIR || "/data/blobs";
+const LOCAL_MODE = env.LOCAL_MODE;
+const LOCAL_STORAGE_DIR = env.LOCAL_STORAGE_DIR;
 const LOCAL_URL_PREFIX = "local://";
 
 export type StoredFile = { url: string; pathname: string };

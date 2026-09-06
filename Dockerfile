@@ -59,7 +59,7 @@ ENV NEXT_PUBLIC_LOCAL_MODE=$NEXT_PUBLIC_LOCAL_MODE
 ENV NEXT_PUBLIC_LOCAL_AUTH_EMAIL=$NEXT_PUBLIC_LOCAL_AUTH_EMAIL
 ENV NEXT_PUBLIC_LOCAL_AUTH_PASSWORD=$NEXT_PUBLIC_LOCAL_AUTH_PASSWORD
 # `next build` collects route data by importing every API route, which
-# imports auth.ts, which imports env.ts — whose assertEnv() throws if
+# imports auth.ts, which imports env.ts — whose schema validation throws if
 # DATABASE_URL/BETTER_AUTH_SECRET/BETTER_AUTH_URL/BLOB_READ_WRITE_TOKEN are
 # missing in a production build without LOCAL_MODE=true. So these all need
 # to exist at build time too (as placeholders; nothing actually connects

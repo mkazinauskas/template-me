@@ -132,16 +132,31 @@ What the app reads from it:
 | `DATABASE_URL` | Neon Postgres connection string ([db/index.ts](src/db/index.ts)). |
 | `BLOB_READ_WRITE_TOKEN` | Vercel Blob store for uploaded `.docx` files. Read by `@vercel/blob` under this exact name. |
 | `BETTER_AUTH_SECRET` | Signs session cookies. Generate one with `openssl rand -base64 32`. |
-| `BETTER_AUTH_URL` | The site's public origin. Only load-bearing off Vercel — on Vercel, `VERCEL_URL` wins ([site-url.ts](src/lib/site-url.ts)). |
+| `BETTER_AUTH_URL` | The site's public origin. Only load-bearing off Vercel — on Vercel, `VERCEL_URL` wins ([env.ts](src/lib/env.ts)). |
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Sends the sign-in code ([email.ts](src/lib/email.ts)). |
 | `VERCEL_OIDC_TOKEN` | Authenticates Vercel Sandbox for PDF conversion. **Development tokens expire after 12 hours** — re-run `vercel env pull` when previews suddenly stop rendering. |
 | `LIBREOFFICE_SANDBOX_SNAPSHOT_ID` | Optional. Boots the sandbox from a pre-built snapshot instead of installing LibreOffice per request (see [below](#libreoffice-sandbox-snapshot)). |
 
-[`src/lib/env.ts`](src/lib/env.ts) asserts the required ones at startup, so a
-misconfigured deployment fails immediately with a list of what's missing rather
-than throwing something opaque on the first request that touches one. The check
-only runs for production builds — `next dev` lets you start with pieces missing
-and only fails when you reach the feature that needs them.
+[`src/lib/env.ts`](src/lib/env.ts) is the single place the app reads
+environment variables: one Zod schema declaring every variable, its type, its
+default, and which are required where. Nothing else in `src/` touches
+`process.env` — an ESLint rule ([eslint.config.mjs](eslint.config.mjs))
+enforces that, so a new variable has to be declared in the schema to be usable.
+
+That schema is validated on **every startup**: at import time on the server,
+and again from `register()` in
+[`src/instrumentation.ts`](src/instrumentation.ts), which Next.js runs once per
+server instance before it handles any request. A misconfigured deployment
+therefore fails immediately with a list of exactly what is wrong, rather than
+throwing something opaque on the first request that touches a missing value.
+The *required* rules only apply to production builds — `next dev` lets you
+start with pieces missing and only fails when you reach the feature that needs
+them — but malformed values (say a `BETTER_AUTH_URL` that isn't a URL) are
+rejected everywhere.
+
+Client-visible variables (`NEXT_PUBLIC_*`) are validated in the same file and
+exported as `clientEnv`, spelled out as literal `process.env.NEXT_PUBLIC_*`
+reads so Next.js still inlines them into the browser bundle at build time.
 
 Other commands:
 
@@ -278,10 +293,10 @@ available without extra plumbing.
    | `RESEND_API_KEY` | A [Resend](https://resend.com) API key — sign-in codes are emailed through it. |
    | `RESEND_FROM_EMAIL` | A sender address on a domain verified with Resend. |
 
-   `BETTER_AUTH_URL` is **not** needed here: both
-   [`auth.ts`](src/lib/auth.ts) and [`site-url.ts`](src/lib/site-url.ts) prefer
-   `VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_URL`, which the platform sets on
-   every deployment. Vercel Sandbox needs no configuration either — deployed
+   `BETTER_AUTH_URL` is **not** needed here: the site origin resolved in
+   [`env.ts`](src/lib/env.ts) — used for both better-auth's `baseURL` and page
+   metadata — prefers `VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_URL`, which the
+   platform sets on every deployment. Vercel Sandbox needs no configuration either — deployed
    functions authenticate to it with the OIDC token Vercel injects.
 
 5. **Create the tables** once, against the production database:

@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import { clientEnv } from "@/lib/env";
 import { inputClasses } from "@/components/ui/input";
 import { buttonClasses } from "@/components/ui/button";
 import { AuthCard, FormError } from "./auth-card";
 import { useAuthRedirect } from "./use-auth-redirect";
 
-const LOCAL_EMAIL = process.env.NEXT_PUBLIC_LOCAL_AUTH_EMAIL ?? "";
-const LOCAL_PASSWORD = process.env.NEXT_PUBLIC_LOCAL_AUTH_PASSWORD ?? "";
+const LOCAL_EMAIL = clientEnv.NEXT_PUBLIC_LOCAL_AUTH_EMAIL;
+const LOCAL_PASSWORD = clientEnv.NEXT_PUBLIC_LOCAL_AUTH_PASSWORD;
 
 /**
  * Plain email/password sign-in used by local Docker Compose, which has no Resend

@@ -3,8 +3,9 @@ import { after } from "next/server";
 import { INSTALL_LIBREOFFICE_CMD } from "./libreoffice-deps";
 import { LIBREOFFICE_SNAPSHOT_ID } from "./libreoffice-snapshot.generated";
 import { convertWithLocalSoffice } from "./docx-to-pdf/local-soffice";
+import { env } from "@/lib/env";
 
-const LOCAL_MODE = process.env.LOCAL_MODE === "true";
+const LOCAL_MODE = env.LOCAL_MODE;
 
 /**
  * Preference order: the snapshot baked into this deployment at build time
@@ -13,7 +14,7 @@ const LOCAL_MODE = process.env.LOCAL_MODE === "true";
  * override via env var, then undefined (fresh install fallback).
  */
 function snapshotId(): string | undefined {
-  return LIBREOFFICE_SNAPSHOT_ID || process.env.LIBREOFFICE_SANDBOX_SNAPSHOT_ID;
+  return LIBREOFFICE_SNAPSHOT_ID || env.LIBREOFFICE_SANDBOX_SNAPSHOT_ID;
 }
 
 /**

@@ -4,6 +4,7 @@ import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { templates, type Template, type TemplateField } from "@/db/schema";
 import { extractFields } from "@/lib/docx-template";
+import { env } from "@/lib/env";
 import { convertDocxToPdf } from "@/lib/docx-to-pdf";
 import { deleteFile, getFile, putFile, statFile, type StoredFile } from "@/lib/storage";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
@@ -297,7 +298,7 @@ export const templatesRouter = {
       // bytes into. Dispatching on the server's own mode rather than on
       // whichever shape the client happened to send stops a caller from
       // selecting the other deployment's code path.
-      const localMode = process.env.LOCAL_MODE === "true";
+      const localMode = env.LOCAL_MODE;
       if (localMode !== ("file" in input)) {
         throw new ORPCError("BAD_REQUEST", { message: "Invalid upload" });
       }
