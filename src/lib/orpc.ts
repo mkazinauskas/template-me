@@ -2,7 +2,7 @@ import { createORPCClient, ORPCError } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 import { SimpleCsrfProtectionLinkPlugin } from "@orpc/client/plugins";
 import type { RouterClient } from "@orpc/server";
-import type { router } from "@/server/orpc/router";
+import type { AppRouter } from "@/server/orpc/router";
 
 /**
  * Typed browser client for the app's oRPC API (see `src/server/orpc/router.ts`).
@@ -24,7 +24,7 @@ const link = new RPCLink({
   plugins: [new SimpleCsrfProtectionLinkPlugin()],
 });
 
-export const orpc: RouterClient<typeof router> = createORPCClient(link);
+export const orpc: RouterClient<AppRouter> = createORPCClient(link);
 
 export { ORPCError };
 

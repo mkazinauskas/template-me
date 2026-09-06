@@ -3,7 +3,6 @@ import { z } from "zod";
 import { desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { templates, type Template, type TemplateField } from "@/db/schema";
-import { auth } from "@/lib/auth";
 import { extractFields } from "@/lib/docx-template";
 import { convertDocxToPdf } from "@/lib/docx-to-pdf";
 import { deleteFile, getFile, putFile, statFile, type StoredFile } from "@/lib/storage";
@@ -21,9 +20,7 @@ import { handleBulk } from "@/server/generate/bulk";
 import { sanitizeFilename } from "@/server/generate/filename";
 import { startPdfSandbox } from "@/server/generate/pdf-sandbox";
 import { renderRow, validateRow } from "@/server/generate/row-validation";
-import { protectedProcedure, publicProcedure } from "@/server/orpc/base";
-
-type Session = Awaited<ReturnType<typeof auth.api.getSession>>;
+import { protectedProcedure, publicProcedure, type Session } from "@/server/orpc/base";
 
 // This procedure boots a Vercel Sandbox + LibreOffice per call (and a bulk call
 // can render/convert up to 100 documents), so it's throttled well below what a
@@ -101,24 +98,31 @@ async function insertTemplateRow(params: {
   return row;
 }
 
-/** Fetches a template by id, enforcing the shared view rule (owner, or public). */
-async function loadViewableTemplate(id: string, session: Session): Promise<Template> {
+/**
+ * Fetches a template by id and applies `isAllowed` to it. A row the caller may
+ * not have is reported as NOT_FOUND rather than FORBIDDEN, so probing ids
+ * can't be used to learn which ones exist.
+ */
+async function loadTemplate(
+  id: string,
+  isAllowed: (row: Template) => boolean
+): Promise<Template> {
   const db = getDb();
   const [row] = await db.select().from(templates).where(eq(templates.id, id));
-  if (!row || !canViewTemplate(row, session?.user.id)) {
+  if (!row || !isAllowed(row)) {
     throw new ORPCError("NOT_FOUND", { message: "Template not found" });
   }
   return row;
 }
 
+/** Fetches a template by id, enforcing the shared view rule (owner, or public). */
+function loadViewableTemplate(id: string, session: Session): Promise<Template> {
+  return loadTemplate(id, (row) => canViewTemplate(row, session?.user.id));
+}
+
 /** Fetches a template by id, requiring the caller to be its owner. */
-export async function loadOwnedTemplate(id: string, userId: string): Promise<Template> {
-  const db = getDb();
-  const [row] = await db.select().from(templates).where(eq(templates.id, id));
-  if (!row || !isTemplateOwner(row, userId)) {
-    throw new ORPCError("NOT_FOUND", { message: "Template not found" });
-  }
-  return row;
+export function loadOwnedTemplate(id: string, userId: string): Promise<Template> {
+  return loadTemplate(id, (row) => isTemplateOwner(row, userId));
 }
 
 function docxTooLargeError(): ORPCError<"BAD_REQUEST", undefined> {
@@ -273,11 +277,7 @@ export const templatesRouter = {
   get: publicProcedure
     .input(z.object({ id: z.string() }))
     .handler(async ({ input, context }) => {
-      const db = getDb();
-      const [row] = await db.select().from(templates).where(eq(templates.id, input.id));
-      if (!row || !canViewTemplate(row, context.session?.user.id)) {
-        throw new ORPCError("NOT_FOUND", { message: "Template not found" });
-      }
+      const row = await loadViewableTemplate(input.id, context.session);
       const template = isTemplateOwner(row, context.session?.user.id)
         ? row
         : publicTemplateView(row);

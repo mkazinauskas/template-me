@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-export const FORM_WIDTH_STORAGE_KEY = "fillFormPaneWidth";
-export const FORM_WIDTH_MIN = 280;
-export const FORM_WIDTH_MAX = 800;
-export const FORM_WIDTH_DEFAULT = 420;
+const FORM_WIDTH_STORAGE_KEY = "fillFormPaneWidth";
+const FORM_WIDTH_MIN = 280;
+const FORM_WIDTH_MAX = 800;
+const FORM_WIDTH_DEFAULT = 420;
 
 /** Drag-to-resize a side pane's width, persisted to localStorage and clamped to [min, max]. */
 export function useResizablePaneWidth({

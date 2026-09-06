@@ -13,7 +13,7 @@ export type Session = Awaited<ReturnType<typeof auth.api.getSession>>;
  * `src/app/api/rpc/[[...rest]]/route.ts`). The session is resolved from these
  * by the `withSession` middleware below rather than being passed in.
  */
-export type BaseContext = { headers: Headers };
+type BaseContext = { headers: Headers };
 
 const base = os.$context<BaseContext>();
 

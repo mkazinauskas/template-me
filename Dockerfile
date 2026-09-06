@@ -51,7 +51,7 @@ WORKDIR /app
 # NEXT_PUBLIC_* vars are inlined into the client bundle at build time, so
 # they have to arrive as build args, not just runtime env — see
 # docker-publish.yml's `-demo` build-args (this Dockerfile's `runner` stage
-# isn't used by local Docker Compose anymore; see Dockerfile.dev).
+# isn't used by local Docker Compose, which builds the `dev` stage above).
 ARG NEXT_PUBLIC_LOCAL_MODE
 ARG NEXT_PUBLIC_LOCAL_AUTH_EMAIL
 ARG NEXT_PUBLIC_LOCAL_AUTH_PASSWORD

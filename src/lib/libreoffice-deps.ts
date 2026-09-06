@@ -5,7 +5,7 @@
 
 export const LO_VERSION = "26.8.0";
 
-export const LO_DEPS = [
+const LO_DEPS = [
   "libXinerama",
   "libXrender",
   "libSM",

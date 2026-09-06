@@ -2,7 +2,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { getDb } from "@/db";
 import { templates } from "@/db/schema";
-import type { TemplateFieldType } from "@/db/schema";
+import type { Template, TemplateFieldType } from "@/db/schema";
 import { and, count, desc, eq, ilike, ne, or, type SQL } from "drizzle-orm";
 import { DeleteTemplateButton } from "@/components/delete-template-button";
 import { buttonClasses } from "@/components/ui/button";
@@ -114,146 +114,186 @@ export async function TemplateList({
   return (
     <div className="flex flex-col gap-4">
       <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {rows.map((t, i) => {
-          const typeCounts = new Map<TemplateFieldType, number>();
-          const groupLabels = new Set<string>();
-          for (const field of t.fields) {
-            typeCounts.set(field.type, (typeCounts.get(field.type) ?? 0) + 1);
-            if (field.groupLabel) groupLabels.add(field.groupLabel);
-          }
-
-          return (
-            <li
-              key={t.id}
-              className="animate-fade-in-up"
-              style={{ animationDelay: `${Math.min(i, 8) * 0.05}s` }}
-            >
-              <div className="group relative flex h-full flex-col gap-3 rounded-xl border border-border bg-white dark:bg-white/[0.02] p-5 transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-white/5">
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-black/[0.04] dark:bg-white/[0.08]">
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                      className="size-4 text-muted-foreground"
-                      aria-hidden="true"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V7.914a2 2 0 00-.586-1.414l-3.914-3.914A2 2 0 0012.086 2H4zm2 9a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
-                  <div className="relative z-10 flex items-center gap-1.5">
-                    {t.isPublic && (
-                      <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
-                        Public
-                      </span>
-                    )}
-                    {scope === "own" && (
-                      <DeleteTemplateButton
-                        templateId={t.id}
-                        variant="icon"
-                        redirectTo={null}
-                      />
-                    )}
-                  </div>
-                </div>
-
-                <div className="min-w-0">
-                  <h3 className="truncate font-semibold" title={t.name}>
-                    {t.name}
-                  </h3>
-                  <p
-                    className="truncate text-xs text-muted-foreground"
-                    title={t.originalFilename}
-                  >
-                    {t.originalFilename}
-                  </p>
-                </div>
-
-                {t.fields.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {[...typeCounts.entries()].map(([type, n]) => (
-                      <span
-                        key={type}
-                        className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground"
-                      >
-                        <span className={`size-1.5 rounded-full ${TYPE_META[type].dot}`} aria-hidden="true" />
-                        {n} {TYPE_META[type].label}
-                        {n === 1 ? "" : "s"}
-                      </span>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-[11px] text-muted-foreground">No fields detected</p>
-                )}
-
-                {groupLabels.size > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {[...groupLabels].map((label) => (
-                      <span
-                        key={label}
-                        className="rounded-full bg-black/[0.04] dark:bg-white/[0.08] px-2 py-0.5 text-[11px] text-muted-foreground"
-                      >
-                        {label}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <div className="mt-auto flex items-center justify-between gap-2 pt-3 border-t border-black/5 dark:border-white/10">
-                  <span className="text-xs text-muted-foreground">
-                    {dateFormatter.format(t.createdAt)}
-                  </span>
-                  <Link
-                    href={`${hrefBase}/${t.id}`}
-                    className="inline-flex items-center gap-1 text-sm font-medium text-black dark:text-white after:content-['→'] after:transition-transform after:duration-200 group-hover:after:translate-x-0.5 before:absolute before:inset-0 before:z-0 before:content-['']"
-                    aria-label={`Open ${t.name}`}
-                  >
-                    Open
-                  </Link>
-                </div>
-              </div>
-            </li>
-          );
-        })}
+        {rows.map((t, i) => (
+          <li
+            key={t.id}
+            className="animate-fade-in-up"
+            // Staggered entrance, capped at 8 so the last card in a full page
+            // doesn't sit blank for half a second.
+            style={{ animationDelay: `${Math.min(i, 8) * 0.05}s` }}
+          >
+            <TemplateCard
+              template={t}
+              href={`${hrefBase}/${t.id}`}
+              deletable={scope === "own"}
+            />
+          </li>
+        ))}
       </ul>
 
       {preview ? (
         <SignInGate locked={Math.max(0, total - preview.limit)} />
       ) : (
-        totalPages > 1 && (
-        <div className="flex items-center justify-between text-sm">
-          <Link
-            href={page <= 2 ? `?${qParam}` : `?${qParam}${pageParam}=${page - 1}`}
-            aria-disabled={page <= 1}
-            className={`rounded-md border border-border px-3 py-1.5 ${
-              page <= 1
-                ? "pointer-events-none opacity-40"
-                : "hover:bg-black/[0.03] dark:hover:bg-white/[0.06]"
-            }`}
-          >
-            ← Previous
-          </Link>
-          <span className="text-muted-foreground">
-            Page {page} of {totalPages}
-          </span>
-          <Link
-            href={`?${qParam}${pageParam}=${page + 1}`}
-            aria-disabled={page >= totalPages}
-            className={`rounded-md border border-border px-3 py-1.5 ${
-              page >= totalPages
-                ? "pointer-events-none opacity-40"
-                : "hover:bg-black/[0.03] dark:hover:bg-white/[0.06]"
-            }`}
-          >
-            Next →
-          </Link>
-        </div>
-        )
+        <Pagination page={page} totalPages={totalPages} pageParam={pageParam} qParam={qParam} />
       )}
+    </div>
+  );
+}
+
+/** One template in the grid: an icon, its name, a summary of its fields, and a link to open it. */
+function TemplateCard({
+  template,
+  href,
+  deletable,
+}: {
+  template: Template;
+  href: string;
+  /** Owner-only: show the inline delete control on the card. */
+  deletable: boolean;
+}) {
+  const typeCounts = new Map<TemplateFieldType, number>();
+  const groupLabels = new Set<string>();
+  for (const field of template.fields) {
+    typeCounts.set(field.type, (typeCounts.get(field.type) ?? 0) + 1);
+    if (field.groupLabel) groupLabels.add(field.groupLabel);
+  }
+
+  return (
+    <div className="group relative flex h-full flex-col gap-3 rounded-xl border border-border bg-white dark:bg-white/[0.02] p-5 transition-all hover:-translate-y-1 hover:shadow-lg hover:shadow-black/5 dark:hover:shadow-white/5">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-black/[0.04] dark:bg-white/[0.08]">
+          <DocumentIcon />
+        </div>
+        {/* Above the card-wide overlay link below, so these stay clickable. */}
+        <div className="relative z-10 flex items-center gap-1.5">
+          {template.isPublic && (
+            <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+              Public
+            </span>
+          )}
+          {deletable && (
+            <DeleteTemplateButton templateId={template.id} variant="icon" redirectTo={null} />
+          )}
+        </div>
+      </div>
+
+      <div className="min-w-0">
+        <h3 className="truncate font-semibold" title={template.name}>
+          {template.name}
+        </h3>
+        <p className="truncate text-xs text-muted-foreground" title={template.originalFilename}>
+          {template.originalFilename}
+        </p>
+      </div>
+
+      {typeCounts.size > 0 ? (
+        <div className="flex flex-wrap gap-1.5">
+          {[...typeCounts.entries()].map(([type, n]) => (
+            <span
+              key={type}
+              className="inline-flex items-center gap-1 rounded-full border border-border px-2 py-0.5 text-[11px] text-muted-foreground"
+            >
+              <span className={`size-1.5 rounded-full ${TYPE_META[type].dot}`} aria-hidden="true" />
+              {n} {TYPE_META[type].label}
+              {n === 1 ? "" : "s"}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className="text-[11px] text-muted-foreground">No fields detected</p>
+      )}
+
+      {groupLabels.size > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {[...groupLabels].map((label) => (
+            <span
+              key={label}
+              className="rounded-full bg-black/[0.04] dark:bg-white/[0.08] px-2 py-0.5 text-[11px] text-muted-foreground"
+            >
+              {label}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="mt-auto flex items-center justify-between gap-2 pt-3 border-t border-black/5 dark:border-white/10">
+        <span className="text-xs text-muted-foreground">
+          {dateFormatter.format(template.createdAt)}
+        </span>
+        {/* The `before:` pseudo-element stretches this link over the whole
+            card, so anywhere outside the controls above opens the template. */}
+        <Link
+          href={href}
+          className="inline-flex items-center gap-1 text-sm font-medium text-black dark:text-white after:content-['→'] after:transition-transform after:duration-200 group-hover:after:translate-x-0.5 before:absolute before:inset-0 before:z-0 before:content-['']"
+          aria-label={`Open ${template.name}`}
+        >
+          Open
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function DocumentIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className="size-4 text-muted-foreground"
+      aria-hidden="true"
+    >
+      <path
+        fillRule="evenodd"
+        d="M4 2a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2V7.914a2 2 0 00-.586-1.414l-3.914-3.914A2 2 0 0012.086 2H4zm2 9a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z"
+        clipRule="evenodd"
+      />
+    </svg>
+  );
+}
+
+/** Previous/next links for a paged list. Renders nothing when everything fits on one page. */
+function Pagination({
+  page,
+  totalPages,
+  pageParam,
+  qParam,
+}: {
+  page: number;
+  totalPages: number;
+  /** Query-param name for this list's page number, so two lists on one page don't collide. */
+  pageParam: string;
+  /** Already-encoded `q=…&` prefix (or ""), so paging keeps the active search. */
+  qParam: string;
+}) {
+  if (totalPages <= 1) return null;
+
+  const linkClasses = (disabled: boolean) =>
+    `rounded-md border border-border px-3 py-1.5 ${
+      disabled ? "pointer-events-none opacity-40" : "hover:bg-black/[0.03] dark:hover:bg-white/[0.06]"
+    }`;
+
+  return (
+    <div className="flex items-center justify-between text-sm">
+      <Link
+        // Page 1 is the bare URL rather than `page=1`, so the first page has a
+        // single canonical address.
+        href={page <= 2 ? `?${qParam}` : `?${qParam}${pageParam}=${page - 1}`}
+        aria-disabled={page <= 1}
+        className={linkClasses(page <= 1)}
+      >
+        ← Previous
+      </Link>
+      <span className="text-muted-foreground">
+        Page {page} of {totalPages}
+      </span>
+      <Link
+        href={`?${qParam}${pageParam}=${page + 1}`}
+        aria-disabled={page >= totalPages}
+        className={linkClasses(page >= totalPages)}
+      >
+        Next →
+      </Link>
     </div>
   );
 }

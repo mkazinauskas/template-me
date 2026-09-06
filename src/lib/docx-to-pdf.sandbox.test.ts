@@ -60,12 +60,12 @@ describe("convertDocxToPdf", () => {
     const result = await convertDocxToPdf(Buffer.from("docx-bytes"), Promise.resolve(sandbox as never));
 
     expect(result.toString()).toBe("pdf-bytes");
-    expect(writeFiles).toHaveBeenCalledWith([{ path: "input.docx", content: expect.any(Buffer) }]);
+    expect(writeFiles).toHaveBeenCalledWith([{ path: "input-0.docx", content: expect.any(Buffer) }]);
     expect(runCommand).toHaveBeenCalledTimes(2);
     expect(runCommand.mock.calls[0][0]).toBe("sh");
     expect(runCommand.mock.calls[0][1][1]).toContain("dnf install");
     expect(runCommand.mock.calls[1][1][1]).toContain("soffice --headless --convert-to pdf");
-    expect(readFileToBuffer).toHaveBeenCalledWith({ path: "/vercel/sandbox/input.pdf" });
+    expect(readFileToBuffer).toHaveBeenCalledWith({ path: "/vercel/sandbox/input-0.pdf" });
   });
 
   it("skips the LibreOffice install step when using a pre-built snapshot", async () => {
@@ -126,7 +126,7 @@ describe("convertDocxToPdf", () => {
 
     await expect(
       convertDocxToPdf(Buffer.from("docx-bytes"), Promise.resolve(sandbox as never))
-    ).rejects.toThrow("Conversion produced no output PDF");
+    ).rejects.toThrow("Conversion produced no output PDF for document 1");
     expect(stop).toHaveBeenCalledTimes(1);
   });
 });

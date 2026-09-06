@@ -50,6 +50,76 @@ function useCopyLink() {
   return { copiedId, copy };
 }
 
+/**
+ * A destructive action that confirms in place: the trigger swaps itself for a
+ * "Confirm / Cancel" pair, which collapses again once the action settles, is
+ * cancelled, or loses focus. Owns both the confirming and in-flight state so
+ * every row doesn't have to carry its own copy — `onConfirm` just does the
+ * work and may throw, leaving the row free to render the error however it
+ * wants.
+ */
+function InlineConfirm({
+  label,
+  pendingLabel,
+  onConfirm,
+}: {
+  label: string;
+  pendingLabel: string;
+  onConfirm: () => Promise<void>;
+}) {
+  const [isConfirming, setIsConfirming] = useState(false);
+  const [isPending, setIsPending] = useState(false);
+
+  async function handleConfirm() {
+    setIsPending(true);
+    try {
+      await onConfirm();
+    } finally {
+      setIsPending(false);
+      setIsConfirming(false);
+    }
+  }
+
+  if (!isConfirming) {
+    return (
+      <button
+        type="button"
+        onClick={() => setIsConfirming(true)}
+        className="text-sm text-red-600 dark:text-red-400 hover:underline"
+      >
+        {label}
+      </button>
+    );
+  }
+
+  return (
+    <span
+      className="inline-flex items-center gap-2 text-sm"
+      onBlur={(e) => {
+        if (!isPending && !e.currentTarget.contains(e.relatedTarget)) setIsConfirming(false);
+      }}
+    >
+      <button
+        type="button"
+        autoFocus
+        onClick={handleConfirm}
+        disabled={isPending}
+        className="text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
+      >
+        {isPending ? pendingLabel : "Confirm"}
+      </button>
+      <button
+        type="button"
+        onClick={() => setIsConfirming(false)}
+        disabled={isPending}
+        className="text-muted-foreground hover:underline disabled:opacity-50"
+      >
+        Cancel
+      </button>
+    </span>
+  );
+}
+
 function SubmittedData({ fields, data }: { fields: TemplateField[]; data: Record<string, string> }) {
   return (
     <dl className="grid grid-cols-[max-content_1fr] gap-x-4 gap-y-1.5 text-sm">
@@ -167,8 +237,6 @@ function FilledRow({
   const [expanded, setExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [downloading, setDownloading] = useState<"pdf" | "docx" | null>(null);
-  const [isConfirmingDelete, setIsConfirmingDelete] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleDownload(format: "pdf" | "docx") {
@@ -201,14 +269,11 @@ function FilledRow({
   }
 
   async function handleDelete() {
-    setIsDeleting(true);
     try {
       await orpc.fillRequests.delete({ id: request.id });
       onDeleted(request.id);
     } catch (err) {
       setError(orpcErrorMessage(err, "Failed to delete"));
-      setIsDeleting(false);
-      setIsConfirmingDelete(false);
     }
   }
 
@@ -243,42 +308,7 @@ function FilledRow({
           >
             {downloading === "docx" ? "…" : "Word"}
           </button>
-          {isConfirmingDelete ? (
-            <span
-              className="inline-flex items-center gap-2 text-sm"
-              onBlur={(e) => {
-                if (!isDeleting && !e.currentTarget.contains(e.relatedTarget)) {
-                  setIsConfirmingDelete(false);
-                }
-              }}
-            >
-              <button
-                type="button"
-                autoFocus
-                onClick={handleDelete}
-                disabled={isDeleting}
-                className="text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
-              >
-                {isDeleting ? "Deleting…" : "Confirm"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsConfirmingDelete(false)}
-                disabled={isDeleting}
-                className="text-muted-foreground hover:underline disabled:opacity-50"
-              >
-                Cancel
-              </button>
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsConfirmingDelete(true)}
-              className="text-sm text-red-600 dark:text-red-400 hover:underline"
-            >
-              Delete
-            </button>
-          )}
+          <InlineConfirm label="Delete" pendingLabel="Deleting…" onConfirm={handleDelete} />
         </div>
       </div>
       {error && (
@@ -321,19 +351,14 @@ function RevokedRow({
   request: FillRequest;
   onDeleted: (id: string) => void;
 }) {
-  const [isConfirming, setIsConfirming] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleDelete() {
-    setIsDeleting(true);
     try {
       await orpc.fillRequests.delete({ id: request.id });
       onDeleted(request.id);
     } catch (err) {
       setError(orpcErrorMessage(err, "Failed to delete"));
-      setIsDeleting(false);
-      setIsConfirming(false);
     }
   }
 
@@ -341,40 +366,7 @@ function RevokedRow({
     <li className="rounded-lg border border-border p-3 text-sm text-muted-foreground">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <span>Revoked {formatDate(request.revokedAt!)}</span>
-        {isConfirming ? (
-          <span
-            className="inline-flex items-center gap-2"
-            onBlur={(e) => {
-              if (!isDeleting && !e.currentTarget.contains(e.relatedTarget)) setIsConfirming(false);
-            }}
-          >
-            <button
-              type="button"
-              autoFocus
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
-            >
-              {isDeleting ? "Deleting…" : "Confirm"}
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsConfirming(false)}
-              disabled={isDeleting}
-              className="text-muted-foreground hover:underline disabled:opacity-50"
-            >
-              Cancel
-            </button>
-          </span>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setIsConfirming(true)}
-            className="text-red-600 dark:text-red-400 hover:underline"
-          >
-            Delete
-          </button>
-        )}
+        <InlineConfirm label="Delete" pendingLabel="Deleting…" onConfirm={handleDelete} />
       </div>
       {error && (
         <p role="alert" className="mt-2 text-red-600 dark:text-red-400">
@@ -393,19 +385,11 @@ function PendingRow({
   onRevoked: (id: string) => void;
 }) {
   const { copiedId, copy } = useCopyLink();
-  const [isConfirming, setIsConfirming] = useState(false);
-  const [isRevoking, setIsRevoking] = useState(false);
   const path = fillLinkPath(request.code);
 
   async function handleRevoke() {
-    setIsRevoking(true);
-    try {
-      await orpc.fillRequests.revoke({ id: request.id });
-      onRevoked(request.id);
-    } finally {
-      setIsRevoking(false);
-      setIsConfirming(false);
-    }
+    await orpc.fillRequests.revoke({ id: request.id });
+    onRevoked(request.id);
   }
 
   return (
@@ -424,40 +408,7 @@ function PendingRow({
           >
             {copiedId === request.id ? "Copied!" : "Copy link"}
           </button>
-          {isConfirming ? (
-            <span
-              className="inline-flex items-center gap-2 text-sm"
-              onBlur={(e) => {
-                if (!isRevoking && !e.currentTarget.contains(e.relatedTarget)) setIsConfirming(false);
-              }}
-            >
-              <button
-                type="button"
-                autoFocus
-                onClick={handleRevoke}
-                disabled={isRevoking}
-                className="text-red-600 dark:text-red-400 hover:underline disabled:opacity-50"
-              >
-                {isRevoking ? "Revoking…" : "Confirm"}
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsConfirming(false)}
-                disabled={isRevoking}
-                className="text-muted-foreground hover:underline disabled:opacity-50"
-              >
-                Cancel
-              </button>
-            </span>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setIsConfirming(true)}
-              className="text-sm text-red-600 dark:text-red-400 hover:underline"
-            >
-              Revoke
-            </button>
-          )}
+          <InlineConfirm label="Revoke" pendingLabel="Revoking…" onConfirm={handleRevoke} />
         </div>
       </div>
     </li>

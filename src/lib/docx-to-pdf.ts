@@ -42,55 +42,53 @@ async function ensureLibreOffice(sandbox: Sandbox) {
   }
 }
 
-/**
- * Converts a rendered docx buffer to PDF using a headless LibreOffice inside
- * a Vercel Sandbox microVM (there is no docx->pdf renderer that runs directly
- * in a Node serverless function). When LIBREOFFICE_SANDBOX_SNAPSHOT_ID is set,
- * the sandbox boots from a pre-built snapshot (~1s total); otherwise it
- * installs LibreOffice from scratch (~30-60s), which is only meant as a local
- * fallback for the rare case a build's snapshot regeneration failed (see
- * scripts/write-libreoffice-snapshot.ts) and no override is set.
- *
- * Pass `sandboxPromise` (e.g. from `createPdfSandbox()`) to start the VM
- * before the docx is ready; if the caller ends up not calling this at all,
- * it is on them to stop that sandbox.
- */
-export async function convertDocxToPdf(
-  docxBuffer: Buffer,
-  sandboxPromise: Promise<Sandbox | null> = createPdfSandbox()
-): Promise<Buffer> {
-  if (LOCAL_MODE) {
-    const [pdfBuffer] = await convertWithLocalSoffice([docxBuffer]);
-    return pdfBuffer;
-  }
+const SANDBOX_DIR = "/vercel/sandbox";
 
-  const sandbox = await sandboxPromise;
-  if (!sandbox) throw new Error("No PDF sandbox available");
+/**
+ * Converts docx buffers to PDF inside an already-booted sandbox: writes them
+ * all in, runs a single `soffice --convert-to` over the lot, and reads the
+ * results back. One invocation for any number of documents is what makes bulk
+ * generation affordable — booting a VM per document would dominate the cost.
+ *
+ * Returns PDFs in the same order as `docxBuffers`.
+ */
+async function convertInSandbox(
+  docxBuffers: Buffer[],
+  sandbox: Sandbox
+): Promise<Buffer[]> {
   const stopSandbox = () => sandbox.stop().catch(() => {});
 
   try {
     await ensureLibreOffice(sandbox);
 
-    await sandbox.writeFiles([{ path: "input.docx", content: docxBuffer }]);
+    const names = docxBuffers.map((_, i) => `input-${i}.docx`);
+    await sandbox.writeFiles(docxBuffers.map((content, i) => ({ path: names[i], content })));
 
+    const inputPaths = names.map((name) => `${SANDBOX_DIR}/${name}`).join(" ");
     const convert = await sandbox.runCommand("sh", [
       "-c",
-      "HOME=/tmp soffice --headless --convert-to pdf --outdir /vercel/sandbox /vercel/sandbox/input.docx 2>&1",
+      `HOME=/tmp soffice --headless --convert-to pdf --outdir ${SANDBOX_DIR} ${inputPaths} 2>&1`,
     ]);
     if (convert.exitCode !== 0) {
       throw new Error(`soffice conversion failed: ${await convert.stdout()}`);
     }
 
-    const pdfBuffer = await sandbox.readFileToBuffer({ path: "/vercel/sandbox/input.pdf" });
-    if (!pdfBuffer) {
-      throw new Error("Conversion produced no output PDF");
-    }
+    const pdfBuffers = await Promise.all(
+      names.map(async (name, i) => {
+        const pdfPath = `${SANDBOX_DIR}/${name.replace(/\.docx$/, ".pdf")}`;
+        const buffer = await sandbox.readFileToBuffer({ path: pdfPath });
+        if (!buffer) {
+          throw new Error(`Conversion produced no output PDF for document ${i + 1}`);
+        }
+        return buffer;
+      })
+    );
 
     // Stopping the VM takes ~10s on its own; shutting it down after the
     // response is sent (instead of awaiting it here) is what actually makes
     // this fast for the caller.
     after(stopSandbox);
-    return pdfBuffer;
+    return pdfBuffers;
   } catch (err) {
     await stopSandbox();
     throw err;
@@ -98,9 +96,18 @@ export async function convertDocxToPdf(
 }
 
 /**
- * Converts many rendered docx buffers to PDF in one LibreOffice invocation
- * (a single `soffice --convert-to` call given all input files), which is
- * far cheaper than booting/converting one at a time for bulk generation.
+ * Converts many rendered docx buffers to PDF using a headless LibreOffice
+ * inside a Vercel Sandbox microVM (there is no docx->pdf renderer that runs
+ * directly in a Node serverless function). When LIBREOFFICE_SANDBOX_SNAPSHOT_ID
+ * is set, the sandbox boots from a pre-built snapshot (~1s total); otherwise it
+ * installs LibreOffice from scratch (~30-60s), which is only meant as a local
+ * fallback for the rare case a build's snapshot regeneration failed (see
+ * scripts/write-libreoffice-snapshot.ts) and no override is set.
+ *
+ * Pass `sandboxPromise` (e.g. from `createPdfSandbox()`) to start the VM
+ * before the docx is ready; if the caller ends up not calling this at all,
+ * it is on them to stop that sandbox.
+ *
  * Returns PDFs in the same order as `docxBuffers`.
  */
 export async function convertDocxBuffersToPdf(
@@ -113,40 +120,14 @@ export async function convertDocxBuffersToPdf(
 
   const sandbox = await sandboxPromise;
   if (!sandbox) throw new Error("No PDF sandbox available");
-  const stopSandbox = () => sandbox.stop().catch(() => {});
+  return convertInSandbox(docxBuffers, sandbox);
+}
 
-  try {
-    await ensureLibreOffice(sandbox);
-
-    const names = docxBuffers.map((_, i) => `input-${i}.docx`);
-    await sandbox.writeFiles(
-      docxBuffers.map((content, i) => ({ path: names[i], content }))
-    );
-
-    const inputPaths = names.map((name) => `/vercel/sandbox/${name}`).join(" ");
-    const convert = await sandbox.runCommand("sh", [
-      "-c",
-      `HOME=/tmp soffice --headless --convert-to pdf --outdir /vercel/sandbox ${inputPaths} 2>&1`,
-    ]);
-    if (convert.exitCode !== 0) {
-      throw new Error(`soffice conversion failed: ${await convert.stdout()}`);
-    }
-
-    const pdfBuffers = await Promise.all(
-      names.map(async (name, i) => {
-        const pdfPath = `/vercel/sandbox/${name.replace(/\.docx$/, ".pdf")}`;
-        const buffer = await sandbox.readFileToBuffer({ path: pdfPath });
-        if (!buffer) {
-          throw new Error(`Conversion produced no output PDF for document ${i + 1}`);
-        }
-        return buffer;
-      })
-    );
-
-    after(stopSandbox);
-    return pdfBuffers;
-  } catch (err) {
-    await stopSandbox();
-    throw err;
-  }
+/** Single-document form of {@link convertDocxBuffersToPdf}. */
+export async function convertDocxToPdf(
+  docxBuffer: Buffer,
+  sandboxPromise: Promise<Sandbox | null> = createPdfSandbox()
+): Promise<Buffer> {
+  const [pdfBuffer] = await convertDocxBuffersToPdf([docxBuffer], sandboxPromise);
+  return pdfBuffer;
 }

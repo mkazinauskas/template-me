@@ -32,8 +32,11 @@ generate dozens of them at once, packaged into a `.zip`.
 - [Local development](#local-development)
 - [Local development with Docker Compose](#local-development-with-docker-compose)
 - [Running with the prebuilt image](#running-with-the-prebuilt-image)
+- [Deploying to Vercel](#deploying-to-vercel)
+- [Deploying to Coolify](#deploying-to-coolify)
 - [LibreOffice sandbox snapshot](#libreoffice-sandbox-snapshot)
 - [Database schema changes](#database-schema-changes)
+- [Admin panel](#admin-panel)
 
 ## How it works
 
@@ -101,10 +104,52 @@ upload so you know it wasn't silently mis-rendered.
 
 ## Local development
 
+There are two ways to run the app locally. This section is the **cloud-backed**
+one — it talks to the same Neon/Blob/Sandbox/Resend services production uses, so
+it needs a Vercel project to pull credentials from. If you'd rather run
+everything offline with no accounts at all, skip to
+[Docker Compose](#local-development-with-docker-compose).
+
+**Prerequisites:** Node 24 and, optionally,
+[Tilt](https://tilt.dev) for the Docker path. Both are pinned in
+[`mise.toml`](mise.toml), so `mise install` sets them up; any Node ≥ 22.12
+works if you'd rather manage it yourself.
+
 ```bash
 npm install
-vercel env pull --yes   # syncs DATABASE_URL, BLOB_READ_WRITE_TOKEN, etc.
+vercel env pull --yes   # writes .env.local
+npx dotenv -e .env.local -- npx drizzle-kit push   # first run only: create the tables
 npm run dev
+```
+
+The app is then at [http://localhost:3000](http://localhost:3000).
+
+`vercel env pull` writes the linked project's environment into `.env.local`.
+What the app reads from it:
+
+| Variable | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Neon Postgres connection string ([db/index.ts](src/db/index.ts)). |
+| `BLOB_READ_WRITE_TOKEN` | Vercel Blob store for uploaded `.docx` files. Read by `@vercel/blob` under this exact name. |
+| `BETTER_AUTH_SECRET` | Signs session cookies. Generate one with `openssl rand -base64 32`. |
+| `BETTER_AUTH_URL` | The site's public origin. Only load-bearing off Vercel — on Vercel, `VERCEL_URL` wins ([site-url.ts](src/lib/site-url.ts)). |
+| `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Sends the sign-in code ([email.ts](src/lib/email.ts)). |
+| `VERCEL_OIDC_TOKEN` | Authenticates Vercel Sandbox for PDF conversion. **Development tokens expire after 12 hours** — re-run `vercel env pull` when previews suddenly stop rendering. |
+| `LIBREOFFICE_SANDBOX_SNAPSHOT_ID` | Optional. Boots the sandbox from a pre-built snapshot instead of installing LibreOffice per request (see [below](#libreoffice-sandbox-snapshot)). |
+
+[`src/lib/env.ts`](src/lib/env.ts) asserts the required ones at startup, so a
+misconfigured deployment fails immediately with a list of what's missing rather
+than throwing something opaque on the first request that touches one. The check
+only runs for production builds — `next dev` lets you start with pieces missing
+and only fails when you reach the feature that needs them.
+
+Other commands:
+
+```bash
+npm test           # Vitest unit + component tests
+npm run test:e2e   # Playwright end-to-end tests (needs `tilt up` running — see below)
+npm run lint       # ESLint
+npm run knip       # unused files, exports and dependencies
 ```
 
 ## Local development with Docker Compose
@@ -209,6 +254,185 @@ Note that these `-demo`/`-migrator` tags are separate from the plain
 production build (no `LOCAL_MODE`), meant for deploying against real Neon
 Postgres / Vercel Blob / Vercel Sandbox / Resend credentials rather than
 this local demo.
+
+## Deploying to Vercel
+
+Vercel is the default target: it's the one environment where all four managed
+dependencies — Neon Postgres, Vercel Blob, Vercel Sandbox and Resend — are
+available without extra plumbing.
+
+1. **Import the repository** at [vercel.com/new](https://vercel.com/new). The
+   Next.js preset is detected automatically; leave the build settings alone.
+   Vercel prefers the `vercel-build` script in [`package.json`](package.json)
+   over `build`, and that's what rebuilds the LibreOffice snapshot on every
+   deploy (see [below](#libreoffice-sandbox-snapshot)).
+2. **Add a Neon Postgres database** from the project's Storage tab (Vercel
+   Marketplace → Neon). It sets `DATABASE_URL` and the `POSTGRES_*` aliases on
+   every environment for you.
+3. **Add a Blob store** from the same tab. It sets `BLOB_READ_WRITE_TOKEN`.
+4. **Set the rest** under Settings → Environment Variables:
+
+   | Variable | Value |
+   | --- | --- |
+   | `BETTER_AUTH_SECRET` | `openssl rand -base64 32`, a distinct value per environment. |
+   | `RESEND_API_KEY` | A [Resend](https://resend.com) API key — sign-in codes are emailed through it. |
+   | `RESEND_FROM_EMAIL` | A sender address on a domain verified with Resend. |
+
+   `BETTER_AUTH_URL` is **not** needed here: both
+   [`auth.ts`](src/lib/auth.ts) and [`site-url.ts`](src/lib/site-url.ts) prefer
+   `VERCEL_PROJECT_PRODUCTION_URL` / `VERCEL_URL`, which the platform sets on
+   every deployment. Vercel Sandbox needs no configuration either — deployed
+   functions authenticate to it with the OIDC token Vercel injects.
+
+5. **Create the tables** once, against the production database:
+
+   ```bash
+   vercel env pull .env.production.local --yes --environment production
+   npx dotenv -e .env.production.local -- npx drizzle-kit push
+   ```
+
+6. **Deploy** — push to `main`, or run `npx vercel --prod`.
+
+Two things the code enforces rather than assumes, worth knowing if a deploy
+behaves unexpectedly:
+
+- [`next.config.ts`](next.config.ts) drops `output: "standalone"` whenever the
+  `VERCEL` env var is present. The standalone build exists for the Docker image
+  and collides with Vercel's own build tracing (`ENOENT` on
+  `next-server.js.nft.json`).
+- [`src/lib/env.ts`](src/lib/env.ts) refuses to complete a production build with
+  `NEXT_PUBLIC_LOCAL_AUTH_PASSWORD` set. `NEXT_PUBLIC_*` values are inlined into
+  the client bundle, so a project that accidentally inherited the local-mode
+  variables would otherwise ship a working credential to every visitor.
+
+## Deploying to Coolify
+
+Self-hosting on [Coolify](https://coolify.io) means running the app in
+`LOCAL_MODE`, the same switch [Docker Compose](#local-development-with-docker-compose)
+uses. That isn't only about avoiding cloud accounts: `createPdfSandbox()` in
+[docx-to-pdf.ts](src/lib/docx-to-pdf.ts) only bypasses Vercel Sandbox when
+`LOCAL_MODE=true`, and the SDK authenticates through an OIDC token that exists
+only on Vercel. Off-platform, the in-image LibreOffice is the conversion path.
+
+So a Coolify deployment gets: Postgres in a container, uploads on a mounted
+volume, `soffice` in the app image, and email/password sign-in instead of
+emailed codes.
+
+**Deploy it as a Docker Compose resource** — that's the only shape that also
+runs the one-shot migration/seed step. In Coolify: *New Resource → Docker
+Compose*, point it at your fork of this repository, and use the following
+compose file. It builds the [`Dockerfile`](Dockerfile)'s `runner` and
+`migrator` stages rather than pulling the published `-demo` image, which has
+the public demo credentials baked into its client bundle.
+
+```yaml
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: app
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app"]
+      interval: 2s
+      timeout: 5s
+      retries: 30
+
+  # Runs `drizzle-kit push` and seeds the first account, then exits. Needs the
+  # devDependencies (drizzle-kit, tsx) that the runtime image doesn't carry.
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: migrator
+    environment: &app-env
+      LOCAL_MODE: "true"
+      DATABASE_URL: postgres://app:${POSTGRES_PASSWORD}@db:5432/app
+      LOCAL_STORAGE_DIR: /data/blobs
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${APP_URL}
+      LOCAL_AUTH_EMAIL: ${ADMIN_EMAIL}
+      LOCAL_AUTH_PASSWORD: ${ADMIN_PASSWORD}
+      LOCAL_AUTH_NAME: Admin
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runner
+      args:
+        # NEXT_PUBLIC_* values are inlined into the client bundle at build
+        # time, so this has to be a build arg — a runtime env var alone would
+        # leave the sign-in page rendering the email-code form.
+        NEXT_PUBLIC_LOCAL_MODE: "true"
+        LOCAL_MODE: "true"
+    restart: unless-stopped
+    environment: *app-env
+    # Coolify's proxy reaches the container over the Docker network, so the
+    # port only needs exposing, not publishing on the host.
+    expose:
+      - "3000"
+    volumes:
+      - blob-data:/data/blobs
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+volumes:
+  db-data:
+  blob-data:
+```
+
+Then, in Coolify:
+
+- **Set the environment variables** the file interpolates —
+  `POSTGRES_PASSWORD`, `BETTER_AUTH_SECRET` (`openssl rand -base64 32`),
+  `ADMIN_EMAIL`, `ADMIN_PASSWORD`, and `APP_URL`. `APP_URL` must be the full
+  public origin with scheme and no trailing slash (`https://templates.example.com`);
+  better-auth uses it as its `baseURL`, and sign-in fails with an origin
+  mismatch if it disagrees with the domain Coolify serves.
+- **Assign that domain** to the `app` service on port 3000, and let Coolify
+  terminate TLS. The app sends `Strict-Transport-Security` on every response
+  ([next.config.ts](next.config.ts)), so serving it over plain HTTP on a real
+  domain will cause trouble later.
+- **Keep both volumes.** `blob-data` holds every uploaded `.docx` — without it,
+  templates survive exactly as long as the container does.
+- **Give it room.** LibreOffice is the memory-hungry part; ~1 GB for the `app`
+  container is a reasonable floor, and the image is large (a few hundred MB)
+  because it carries LibreOffice and its fonts.
+
+A few consequences of `LOCAL_MODE` worth being explicit about:
+
+- **Sign-up is closed by default.** [`auth.ts`](src/lib/auth.ts) sets
+  `disableSignUp` unless `LOCAL_ALLOW_SIGNUP=true`, so the instance has exactly
+  the one account the `migrate` service seeded. Setting `LOCAL_ALLOW_SIGNUP=true`
+  on the `app` service opens registration to anyone who can reach the URL —
+  reasonable on a private network, not on the open internet.
+- **Don't set `NEXT_PUBLIC_LOCAL_AUTH_EMAIL` / `NEXT_PUBLIC_LOCAL_AUTH_PASSWORD`.**
+  They only pre-fill the sign-in form for the local demo, and being
+  `NEXT_PUBLIC_*` they are inlined into the client bundle — on a real
+  deployment that publishes your admin password.
+- **There's no email.** `RESEND_*` is unused in this mode, so there's no
+  password reset or emailed code; the seeded account is the way in.
+- **Promote an admin** (for `/admin/dashboard`) by running the script in the
+  migrate image's container, with the same `DATABASE_URL`:
+
+  ```bash
+  npx tsx scripts/set-admin.ts someone@example.com
+  ```
+
+If you'd rather deploy the prebuilt image than build from source, the same
+compose file works with `image: ghcr.io/mkazinauskas/template-me:latest-demo`
+and `:latest-migrator` in place of the two `build:` blocks — but see
+[Running with the prebuilt image](#running-with-the-prebuilt-image) for what
+those tags bake in, including the published demo password.
 
 ## LibreOffice sandbox snapshot
 
