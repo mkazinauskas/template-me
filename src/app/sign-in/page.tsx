@@ -1,7 +1,9 @@
 import { Suspense } from "react";
 import Link from "next/link";
+import { connection } from "next/server";
 import type { Metadata } from "next";
 import { AuthForm } from "@/components/auth-form";
+import { isGoogleAuthEnabled } from "@/lib/auth-providers";
 import { Logo } from "@/components/logo";
 
 export const metadata: Metadata = {
@@ -9,14 +11,20 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function SignInPage() {
+export default async function SignInPage() {
+  // Read at request time, not build time: whether Google sign-in is offered
+  // follows the deployment's env vars, so toggling GOOGLE_CLIENT_ID takes
+  // effect without a rebuild.
+  await connection();
+  const googleEnabled = isGoogleAuthEnabled();
+
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black flex flex-col items-center justify-center gap-8 px-6 py-10">
       <Link href="/" className="transition-transform hover:scale-[1.03]">
         <Logo />
       </Link>
       <Suspense>
-        <AuthForm mode="sign-in" />
+        <AuthForm mode="sign-in" googleEnabled={googleEnabled} />
       </Suspense>
       <Link
         href="/"

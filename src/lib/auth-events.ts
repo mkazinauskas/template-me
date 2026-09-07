@@ -31,6 +31,12 @@ const WATCHED_PATHS: Record<string, AuthEventName> = {
   // Not an authentication attempt itself, but a burst of these across many
   // addresses is account enumeration, which is worth being able to see.
   "/email-otp/send-verification-otp": "otp_requested",
+  // Where a Google sign-in actually completes. `/sign-in/social` is not
+  // audited: it only hands the browser a URL to Google and proves nothing
+  // about who is signing in. The callback carries no email in its body — the
+  // address lives in the OAuth code — so these lines identify the account by
+  // `userId` alone.
+  "/callback/google": "sign_in",
 };
 
 type AuthEventName = "sign_in" | "otp_requested";

@@ -6,7 +6,10 @@ import { emailOTP } from "better-auth/plugins/email-otp";
 import { getDb } from "@/db";
 import * as schema from "@/db/schema";
 import { logAuthEvent } from "@/lib/auth-events";
+import { googleCredentials } from "@/lib/auth-providers";
 import { sendEmail } from "@/lib/email";
+
+const google = googleCredentials();
 
 export const auth = betterAuth({
   database: drizzleAdapter(getDb(), { provider: "pg", schema }),
@@ -23,6 +26,23 @@ export const auth = betterAuth({
     // scripts/seed-local-user.ts — a separate process, run once at startup —
     // sets it to create that static account.
     disableSignUp: !env.LOCAL_ALLOW_SIGNUP,
+  },
+  // Only registered when both credentials are set, so a deployment without
+  // them exposes no half-working `/api/auth/sign-in/social` endpoint (see
+  // auth-providers.ts, which also gates the button in the UI).
+  socialProviders: google ? { google } : undefined,
+  account: {
+    accountLinking: {
+      // Without this, someone who first signed in with an email code and later
+      // clicks "Continue with Google" gets an error instead of their account —
+      // better-auth refuses to attach an OAuth account to an existing email by
+      // default. Trusting Google specifically is what makes that safe: it only
+      // returns addresses it has verified, so the link can't be used to take
+      // over an account by asserting someone else's email. Any provider not
+      // listed here still goes through the default, stricter path.
+      enabled: true,
+      trustedProviders: ["google"],
+    },
   },
   user: {
     additionalFields: {

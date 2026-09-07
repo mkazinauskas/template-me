@@ -72,6 +72,16 @@ const serverObject = z.object({
   /** Resend accepts both `a@b.com` and `Name <a@b.com>`, so not `z.email()`. */
   RESEND_FROM_EMAIL: z.string().min(1).optional(),
 
+  /**
+   * Google OAuth credentials. Optional everywhere, including production —
+   * "Continue with Google" is an *additional* way in, so a deployment with
+   * neither var set simply doesn't offer it and keeps the email-code flow
+   * (see src/lib/auth-providers.ts, which is the single place that decides
+   * whether the provider is on).
+   */
+  GOOGLE_CLIENT_ID: z.string().min(1).optional(),
+  GOOGLE_CLIENT_SECRET: z.string().min(1).optional(),
+
   /** Manual override for the snapshot baked in at build time (see src/lib/docx-to-pdf.ts). */
   LIBREOFFICE_SANDBOX_SNAPSHOT_ID: z.string().min(1).optional(),
 
@@ -108,6 +118,18 @@ const serverSchema = serverObject
     const requiredInProduction = (key: keyof ServerInput, message: string) => {
       if (!value[key]) ctx.addIssue({ code: "custom", path: [key], message });
     };
+
+    // Half-configured Google OAuth is worse than none: `auth-providers.ts`
+    // would report the provider off and hide the button, so a deployment that
+    // set only one of the pair would silently lose a sign-in method it thinks
+    // it enabled. Fail the boot instead of debugging that from the UI.
+    if (Boolean(value.GOOGLE_CLIENT_ID) !== Boolean(value.GOOGLE_CLIENT_SECRET)) {
+      ctx.addIssue({
+        code: "custom",
+        path: [value.GOOGLE_CLIENT_ID ? "GOOGLE_CLIENT_SECRET" : "GOOGLE_CLIENT_ID"],
+        message: "Required: GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET must be set together.",
+      });
+    }
 
     if (value.NODE_ENV !== "production" || value.LOCAL_MODE) return;
 

@@ -6,17 +6,27 @@ import { authClient } from "@/lib/auth-client";
 import { inputClasses } from "@/components/ui/input";
 import { buttonClasses } from "@/components/ui/button";
 import { AuthCard, FormError } from "./auth-card";
+import { AuthDivider, GoogleButton, useOAuthErrorMessage } from "./google-button";
 import { useAuthRedirect } from "./use-auth-redirect";
 
 /** Email one-time-code sign-in: send a code to an email address, then verify it. */
-export function OtpAuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
+export function OtpAuthForm({
+  mode,
+  googleEnabled,
+}: {
+  mode: "sign-in" | "sign-up";
+  googleEnabled: boolean;
+}) {
   const { goToApp } = useAuthRedirect();
+  const oauthError = useOAuthErrorMessage();
   const [step, setStep] = useState<"email" | "code">("email");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Seeded from the URL so a failed Google round-trip lands on this form with
+  // its reason already showing (see useOAuthErrorMessage).
+  const [error, setError] = useState<string | null>(oauthError);
 
   async function handleSendCode(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -69,6 +79,13 @@ export function OtpAuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       error={error}
       onSubmit={step === "email" ? handleSendCode : handleVerifyCode}
     >
+      {googleEnabled && step === "email" && (
+        <>
+          <GoogleButton mode={mode} />
+          <AuthDivider />
+        </>
+      )}
+
       {step === "email" ? (
         <>
           {mode === "sign-up" && (

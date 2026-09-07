@@ -109,6 +109,29 @@ describe("production requirements", () => {
   });
 });
 
+describe("Google OAuth credentials", () => {
+  it("accepts both set, or neither", () => {
+    expect(
+      validateEnv({ GOOGLE_CLIENT_ID: "id", GOOGLE_CLIENT_SECRET: "secret" }).GOOGLE_CLIENT_ID
+    ).toBe("id");
+    expect(validateEnv({}).GOOGLE_CLIENT_ID).toBeUndefined();
+  });
+
+  it("rejects a half-configured pair, naming the missing half", () => {
+    expect(() => validateEnv({ GOOGLE_CLIENT_ID: "id" })).toThrow(/GOOGLE_CLIENT_SECRET/);
+    expect(() => validateEnv({ GOOGLE_CLIENT_SECRET: "secret" })).toThrow(/GOOGLE_CLIENT_ID/);
+  });
+
+  it("enforces the pairing outside production too, unlike the cloud requirements", () => {
+    expect(() => validateEnv(productionEnv({ GOOGLE_CLIENT_ID: "id" }))).toThrow(
+      /GOOGLE_CLIENT_SECRET/
+    );
+    expect(() => validateEnv({ LOCAL_MODE: "true", GOOGLE_CLIENT_ID: "id" })).toThrow(
+      /GOOGLE_CLIENT_SECRET/
+    );
+  });
+});
+
 describe("SITE_URL", () => {
   it("prefers Vercel's production domain, then the deployment URL, then the explicit override", () => {
     expect(

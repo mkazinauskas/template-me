@@ -6,6 +6,7 @@ import { clientEnv } from "@/lib/env-client";
 import { inputClasses } from "@/components/ui/input";
 import { buttonClasses } from "@/components/ui/button";
 import { AuthCard, FormError } from "./auth-card";
+import { AuthDivider, GoogleButton, useOAuthErrorMessage } from "./google-button";
 import { useAuthRedirect } from "./use-auth-redirect";
 
 const LOCAL_EMAIL = clientEnv.NEXT_PUBLIC_LOCAL_AUTH_EMAIL;
@@ -16,12 +17,19 @@ const LOCAL_PASSWORD = clientEnv.NEXT_PUBLIC_LOCAL_AUTH_PASSWORD;
  * account to send OTP emails with and seeds one static account instead (see
  * scripts/seed-local-user.ts).
  */
-export function LocalAuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
+export function LocalAuthForm({
+  mode,
+  googleEnabled,
+}: {
+  mode: "sign-in" | "sign-up";
+  googleEnabled: boolean;
+}) {
   const { goToApp } = useAuthRedirect();
+  const oauthError = useOAuthErrorMessage();
   const [email, setEmail] = useState(LOCAL_EMAIL);
   const [password, setPassword] = useState(LOCAL_PASSWORD);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(oauthError);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -48,6 +56,13 @@ export function LocalAuthForm({ mode }: { mode: "sign-in" | "sign-up" }) {
       error={error}
       onSubmit={handleSubmit}
     >
+      {googleEnabled && (
+        <>
+          <GoogleButton mode={mode} />
+          <AuthDivider />
+        </>
+      )}
+
       <div className="flex flex-col gap-1.5">
         <label htmlFor="email" className="text-sm font-medium">
           Email

@@ -40,6 +40,27 @@ describe("toAuthEvent", () => {
     });
   });
 
+  it("records a completed Google sign-in, which carries a user id but no email", () => {
+    const event = toAuthEvent({
+      path: "/callback/google",
+      headers: headers(),
+      // A successful OAuth callback answers with a redirect, not a 4xx.
+      returned: { statusCode: 302 },
+      newSession: { user: { id: "user-1" } },
+    });
+
+    expect(event).toMatchObject({
+      event: "sign_in",
+      outcome: "success",
+      userId: "user-1",
+    });
+    expect(event?.email).toBeUndefined();
+  });
+
+  it("ignores the social sign-in kickoff, which only issues a redirect URL", () => {
+    expect(toAuthEvent({ path: "/sign-in/social", headers: headers() })).toBeNull();
+  });
+
   it("records a failed OTP sign-in with better-auth's error code", () => {
     const event = toAuthEvent({
       path: "/sign-in/email-otp",

@@ -33,6 +33,7 @@ generate dozens of them at once, packaged into a `.zip`.
 - [Local development with Docker Compose](#local-development-with-docker-compose)
 - [Running with the prebuilt image](#running-with-the-prebuilt-image)
 - [Deploying to Vercel](#deploying-to-vercel)
+- [Google sign-in](#google-sign-in)
 - [Deploying to Coolify](#deploying-to-coolify)
 - [LibreOffice sandbox snapshot](#libreoffice-sandbox-snapshot)
 - [Database schema changes](#database-schema-changes)
@@ -134,6 +135,7 @@ What the app reads from it:
 | `BETTER_AUTH_SECRET` | Signs session cookies. Generate one with `openssl rand -base64 32`. |
 | `BETTER_AUTH_URL` | The site's public origin. Only load-bearing off Vercel — on Vercel, `VERCEL_URL` wins ([env.ts](src/lib/env.ts)). |
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL` | Sends the sign-in code ([email.ts](src/lib/email.ts)). |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional. Enables "Continue with Google" ([auth-providers.ts](src/lib/auth-providers.ts)). Set both or neither — a half-configured pair fails startup. |
 | `VERCEL_OIDC_TOKEN` | Authenticates Vercel Sandbox for PDF conversion. **Development tokens expire after 12 hours** — re-run `vercel env pull` when previews suddenly stop rendering. |
 | `LIBREOFFICE_SANDBOX_SNAPSHOT_ID` | Optional. Boots the sandbox from a pre-built snapshot instead of installing LibreOffice per request (see [below](#libreoffice-sandbox-snapshot)). |
 
@@ -302,6 +304,7 @@ available without extra plumbing.
    | `BETTER_AUTH_SECRET` | `openssl rand -base64 32`, a distinct value per environment. |
    | `RESEND_API_KEY` | A [Resend](https://resend.com) API key — sign-in codes are emailed through it. |
    | `RESEND_FROM_EMAIL` | A sender address on a domain verified with Resend. |
+   | `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Optional — see [Google sign-in](#google-sign-in). Omit both to offer only email codes. |
 
    `BETTER_AUTH_URL` is **not** needed here: the site origin resolved in
    [`env.ts`](src/lib/env.ts) — used for both better-auth's `baseURL` and page
@@ -329,6 +332,41 @@ behaves unexpectedly:
   `NEXT_PUBLIC_LOCAL_AUTH_PASSWORD` set. `NEXT_PUBLIC_*` values are inlined into
   the client bundle, so a project that accidentally inherited the local-mode
   variables would otherwise ship a working credential to every visitor.
+
+## Google sign-in
+
+Sign-in is email codes by default. Setting `GOOGLE_CLIENT_ID` and
+`GOOGLE_CLIENT_SECRET` adds a "Continue with Google" button above the email
+form; leaving them unset removes both the button and the underlying
+`/api/auth/sign-in/social` endpoint. One function decides both —
+[`isGoogleAuthEnabled()`](src/lib/auth-providers.ts) — so the button can never
+point at a provider that isn't registered. The pages read it per request, so
+adding or removing the credentials takes effect on the next page load rather
+than the next build.
+
+To set it up:
+
+1. In the [Google Cloud console](https://console.cloud.google.com/apis/credentials),
+   create an **OAuth client ID** of type *Web application*.
+2. Add the redirect URI for each origin the app runs on — the path is always
+   `/api/auth/callback/google`:
+
+   ```
+   https://your-app.vercel.app/api/auth/callback/google
+   http://localhost:3000/api/auth/callback/google
+   ```
+
+   Preview deployments get a different hostname per deploy, so Google sign-in
+   only works on previews whose URL you have added here.
+
+3. Put the client ID and secret in the environment (`vercel env add`, or
+   `.env.local` for local development). Set both or neither: `env.ts` fails
+   startup on a half-configured pair rather than silently hiding the button.
+
+Accounts link by email. Someone who first signed in with an email code and
+later uses Google lands in the same account, because
+[`auth.ts`](src/lib/auth.ts) lists Google as a trusted provider — safe
+specifically because Google only returns addresses it has verified.
 
 ## Deploying to Coolify
 
