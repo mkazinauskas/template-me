@@ -102,6 +102,9 @@ export function FillRequestForm({
         <FieldGroups
           fields={fields}
           values={values}
+          // The recipient never sees the document, so the raw tag and field
+          // type would be noise attached to every question.
+          showMeta={false}
           onFieldChange={(key, value) => setValues((v) => ({ ...v, [key]: value }))}
         />
         {error && (

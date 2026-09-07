@@ -33,4 +33,11 @@ describe("FillRequestForm — the owner's own title and note", () => {
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/full name/i)).not.toBeInTheDocument();
   });
+
+  it("labels each question with nothing but its label — no raw tag, no type", () => {
+    render(<FillRequestForm code="abc" templateName="Offer Letter" fields={fields} />);
+    expect(screen.getByText("Email").textContent).toBe("Email");
+    expect(screen.queryByText(/\{\{/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/^email$/i, { selector: "span" })).not.toBeInTheDocument();
+  });
 });

@@ -8,36 +8,53 @@ import { groupFields } from "./field-grouping";
 function FieldRow({
   field,
   value,
+  showMeta,
   onChange,
 }: {
   field: TemplateField;
   value: string;
+  showMeta: boolean;
   onChange: (value: string) => void;
 }) {
   return (
     <div className="flex flex-col gap-1.5">
       <label htmlFor={field.key} className="text-sm font-medium flex items-center gap-2">
         {field.label}
-        <code className="text-[10px] normal-case tracking-normal text-muted-foreground font-mono font-normal">
-          {formatRawTag(field)}
-        </code>
-        <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-normal">
-          {field.type}
-        </span>
+        {showMeta && (
+          <>
+            <code className="text-[10px] normal-case tracking-normal text-muted-foreground font-mono font-normal">
+              {formatRawTag(field)}
+            </code>
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground font-normal">
+              {field.type}
+            </span>
+          </>
+        )}
       </label>
       <FieldInput field={field} id={field.key} required value={value} onChange={onChange} />
     </div>
   );
 }
 
-/** Renders every field, wrapping grouped runs of fields in a labelled `<fieldset>`. */
+/**
+ * Renders every field, wrapping grouped runs of fields in a labelled
+ * `<fieldset>`.
+ *
+ * `showMeta` puts the raw `{{tag}}` and its type beside each label. That's
+ * authoring detail — useful to the owner, who is matching the form back to
+ * the document — so it's on by default but switched off for the public fill
+ * link, where the recipient has never seen the template and the label alone
+ * is the whole question.
+ */
 export function FieldGroups({
   fields,
   values,
+  showMeta = true,
   onFieldChange,
 }: {
   fields: TemplateField[];
   values: Record<string, string>;
+  showMeta?: boolean;
   onFieldChange: (key: string, value: string) => void;
 }) {
   return (
@@ -48,6 +65,7 @@ export function FieldGroups({
             key={field.key}
             field={field}
             value={values[field.key] ?? ""}
+            showMeta={showMeta}
             onChange={(value) => onFieldChange(field.key, value)}
           />
         ));
