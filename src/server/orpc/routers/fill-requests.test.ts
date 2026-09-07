@@ -170,7 +170,12 @@ describe("fillRequests.getByCode", () => {
     state.joinedRows = [{ fillRequest: makeFillRequest(), template: makeTemplate() }];
     const router = await importRouter();
     const result = await call(router.getByCode, { code: "abc123" }, ctx());
-    expect(result).toEqual({ templateName: "Offer Letter", fields: makeTemplate().fields });
+    expect(result).toEqual({
+      templateName: "Offer Letter",
+      fields: makeTemplate().fields,
+      title: null,
+      message: null,
+    });
     expect(result).not.toHaveProperty("userId");
     expect(result).not.toHaveProperty("blobUrl");
   });

@@ -10,6 +10,10 @@ import { orpc, orpcErrorMessage } from "@/lib/orpc";
 import { blankValues } from "@/components/fill-form/field-grouping";
 import { FieldGroups } from "@/components/fill-form/field-groups";
 import { useLivePreview } from "@/components/fill-form/use-live-preview";
+import {
+  NewFillLinkDialog,
+  type FillLinkDraft,
+} from "@/components/fill-form/new-fill-link-dialog";
 import { DocumentPreviewPane } from "@/components/document-preview-pane";
 import {
   useResizablePaneWidth,
@@ -418,13 +422,17 @@ function RevokedRow({
 
 function PendingRow({
   request,
+  fieldCount,
   onRevoked,
 }: {
   request: FillRequest;
+  /** How many fields the template has, for the "3 of 8 questions" summary. */
+  fieldCount: number;
   onRevoked: (id: string) => void;
 }) {
   const { copiedId, copy } = useCopyLink();
   const path = fillLinkPath(request.code);
+  const asked = request.fieldKeys?.length ?? fieldCount;
 
   async function handleRevoke() {
     await orpc.fillRequests.revoke({ id: request.id });
@@ -435,8 +443,12 @@ function PendingRow({
     <li className="rounded-lg border border-border p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="min-w-0">
-          <span className="text-sm font-medium">Pending</span>{" "}
+          <span className="text-sm font-medium">{request.title || "Pending"}</span>{" "}
           <span className="text-muted-foreground text-sm">{formatDate(request.createdAt)}</span>
+          <p className="text-xs text-muted-foreground">
+            Asks for {asked === fieldCount ? "all" : asked} of {fieldCount}{" "}
+            {fieldCount === 1 ? "question" : "questions"}
+          </p>
           <code className="mt-1 block truncate text-xs text-muted-foreground">{path}</code>
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -457,14 +469,17 @@ function PendingRow({
 /**
  * Owner-only tab: generate one-time links that let anyone with the URL fill
  * in the template's fields — without ever seeing the document itself — and
- * download the result. Each link is good for exactly one submission: once
- * filled, the server marks it done and any further open/submit is rejected,
- * same as if it had been revoked here.
+ * download the result. "New link" opens a dialog to pick which fields that
+ * particular link asks for and to write a title and note for whoever opens
+ * it. Each link is good for exactly one submission: once filled, the server
+ * marks it done and any further open/submit is rejected, same as if it had
+ * been revoked here.
  */
 export function FillRequestsPanel({ templateId, templateName, fields }: FillRequestsPanelProps) {
   const [requests, setRequests] = useState<FillRequest[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isCreating, setIsCreating] = useState(false);
+  const [isPicking, setIsPicking] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -482,11 +497,12 @@ export function FillRequestsPanel({ templateId, templateName, fields }: FillRequ
     return () => clearTimeout(timer);
   }, [refresh]);
 
-  async function handleCreate() {
+  async function handleCreate(draft: FillLinkDraft) {
     setIsCreating(true);
     setError(null);
     try {
-      await orpc.fillRequests.create({ templateId });
+      await orpc.fillRequests.create({ templateId, ...draft });
+      setIsPicking(false);
       await refresh();
     } catch (err) {
       setError(orpcErrorMessage(err, "Failed to create a fill link"));
@@ -523,15 +539,27 @@ export function FillRequestsPanel({ templateId, templateName, fields }: FillRequ
         </p>
         <button
           type="button"
-          onClick={handleCreate}
-          disabled={isCreating}
+          onClick={() => {
+            setError(null);
+            setIsPicking(true);
+          }}
           className={buttonClasses({ className: "shrink-0" })}
         >
-          {isCreating ? "Creating…" : "New link"}
+          New link
         </button>
       </div>
 
-      {error && (
+      {isPicking && (
+        <NewFillLinkDialog
+          fields={fields}
+          isCreating={isCreating}
+          error={error}
+          onCancel={() => setIsPicking(false)}
+          onCreate={handleCreate}
+        />
+      )}
+
+      {error && !isPicking && (
         <p role="alert" className="text-sm text-red-600 dark:text-red-400">
           {error}
         </p>
@@ -546,7 +574,12 @@ export function FillRequestsPanel({ templateId, templateName, fields }: FillRequ
           {pending.length > 0 && (
             <ul className="flex flex-col gap-2">
               {pending.map((r) => (
-                <PendingRow key={r.id} request={r} onRevoked={handleRevoked} />
+                <PendingRow
+                  key={r.id}
+                  request={r}
+                  fieldCount={fields.length}
+                  onRevoked={handleRevoked}
+                />
               ))}
             </ul>
           )}

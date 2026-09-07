@@ -177,9 +177,11 @@ export type NewTemplate = typeof templates.$inferInsert;
 
 // A one-time, shareable link an owner generates for a template: a random
 // `code` stands in for a URL anyone can open (no sign-in) to fill in the
-// template's fields — but not preview the document itself. The first
-// successful submission stamps `filledAt` and the link is done: later opens
-// or submits are rejected, same as if the owner had revoked it themselves.
+// template's fields — but not preview the document itself. Each link carries
+// its own ask: which fields it requests (`fieldKeys`) and the title/message
+// shown alongside them. The first successful submission stamps `filledAt` and
+// the link is done: later opens or submits are rejected, same as if the owner
+// had revoked it themselves.
 // `revokedAt` covers the owner cancelling a link before anyone used it.
 export const fillRequests = pgTable(
   "fill_requests",
@@ -189,6 +191,14 @@ export const fillRequests = pgTable(
       .notNull()
       .references(() => templates.id, { onDelete: "cascade" }),
     code: text("code").notNull(),
+    // Which of the template's fields this link asks for, as a subset of the
+    // template's field keys. Null means "all of them" — the shape every link
+    // had before per-link field selection, and still the default.
+    fieldKeys: jsonb("field_keys").$type<string[]>(),
+    // An optional heading and note the owner writes for whoever opens the
+    // link, shown above the form in place of the bare template name.
+    title: text("title"),
+    message: text("message"),
     // The submitted values, once filled — same shape as a template-generate
     // request's `data`. Null until `filledAt` is set.
     data: jsonb("data").$type<Record<string, string>>(),

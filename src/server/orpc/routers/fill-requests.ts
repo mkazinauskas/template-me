@@ -3,8 +3,9 @@ import { z } from "zod";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { nanoid } from "nanoid";
 import { getDb } from "@/db";
-import { fillRequests, templates, type FillRequest } from "@/db/schema";
+import { fillRequests, templates, type FillRequest, type Template } from "@/db/schema";
 import { isTemplateOwner } from "@/lib/template-access";
+import { requestedFields, templateForRequest } from "@/lib/fill-request-fields";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { toFieldStrings, validateRow } from "@/server/generate/row-validation";
 import { protectedProcedure, publicProcedure } from "@/server/orpc/base";
@@ -15,7 +16,30 @@ const MAX_CODE_ATTEMPTS = 5;
 
 const LINK_UNAVAILABLE = "This link is invalid or has already been used";
 
+const MAX_TITLE_LENGTH = 200;
+const MAX_MESSAGE_LENGTH = 2000;
+
 const rowData = z.record(z.string(), z.unknown());
+
+function trimmedOrNull(value: string | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+/**
+ * Narrows the requested field keys to ones the template actually has, in
+ * template order. Returns null — "ask for everything" — when the caller
+ * didn't pick any, and rejects a selection that lands on nothing, which
+ * would otherwise create a link with no questions on it.
+ */
+function resolveFieldKeys(template: Template, fieldKeys: string[] | undefined): string[] | null {
+  if (!fieldKeys) return null;
+  const keys = requestedFields(template.fields, fieldKeys).map((f) => f.key);
+  if (keys.length === 0) {
+    throw new ORPCError("BAD_REQUEST", { message: "Pick at least one field for this link" });
+  }
+  return keys.length === template.fields.length ? null : keys;
+}
 
 function isUniqueViolation(err: unknown): boolean {
   return (
@@ -26,19 +50,26 @@ function isUniqueViolation(err: unknown): boolean {
   );
 }
 
+/** The per-link ask: which fields to request, and the note shown with them. */
+type FillRequestAsk = {
+  fieldKeys: string[] | null;
+  title: string | null;
+  message: string | null;
+};
+
 /**
  * Inserts a fresh fill request row for a template, generating a random code.
  * Collisions are astronomically unlikely (14 nanoid characters) but retried a
  * few times rather than trusted away, since the code doubles as the link's
  * only access control.
  */
-async function insertFillRequest(templateId: string): Promise<FillRequest> {
+async function insertFillRequest(templateId: string, ask: FillRequestAsk): Promise<FillRequest> {
   const db = getDb();
   for (let attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
     try {
       const [row] = await db
         .insert(fillRequests)
-        .values({ templateId, code: nanoid(CODE_LENGTH) })
+        .values({ templateId, code: nanoid(CODE_LENGTH), ...ask })
         .returning();
       return row;
     } catch (err) {
@@ -95,12 +126,27 @@ async function enforcePublicLinkRateLimit(headers: Headers): Promise<void> {
 }
 
 export const fillRequestsRouter = {
-  /** Owner-only: creates a new one-time fill link for a template. */
+  /**
+   * Owner-only: creates a new one-time fill link for a template. The owner
+   * picks which fields the link asks for (omitted means all of them) and can
+   * attach a title and note shown to whoever opens it.
+   */
   create: protectedProcedure
-    .input(z.object({ templateId: z.string() }))
+    .input(
+      z.object({
+        templateId: z.string(),
+        fieldKeys: z.array(z.string()).optional(),
+        title: z.string().max(MAX_TITLE_LENGTH).optional(),
+        message: z.string().max(MAX_MESSAGE_LENGTH).optional(),
+      })
+    )
     .handler(async ({ input, context }) => {
-      await loadOwnedTemplate(input.templateId, context.session.user.id);
-      const fillRequest = await insertFillRequest(input.templateId);
+      const template = await loadOwnedTemplate(input.templateId, context.session.user.id);
+      const fillRequest = await insertFillRequest(input.templateId, {
+        fieldKeys: resolveFieldKeys(template, input.fieldKeys),
+        title: trimmedOrNull(input.title),
+        message: trimmedOrNull(input.message),
+      });
       return { fillRequest };
     }),
 
@@ -174,13 +220,21 @@ export const fillRequestsRouter = {
       return { ok: true as const };
     }),
 
-  /** Public: the template's name and fields for a still-usable link — never the document itself. */
+  /**
+   * Public: the fields a still-usable link asks for, plus the owner's title
+   * and note — never the document itself.
+   */
   getByCode: publicProcedure
     .input(z.object({ code: z.string() }))
     .handler(async ({ input, context }) => {
       await enforcePublicLinkRateLimit(context.headers);
-      const { template } = await loadActiveFillRequest(input.code);
-      return { templateName: template.name, fields: template.fields };
+      const { fillRequest, template } = await loadActiveFillRequest(input.code);
+      return {
+        templateName: template.name,
+        fields: requestedFields(template.fields, fillRequest.fieldKeys),
+        title: fillRequest.title,
+        message: fillRequest.message,
+      };
     }),
 
   /**
@@ -192,9 +246,13 @@ export const fillRequestsRouter = {
     .input(z.object({ code: z.string(), data: rowData }))
     .handler(async ({ input, context }) => {
       await enforcePublicLinkRateLimit(context.headers);
-      const { template } = await loadActiveFillRequest(input.code);
+      const { fillRequest, template } = await loadActiveFillRequest(input.code);
 
-      const validationError = validateRow(template, input.data, false);
+      // Only what the link asked for is required or checked; `toFieldStrings`
+      // still runs against the full template, so the fields left out are
+      // stored blank rather than missing.
+      const asked = templateForRequest(template, fillRequest.fieldKeys);
+      const validationError = validateRow(asked, input.data, false);
       if (validationError) {
         throw new ORPCError("BAD_REQUEST", { message: validationError });
       }

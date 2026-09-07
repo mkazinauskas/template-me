@@ -23,7 +23,13 @@ export default async function FillLinkPage({
       <AppHeader />
       <main className="flex flex-1 items-center justify-center px-6 py-10">
         {result.status === "ok" ? (
-          <FillRequestForm code={code} templateName={result.templateName} fields={result.fields} />
+          <FillRequestForm
+            code={code}
+            templateName={result.templateName}
+            fields={result.fields}
+            title={result.title}
+            message={result.message}
+          />
         ) : (
           <div className="flex flex-col items-center gap-6 text-center max-w-md">
             <Link href="/" className="transition-transform hover:scale-[1.03]">

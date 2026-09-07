@@ -26,20 +26,26 @@ function CheckIcon() {
 }
 
 /**
- * The form a link recipient sees at `/fill/[code]` — just the template's
- * fields, no document preview. Submitting posts the values and, on success,
- * the link is done: the server has already marked it used, so this takes
- * over the whole screen with a confirmation rather than leaving the (now
- * stale) form header and fields on screen behind it.
+ * The form a link recipient sees at `/fill/[code]` — only the fields this
+ * link asked for, no document preview. Submitting posts the values and, on
+ * success, the link is done: the server has already marked it used, so this
+ * takes over the whole screen with a confirmation rather than leaving the
+ * (now stale) form header and fields on screen behind it.
  */
 export function FillRequestForm({
   code,
   templateName,
   fields,
+  title = null,
+  message = null,
 }: {
   code: string;
   templateName: string;
   fields: TemplateField[];
+  /** The owner's heading for this link; falls back to the template's name. */
+  title?: string | null;
+  /** The owner's note to the recipient, shown above the fields. */
+  message?: string | null;
 }) {
   const [values, setValues] = useState<Record<string, string>>(() => blankValues(fields));
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,11 +86,17 @@ export function FillRequestForm({
   return (
     <div className="flex w-full max-w-xl flex-col gap-6">
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">{templateName}</h1>
+        <h1 className="text-xl font-semibold tracking-tight">{title || templateName}</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Fill in the information below. This link can only be used once.
         </p>
       </div>
+
+      {message && (
+        <p className="whitespace-pre-wrap rounded-lg border border-border bg-black/[0.02] p-4 text-sm dark:bg-white/[0.03]">
+          {message}
+        </p>
+      )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <FieldGroups
