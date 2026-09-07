@@ -16,7 +16,10 @@ test.describe("bulk-fill from a spreadsheet", () => {
     const name = uniqueName("Bulk Offer Letter");
     await uploadExampleTemplate(page, name);
 
-    await page.getByRole("button", { name: "Create multiple from a spreadsheet" }).click();
+    await page.getByRole("link", { name: "Create multiple from a spreadsheet" }).click();
+
+    // Each fill mode is its own route, so the bulk workspace is linkable.
+    await expect(page).toHaveURL(/\/client\/dashboard\/templates\/[^/]+\/bulk$/);
 
     await page
       .getByLabel(/Spreadsheet \(\.csv/)
@@ -39,7 +42,7 @@ test.describe("bulk-fill from a spreadsheet", () => {
   test("previews a single row before generating the batch", async ({ page }) => {
     const name = uniqueName("Bulk Preview");
     await uploadExampleTemplate(page, name);
-    await page.getByRole("button", { name: "Create multiple from a spreadsheet" }).click();
+    await page.getByRole("link", { name: "Create multiple from a spreadsheet" }).click();
 
     await page
       .getByLabel(/Spreadsheet \(\.csv/)

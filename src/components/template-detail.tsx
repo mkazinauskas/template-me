@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { headers } from "next/headers";
 import { eq } from "drizzle-orm";
@@ -7,6 +8,7 @@ import { templates } from "@/db/schema";
 import { auth } from "@/lib/auth";
 import { canViewTemplate, isTemplateOwner } from "@/lib/template-access";
 import { FillForm } from "@/components/fill-form";
+import { fillModeLabel, isOwnerOnlyMode, type FillMode } from "@/lib/template-routes";
 import { DeleteTemplateButton } from "@/components/delete-template-button";
 import { DownloadTemplateButton } from "@/components/download-template-button";
 import { PublishToggle } from "@/components/publish-toggle";
@@ -18,11 +20,11 @@ const getSession = cache(async () =>
 
 /**
  * Fetch a template by id, enforcing {@link canViewTemplate} (owner, or the
- * template is public). Shared by the two route entry points
- * (`/client/dashboard/templates/[id]` and `/public/templates/[id]`) and their
- * `generateMetadata`, so the DB hit is de-duplicated per request.
+ * template is public). Shared by {@link TemplateDetail} and
+ * {@link templateMetadata} across every template route, so the DB hit is
+ * de-duplicated per request.
  */
-export const getTemplate = cache(async (id: string) => {
+const getTemplate = cache(async (id: string) => {
   const session = await getSession();
   const db = getDb();
   const [template] = await db.select().from(templates).where(eq(templates.id, id));
@@ -30,18 +32,51 @@ export const getTemplate = cache(async (id: string) => {
   return template;
 });
 
+const MODE_DESCRIPTION: Record<FillMode, (name: string) => string> = {
+  single: (name) => `Fill in "${name}" and download it as a PDF.`,
+  bulk: (name) => `Create many documents from "${name}" at once from a spreadsheet.`,
+  send: (name) => `Send a one-time link that lets someone else fill in "${name}".`,
+};
+
+/**
+ * Shared `generateMetadata` body for every template route — both audiences and
+ * all three fill modes. Templates are never indexed, hidden or not.
+ */
+export async function templateMetadata(
+  id: string,
+  mode: FillMode = "single"
+): Promise<Metadata> {
+  const template = await getTemplate(id);
+  const robots = { index: false, follow: false };
+  if (!template) return { title: "Template not found", robots };
+
+  return {
+    title:
+      mode === "single" ? template.name : `${template.name} — ${fillModeLabel(mode)}`,
+    description: MODE_DESCRIPTION[mode](template.name),
+    robots,
+  };
+}
+
 /**
  * The fill-a-template workspace: header bar with the template name, owner-only
  * publish/delete controls, an optional tag-parsing warnings banner, and the
- * {@link FillForm} split pane. Rendered by both the signed-in
- * (`/client/dashboard/templates/[id]`) and public (`/public/templates/[id]`)
- * route files — access control lives entirely in {@link getTemplate}.
+ * {@link FillForm} split pane for `mode`. Rendered by every template route
+ * under `/client/dashboard/templates/[id]` and `/public/templates/[id]` —
+ * access control lives in {@link getTemplate} plus the owner-only mode check
+ * below.
  */
 export async function TemplateDetail({
   id,
+  mode = "single",
+  basePath,
   warningsParam,
 }: {
   id: string;
+  /** Which fill mode this route renders. Defaults to the template page itself. */
+  mode?: FillMode;
+  /** This audience's templates list path: `/client/dashboard/templates` or `/public/templates`. */
+  basePath: string;
   warningsParam?: string;
 }) {
   const [template, session] = await Promise.all([getTemplate(id), getSession()]);
@@ -51,6 +86,12 @@ export async function TemplateDetail({
   }
 
   const isOwner = isTemplateOwner(template, session?.user.id);
+
+  // An owner-only mode is not merely hidden from the switcher: reaching its URL
+  // directly must look exactly like a route that doesn't exist.
+  if (isOwnerOnlyMode(mode) && !isOwner) {
+    notFound();
+  }
 
   let warnings: string[] = [];
   if (warningsParam) {
@@ -114,6 +155,8 @@ export async function TemplateDetail({
           templateId={template.id}
           fields={template.fields}
           templateName={template.name}
+          mode={mode}
+          basePath={`${basePath}/${template.id}`}
           isOwner={isOwner}
         />
       </main>

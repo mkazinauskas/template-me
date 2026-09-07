@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen } from "@testing-library/react";
-import { useResizablePaneWidth, ResizeHandle } from "@/hooks/use-resizable-pane-width";
+import {
+  useResizablePaneWidth,
+  useResizablePaneHeight,
+  ResizeHandle,
+  VerticalResizeHandle,
+} from "@/hooks/use-resizable-pane";
 
 // jsdom has PointerEvent but no pointer-capture implementation; the hook calls
 // setPointerCapture on pointerdown, so stub it to a no-op.
@@ -127,11 +132,102 @@ describe("useResizablePaneWidth", () => {
   });
 });
 
+/**
+ * The height counterpart of `Pane`: a pane whose bottom handle drags its
+ * height. jsdom reports a container `top` of 0, so a pointermove at clientY N
+ * lands the pane at exactly N (before clamping).
+ */
+function TallPane({ storageKey = "testPaneHeight" }: { storageKey?: string } = {}) {
+  const { height, containerRef, startResizing, resetHeight } = useResizablePaneHeight({
+    storageKey,
+    min: 100,
+    max: 500,
+    defaultHeight: 300,
+  });
+  return (
+    <div ref={containerRef}>
+      <div data-testid="tall-pane" style={{ height }} />
+      <VerticalResizeHandle onPointerDown={startResizing} onReset={resetHeight} />
+    </div>
+  );
+}
+
+function dragVertically(to: number) {
+  fireEvent.pointerDown(screen.getByRole("separator", { name: /resize preview height/i }), {
+    pointerId: 1,
+  });
+  fireEvent.pointerMove(window, { clientY: to });
+}
+
+describe("useResizablePaneHeight", () => {
+  it("drags the pane to follow the pointer", () => {
+    render(<TallPane />);
+    expect(screen.getByTestId("tall-pane")).toHaveStyle({ height: "300px" });
+
+    dragVertically(420);
+
+    expect(screen.getByTestId("tall-pane")).toHaveStyle({ height: "420px" });
+  });
+
+  it("clamps the height to [min, max]", () => {
+    render(<TallPane />);
+
+    dragVertically(9000);
+    expect(screen.getByTestId("tall-pane")).toHaveStyle({ height: "500px" });
+
+    fireEvent.pointerMove(window, { clientY: -50 });
+    expect(screen.getByTestId("tall-pane")).toHaveStyle({ height: "100px" });
+  });
+
+  it("persists the height on release and restores it on the next mount", () => {
+    const { unmount } = render(<TallPane />);
+
+    dragVertically(420);
+    fireEvent.pointerUp(window);
+    expect(localStorage.getItem("testPaneHeight")).toBe("420");
+
+    unmount();
+    render(<TallPane />);
+
+    expect(screen.getByTestId("tall-pane")).toHaveStyle({ height: "420px" });
+  });
+
+  it("double-clicking the handle resets to the default height", () => {
+    render(<TallPane />);
+    dragVertically(420);
+    fireEvent.pointerUp(window);
+
+    fireEvent.doubleClick(screen.getByRole("separator", { name: /resize preview height/i }));
+
+    expect(screen.getByTestId("tall-pane")).toHaveStyle({ height: "300px" });
+    expect(localStorage.getItem("testPaneHeight")).toBe("300");
+  });
+
+  it("uses the row-resize cursor while dragging", () => {
+    render(<TallPane />);
+
+    dragVertically(420);
+    expect(document.body.style.cursor).toBe("row-resize");
+
+    fireEvent.pointerUp(window);
+    expect(document.body.style.cursor).toBe("");
+  });
+});
+
 describe("ResizeHandle", () => {
   it("exposes itself as a vertical separator", () => {
     render(<ResizeHandle onPointerDown={vi.fn()} onReset={vi.fn()} />);
 
     const handle = screen.getByRole("separator", { name: /resize form panel/i });
     expect(handle).toHaveAttribute("aria-orientation", "vertical");
+  });
+});
+
+describe("VerticalResizeHandle", () => {
+  it("exposes itself as a horizontal separator", () => {
+    render(<VerticalResizeHandle onPointerDown={vi.fn()} onReset={vi.fn()} />);
+
+    const handle = screen.getByRole("separator", { name: /resize preview height/i });
+    expect(handle).toHaveAttribute("aria-orientation", "horizontal");
   });
 });

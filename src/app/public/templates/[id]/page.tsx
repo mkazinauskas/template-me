@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { TemplateDetail, getTemplate } from "@/components/template-detail";
+import { TemplateDetail, templateMetadata } from "@/components/template-detail";
+import { PUBLIC_TEMPLATES_PATH } from "@/lib/template-routes";
 
 export async function generateMetadata({
   params,
@@ -7,15 +8,7 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  const template = await getTemplate(id);
-
-  return {
-    title: template ? template.name : "Template not found",
-    description: template
-      ? `Fill in "${template.name}" and download it as a PDF.`
-      : undefined,
-    robots: { index: false, follow: false },
-  };
+  return templateMetadata(id);
 }
 
 export default async function PublicTemplatePage({
@@ -27,5 +20,5 @@ export default async function PublicTemplatePage({
 }) {
   const { id } = await params;
   const { warnings } = await searchParams;
-  return <TemplateDetail id={id} warningsParam={warnings} />;
+  return <TemplateDetail id={id} basePath={PUBLIC_TEMPLATES_PATH} warningsParam={warnings} />;
 }

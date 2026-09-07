@@ -11,7 +11,12 @@ import { blankValues } from "@/components/fill-form/field-grouping";
 import { FieldGroups } from "@/components/fill-form/field-groups";
 import { useLivePreview } from "@/components/fill-form/use-live-preview";
 import { DocumentPreviewPane } from "@/components/document-preview-pane";
-import { useResizablePaneWidth, ResizeHandle } from "@/hooks/use-resizable-pane-width";
+import {
+  useResizablePaneWidth,
+  useResizablePaneHeight,
+  ResizeHandle,
+  VerticalResizeHandle,
+} from "@/hooks/use-resizable-pane";
 
 type FillRequestsPanelProps = {
   templateId: string;
@@ -169,6 +174,17 @@ function EditFilledData({
       max: 640,
       defaultWidth: 288,
     });
+  const {
+    height: paneHeight,
+    containerRef: heightContainerRef,
+    startResizing: startResizingHeight,
+    resetHeight,
+  } = useResizablePaneHeight({
+    storageKey: "fillRequestEditPaneHeight",
+    min: 240,
+    max: 1200,
+    defaultHeight: 448,
+  });
 
   async function handleSave() {
     setIsSaving(true);
@@ -182,54 +198,62 @@ function EditFilledData({
   }
 
   return (
-    <div ref={containerRef} className="flex h-[28rem] flex-col gap-4 lg:flex-row lg:gap-0">
+    <div ref={heightContainerRef}>
       <div
-        style={{ "--fields-width": `${fieldsWidth}px` } as CSSProperties}
-        className="flex flex-col gap-4 overflow-y-auto lg:w-[var(--fields-width)] lg:shrink-0"
+        ref={containerRef}
+        style={{ height: `${paneHeight}px` }}
+        className="flex flex-col gap-4 overflow-hidden lg:flex-row lg:gap-0"
       >
-        <FieldGroups
-          fields={fields}
-          values={values}
-          onFieldChange={(key, value) => setValues((v) => ({ ...v, [key]: value }))}
-        />
-        {error && (
-          <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-            {error}
-          </p>
-        )}
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={isSaving}
-            className={buttonClasses({ size: "sm" })}
-          >
-            {isSaving ? "Saving…" : "Save"}
-          </button>
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={isSaving}
-            className="text-sm text-muted-foreground hover:underline disabled:opacity-50"
-          >
-            Cancel
-          </button>
+        <div
+          style={{ "--fields-width": `${fieldsWidth}px` } as CSSProperties}
+          className="flex flex-col gap-4 overflow-y-auto lg:w-[var(--fields-width)] lg:shrink-0"
+        >
+          <FieldGroups
+            fields={fields}
+            values={values}
+            onFieldChange={(key, value) => setValues((v) => ({ ...v, [key]: value }))}
+          />
+          {error && (
+            <p role="alert" className="text-sm text-red-600 dark:text-red-400">
+              {error}
+            </p>
+          )}
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={isSaving}
+              className={buttonClasses({ size: "sm" })}
+            >
+              {isSaving ? "Saving…" : "Save"}
+            </button>
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={isSaving}
+              className="text-sm text-muted-foreground hover:underline disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
         </div>
+
+        <ResizeHandle onPointerDown={startResizing} onReset={resetWidth} />
+
+        <DocumentPreviewPane
+          url={previewUrl}
+          loading={isPreviewLoading}
+          error={previewError}
+          loadingLabel="Updating preview…"
+          emptyState={
+            <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+              {isPreviewLoading ? "Rendering preview…" : "Preview will appear here"}
+            </div>
+          }
+        />
       </div>
 
-      <ResizeHandle onPointerDown={startResizing} onReset={resetWidth} />
-
-      <DocumentPreviewPane
-        url={previewUrl}
-        loading={isPreviewLoading}
-        error={previewError}
-        loadingLabel="Updating preview…"
-        emptyState={
-          <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
-            {isPreviewLoading ? "Rendering preview…" : "Preview will appear here"}
-          </div>
-        }
-      />
+      <VerticalResizeHandle onPointerDown={startResizingHeight} onReset={resetHeight} />
     </div>
   );
 }

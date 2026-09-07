@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { Template } from "@/db/schema";
+import type { FillMode } from "@/lib/template-routes";
 
 const state = vi.hoisted(() => ({
   template: null as Template | null,
@@ -40,8 +41,20 @@ vi.mock("next/navigation", () => ({
 // covered in full by fill-form.test.tsx; here we only need to assert the
 // page passes it the right props.
 vi.mock("@/components/fill-form", () => ({
-  FillForm: ({ templateId, templateName, fields }: { templateId: string; templateName: string; fields: unknown[] }) => (
-    <div data-testid="fill-form">
+  FillForm: ({
+    templateId,
+    templateName,
+    fields,
+    mode,
+    basePath,
+  }: {
+    templateId: string;
+    templateName: string;
+    fields: unknown[];
+    mode: string;
+    basePath: string;
+  }) => (
+    <div data-testid="fill-form" data-mode={mode} data-base-path={basePath}>
       {templateId} / {templateName} / {fields.length} fields
     </div>
   ),
@@ -80,9 +93,19 @@ function makeTemplate(overrides: Partial<Template> = {}): Template {
   };
 }
 
-async function renderTemplatePage(id: string, searchParams: { warnings?: string } = {}) {
+const BASE_PATH = "/client/dashboard/templates";
+
+async function renderTemplatePage(
+  id: string,
+  { warnings, mode }: { warnings?: string; mode?: FillMode } = {}
+) {
   const { TemplateDetail } = await import("@/components/template-detail");
-  const element = await TemplateDetail({ id, warningsParam: searchParams.warnings });
+  const element = await TemplateDetail({
+    id,
+    mode,
+    basePath: BASE_PATH,
+    warningsParam: warnings,
+  });
   render(element);
 }
 
@@ -150,6 +173,37 @@ describe("TemplateDetail", () => {
     expect(screen.getByTestId("fill-form")).toHaveTextContent("t1 / Offer Letter / 1 fields");
   });
 
+  it("gives FillForm the routed mode and this template's own path", async () => {
+    state.template = makeTemplate({ id: "t1" });
+    await renderTemplatePage("t1", { mode: "bulk" });
+
+    const node = screen.getByTestId("fill-form");
+    expect(node).toHaveAttribute("data-mode", "bulk");
+    expect(node).toHaveAttribute("data-base-path", `${BASE_PATH}/t1`);
+  });
+
+  it("defaults to the single-fill mode on the template's own route", async () => {
+    state.template = makeTemplate();
+    await renderTemplatePage("t1");
+
+    expect(screen.getByTestId("fill-form")).toHaveAttribute("data-mode", "single");
+  });
+
+  it("renders the owner-only send mode for the owner", async () => {
+    state.template = makeTemplate();
+    await renderTemplatePage("t1", { mode: "send" });
+
+    expect(screen.getByTestId("fill-form")).toHaveAttribute("data-mode", "send");
+  });
+
+  it("calls notFound() when a non-owner reaches the owner-only send mode", async () => {
+    state.session = { user: { id: "user-2", email: "other@example.com" } };
+    state.template = makeTemplate({ userId: "someone-else", isPublic: true });
+
+    await expect(renderTemplatePage("t1", { mode: "send" })).rejects.toThrow("NEXT_NOT_FOUND");
+    expect(notFound).toHaveBeenCalled();
+  });
+
   it("shows no warnings banner when the warnings query param is absent", async () => {
     state.template = makeTemplate();
     await renderTemplatePage("t1");
@@ -171,5 +225,42 @@ describe("TemplateDetail", () => {
     await renderTemplatePage("t1", { warnings: "{not json" });
 
     expect(screen.queryByText("Some tags weren't fully understood")).not.toBeInTheDocument();
+  });
+});
+
+describe("templateMetadata", () => {
+  beforeEach(() => {
+    state.template = null;
+    state.session = { user: { id: "user-1", email: "owner@example.com" } };
+  });
+
+  async function metadataFor(id: string, mode?: FillMode) {
+    const { templateMetadata } = await import("@/components/template-detail");
+    return mode ? templateMetadata(id, mode) : templateMetadata(id);
+  }
+
+  it("titles the template's own route with just the template name", async () => {
+    state.template = makeTemplate({ name: "NDA" });
+    const meta = await metadataFor("t1");
+
+    expect(meta.title).toBe("NDA");
+    expect(meta.description).toBe('Fill in "NDA" and download it as a PDF.');
+    expect(meta.robots).toMatchObject({ index: false, follow: false });
+  });
+
+  it("appends the mode label on a mode route", async () => {
+    state.template = makeTemplate({ name: "NDA" });
+
+    expect((await metadataFor("t1", "bulk")).title).toBe(
+      "NDA — Create multiple from a spreadsheet"
+    );
+    expect((await metadataFor("t1", "send")).title).toBe("NDA — Send a link to fill in");
+  });
+
+  it("falls back to a not-found title when the template is hidden", async () => {
+    const meta = await metadataFor("missing");
+
+    expect(meta.title).toBe("Template not found");
+    expect(meta.robots).toMatchObject({ index: false });
   });
 });

@@ -16,7 +16,15 @@ describe("FillForm — rendering, inputs & preview", () => {
   afterEach(restoreFillFormGlobals);
 
   it("renders every field with its label, raw tag, and type, grouping fields under a fieldset", () => {
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+    render(
+      <FillForm
+        templateId="t1"
+        fields={FIELDS}
+        templateName="Offer Letter"
+        mode="single"
+        basePath="/public/templates/t1"
+      />
+    );
 
     expect(screen.getByText("Full name")).toBeInTheDocument();
     expect(screen.getByText("{{salary|number(2)}}")).toBeInTheDocument();
@@ -27,7 +35,15 @@ describe("FillForm — rendering, inputs & preview", () => {
   });
 
   it("renders the correct input type per field", () => {
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+    render(
+      <FillForm
+        templateId="t1"
+        fields={FIELDS}
+        templateName="Offer Letter"
+        mode="single"
+        basePath="/public/templates/t1"
+      />
+    );
 
     expect(screen.getByLabelText(/Salary/)).toHaveAttribute("type", "number");
     expect(screen.getByLabelText(/Start date/)).toHaveAttribute("type", "date");
@@ -36,7 +52,15 @@ describe("FillForm — rendering, inputs & preview", () => {
   });
 
   it("requests a preview shortly after mount with the default values", async () => {
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+    render(
+      <FillForm
+        templateId="t1"
+        fields={FIELDS}
+        templateName="Offer Letter"
+        mode="single"
+        basePath="/public/templates/t1"
+      />
+    );
 
     await waitFor(
       () =>
@@ -50,7 +74,15 @@ describe("FillForm — rendering, inputs & preview", () => {
 
   it("debounces the preview request while the user is still typing", async () => {
     const user = userEvent.setup();
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+    render(
+      <FillForm
+        templateId="t1"
+        fields={FIELDS}
+        templateName="Offer Letter"
+        mode="single"
+        basePath="/public/templates/t1"
+      />
+    );
     await waitFor(() => expect(orpc.templates.generate).toHaveBeenCalledTimes(1), { timeout: 2000 });
     vi.mocked(orpc.templates.generate).mockClear();
 
@@ -67,7 +99,15 @@ describe("FillForm — rendering, inputs & preview", () => {
 
   it("toggles the boolean switch and reflects the on/off label", async () => {
     const user = userEvent.setup();
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+    render(
+      <FillForm
+        templateId="t1"
+        fields={FIELDS}
+        templateName="Offer Letter"
+        mode="single"
+        basePath="/public/templates/t1"
+      />
+    );
 
     const toggle = screen.getByRole("switch");
     expect(screen.getByText("No")).toBeInTheDocument();
@@ -81,7 +121,15 @@ describe("FillForm — rendering, inputs & preview", () => {
   it("renders a checkbox input and toggles its checked state", async () => {
     const user = userEvent.setup();
     const checkboxFields = [{ key: "agreed", label: "Agreed", type: "checkbox" as const, params: [] }];
-    render(<FillForm templateId="t1" fields={checkboxFields} templateName="Offer Letter" />);
+    render(
+      <FillForm
+        templateId="t1"
+        fields={checkboxFields}
+        templateName="Offer Letter"
+        mode="single"
+        basePath="/public/templates/t1"
+      />
+    );
 
     const checkbox = screen.getByRole("checkbox");
     expect(checkbox).not.toBeChecked();
@@ -91,12 +139,57 @@ describe("FillForm — rendering, inputs & preview", () => {
     expect(checkbox).toBeChecked();
   });
 
-  it("switches to the bulk-fill tab", async () => {
-    const user = userEvent.setup();
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
-
-    await user.click(screen.getByRole("button", { name: "Create multiple from a spreadsheet" }));
+  it("renders the bulk panel when routed to the bulk mode", () => {
+    render(
+      <FillForm
+        templateId="t1"
+        fields={FIELDS}
+        templateName="Offer Letter"
+        mode="bulk"
+        basePath="/public/templates/t1"
+      />
+    );
 
     expect(screen.getByLabelText(/Spreadsheet \(\.csv/)).toBeInTheDocument();
+  });
+
+  it("links each mode to its own route and marks the current one", () => {
+    render(
+      <FillForm
+        templateId="t1"
+        fields={FIELDS}
+        templateName="Offer Letter"
+        mode="bulk"
+        basePath="/public/templates/t1"
+        isOwner
+      />
+    );
+
+    expect(screen.getByRole("link", { name: "Fill one document" })).toHaveAttribute(
+      "href",
+      "/public/templates/t1"
+    );
+    expect(screen.getByRole("link", { name: "Send a link to fill in" })).toHaveAttribute(
+      "href",
+      "/public/templates/t1/send"
+    );
+
+    const current = screen.getByRole("link", { name: "Create multiple from a spreadsheet" });
+    expect(current).toHaveAttribute("href", "/public/templates/t1/bulk");
+    expect(current).toHaveAttribute("aria-current", "page");
+  });
+
+  it("hides the owner-only send mode from non-owners", () => {
+    render(
+      <FillForm
+        templateId="t1"
+        fields={FIELDS}
+        templateName="Offer Letter"
+        mode="single"
+        basePath="/public/templates/t1"
+      />
+    );
+
+    expect(screen.queryByRole("link", { name: "Send a link to fill in" })).not.toBeInTheDocument();
   });
 });

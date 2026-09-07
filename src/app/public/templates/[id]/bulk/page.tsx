@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { TemplateDetail, templateMetadata } from "@/components/template-detail";
-import { CLIENT_TEMPLATES_PATH } from "@/lib/template-routes";
+import { PUBLIC_TEMPLATES_PATH } from "@/lib/template-routes";
 
 export async function generateMetadata({
   params,
@@ -8,17 +8,14 @@ export async function generateMetadata({
   params: Promise<{ id: string }>;
 }): Promise<Metadata> {
   const { id } = await params;
-  return templateMetadata(id);
+  return templateMetadata(id, "bulk");
 }
 
-export default async function ClientTemplatePage({
+export default async function PublicTemplateBulkPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ warnings?: string }>;
 }) {
   const { id } = await params;
-  const { warnings } = await searchParams;
-  return <TemplateDetail id={id} basePath={CLIENT_TEMPLATES_PATH} warningsParam={warnings} />;
+  return <TemplateDetail id={id} mode="bulk" basePath={PUBLIC_TEMPLATES_PATH} />;
 }

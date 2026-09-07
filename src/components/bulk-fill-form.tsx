@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type { TemplateField } from "@/db/schema";
 import { buildCsvTemplate, rowsToCsv, parseCsv } from "@/lib/csv";
 import { formatRawTag } from "@/lib/template-tag";
-import { useResizablePaneWidth, ResizeHandle } from "@/hooks/use-resizable-pane-width";
+import { useResizablePaneWidth, ResizeHandle } from "@/hooks/use-resizable-pane";
 import { downloadBlob } from "@/lib/download";
 import { slugifyFilename } from "@/lib/slugify";
 import { BulkSetupPanel } from "@/components/bulk-fill/setup-panel";

@@ -19,7 +19,15 @@ describe("FillForm — submit, persistence & values import/export", () => {
 
   it("submits field values and triggers a PDF download", async () => {
     const user = userEvent.setup();
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+    render(
+      <FillForm
+        templateId="t1"
+        fields={FIELDS}
+        templateName="Offer Letter"
+        mode="single"
+        basePath="/public/templates/t1"
+      />
+    );
 
     await user.type(screen.getByLabelText(/Full name/), "Jane Doe");
     await user.type(screen.getByLabelText(/Salary/), "1000");
@@ -49,7 +57,15 @@ describe("FillForm — submit, persistence & values import/export", () => {
       );
     });
     const user = userEvent.setup();
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+    render(
+      <FillForm
+        templateId="t1"
+        fields={FIELDS}
+        templateName="Offer Letter"
+        mode="single"
+        basePath="/public/templates/t1"
+      />
+    );
 
     await user.type(screen.getByLabelText(/Full name/), "Jane Doe");
     await user.type(screen.getByLabelText(/Salary/), "1000");
@@ -65,7 +81,13 @@ describe("FillForm — submit, persistence & values import/export", () => {
   it("persists entered values to localStorage and restores them on remount", async () => {
     const user = userEvent.setup();
     const { unmount } = render(
-      <FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />
+      <FillForm
+        templateId="t1"
+        fields={FIELDS}
+        templateName="Offer Letter"
+        mode="single"
+        basePath="/public/templates/t1"
+      />
     );
 
     await user.type(screen.getByLabelText(/Full name/), "Jane Doe");
@@ -84,7 +106,15 @@ describe("FillForm — submit, persistence & values import/export", () => {
 
     unmount();
 
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+    render(
+      <FillForm
+        templateId="t1"
+        fields={FIELDS}
+        templateName="Offer Letter"
+        mode="single"
+        basePath="/public/templates/t1"
+      />
+    );
     expect(await screen.findByLabelText(/Full name/)).toHaveValue("Jane Doe");
     expect(screen.getByLabelText(/Salary/)).toHaveValue(1000);
     expect(screen.getByLabelText(/Start date/)).toHaveValue("2026-03-05");
@@ -93,7 +123,15 @@ describe("FillForm — submit, persistence & values import/export", () => {
   });
 
   it("writes each edit to localStorage immediately, with no debounce or delay", () => {
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+    render(
+      <FillForm
+        templateId="t1"
+        fields={FIELDS}
+        templateName="Offer Letter"
+        mode="single"
+        basePath="/public/templates/t1"
+      />
+    );
 
     // Plain fireEvent with no `await`/`waitFor` afterwards: the write must land
     // in the same tick as the edit (values are persisted directly in the change
@@ -108,7 +146,15 @@ describe("FillForm — submit, persistence & values import/export", () => {
 
   it("exports the current values as a downloadable JSON file", async () => {
     const user = userEvent.setup();
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+    render(
+      <FillForm
+        templateId="t1"
+        fields={FIELDS}
+        templateName="Offer Letter"
+        mode="single"
+        basePath="/public/templates/t1"
+      />
+    );
 
     await user.type(screen.getByLabelText(/Full name/), "Jane Doe");
 
@@ -126,7 +172,15 @@ describe("FillForm — submit, persistence & values import/export", () => {
 
   it("imports values from a JSON file, ignoring unknown keys", async () => {
     const user = userEvent.setup();
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+    render(
+      <FillForm
+        templateId="t1"
+        fields={FIELDS}
+        templateName="Offer Letter"
+        mode="single"
+        basePath="/public/templates/t1"
+      />
+    );
 
     const file = new File(
       [JSON.stringify({ full_name: "Jane Doe", unknown_key: "nope" })],
@@ -143,7 +197,15 @@ describe("FillForm — submit, persistence & values import/export", () => {
 
   it("shows an error when importing an invalid values file", async () => {
     const user = userEvent.setup();
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+    render(
+      <FillForm
+        templateId="t1"
+        fields={FIELDS}
+        templateName="Offer Letter"
+        mode="single"
+        basePath="/public/templates/t1"
+      />
+    );
 
     const file = new File(["not json"], "values.json", { type: "application/json" });
     const input = document.querySelector('input[type="file"]') as HTMLInputElement;
@@ -154,7 +216,15 @@ describe("FillForm — submit, persistence & values import/export", () => {
 
   it("clears all field values back to their defaults", async () => {
     const user = userEvent.setup();
-    render(<FillForm templateId="t1" fields={FIELDS} templateName="Offer Letter" />);
+    render(
+      <FillForm
+        templateId="t1"
+        fields={FIELDS}
+        templateName="Offer Letter"
+        mode="single"
+        basePath="/public/templates/t1"
+      />
+    );
 
     await user.type(screen.getByLabelText(/Full name/), "Jane Doe");
     await user.type(screen.getByLabelText(/Salary/), "1000");

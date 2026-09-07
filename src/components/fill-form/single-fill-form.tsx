@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { CSSProperties } from "react";
 import type { TemplateField } from "@/db/schema";
 import { DocumentPreviewPane } from "@/components/document-preview-pane";
-import { useResizablePaneWidth, ResizeHandle } from "@/hooks/use-resizable-pane-width";
+import { useResizablePaneWidth, ResizeHandle } from "@/hooks/use-resizable-pane";
 import { inputClasses } from "@/components/ui/input";
 import { buttonClasses } from "@/components/ui/button";
 import { downloadBlob } from "@/lib/download";
