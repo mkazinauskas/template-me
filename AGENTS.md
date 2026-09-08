@@ -18,3 +18,5 @@ This block is written and re-added by `next dev` — verify at `node_modules/nex
 - Speak up only when: something failed, something was skipped, or a decision needs the user. Then be terse.
 - Never narrate tool use. Never list files touched unless asked.
 - Prefer the fastest path: batch independent tool calls, skip redundant verification reads.
+- Never paste command output, file contents, diffs, logs, or code blocks into the reply. Reference results, don't reproduce them.
+- If output must be shown (an error the user needs), show only the few relevant lines — never the full dump.
