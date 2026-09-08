@@ -7,6 +7,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { downloadBlob } from "@/lib/download";
 import { slugifyFilename } from "@/lib/slugify";
 import { orpc, orpcErrorMessage } from "@/lib/orpc";
+import { downloadValuesFile } from "@/lib/values-file";
 import { blankValues } from "@/components/fill-form/field-grouping";
 import { FieldGroups } from "@/components/fill-form/field-groups";
 import { useLivePreview } from "@/components/fill-form/use-live-preview";
@@ -299,6 +300,14 @@ function FilledRow({
     }
   }
 
+  /**
+   * Saves the submission as a values file — the same shape the "Fill one
+   * document" tab imports, so the owner can reopen this data there later.
+   */
+  function handleExportValues() {
+    downloadValuesFile(templateName, fields, request.data ?? {});
+  }
+
   function startEditing() {
     setIsEditing(true);
     setExpanded(true);
@@ -350,6 +359,13 @@ function FilledRow({
             className={buttonClasses({ variant: "secondary", size: "sm" })}
           >
             {downloading === "docx" ? "…" : "Word"}
+          </button>
+          <button
+            type="button"
+            onClick={handleExportValues}
+            className={buttonClasses({ variant: "secondary", size: "sm" })}
+          >
+            Export values
           </button>
           <InlineConfirm label="Delete" pendingLabel="Deleting…" onConfirm={handleDelete} />
         </div>

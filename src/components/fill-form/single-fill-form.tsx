@@ -10,6 +10,7 @@ import { buttonClasses } from "@/components/ui/button";
 import { downloadBlob } from "@/lib/download";
 import { slugifyFilename } from "@/lib/slugify";
 import { orpc, orpcErrorMessage } from "@/lib/orpc";
+import { downloadValuesFile, parseValuesFile } from "@/lib/values-file";
 import { blankValues } from "./field-grouping";
 import { usePersistedValues } from "./use-persisted-values";
 import { useLivePreview } from "./use-live-preview";
@@ -49,9 +50,7 @@ export function SingleFillForm({ templateId, fields, templateName }: FillFormPro
   }
 
   function handleExportValues() {
-    const data = Object.fromEntries(fields.map((f) => [f.key, values[f.key] ?? ""]));
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
-    downloadBlob(blob, `${slugifyFilename(templateName)}.values.json`);
+    downloadValuesFile(templateName, fields, values);
   }
 
   async function handleImportValues(e: React.ChangeEvent<HTMLInputElement>) {
@@ -59,15 +58,7 @@ export function SingleFillForm({ templateId, fields, templateName }: FillFormPro
     e.target.value = "";
     if (!file) return;
     try {
-      const parsed = JSON.parse(await file.text());
-      if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
-        throw new Error("Invalid file");
-      }
-      const fieldKeys = new Set(fields.map((f) => f.key));
-      const imported: Record<string, string> = {};
-      for (const [key, value] of Object.entries(parsed)) {
-        if (fieldKeys.has(key) && typeof value === "string") imported[key] = value;
-      }
+      const imported = parseValuesFile(await file.text(), fields);
       updateValues({ ...values, ...imported });
       setError(null);
     } catch {
