@@ -18,7 +18,7 @@ export function OtpAuthForm({
   googleEnabled: boolean;
 }) {
   const { goToApp } = useAuthRedirect();
-  const oauthError = useOAuthErrorMessage();
+  const oauthError = useOAuthErrorMessage(googleEnabled);
   const [step, setStep] = useState<"email" | "code">("email");
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -81,7 +81,7 @@ export function OtpAuthForm({
     >
       {googleEnabled && step === "email" && (
         <>
-          <GoogleButton mode={mode} />
+          <GoogleButton />
           <AuthDivider />
         </>
       )}

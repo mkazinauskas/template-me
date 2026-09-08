@@ -6,6 +6,21 @@ import { authClient } from "@/lib/auth-client";
 import { buttonClasses } from "@/components/ui/button";
 import { useAuthRedirect } from "./use-auth-redirect";
 
+/**
+ * This page's own path and query, minus any `error` param.
+ *
+ * Used as the failure destination so a rejected sign-in comes back to the page
+ * the user actually started from — keeping the `?redirect=` they arrived with,
+ * which a hardcoded "/sign-in" would silently drop, sending them to the
+ * dashboard instead of the page they were trying to reach. The stale `error`
+ * is dropped because better-auth appends a fresh one rather than replacing it.
+ */
+function currentPathWithoutError(): string {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("error");
+  return `${url.pathname}${url.search}`;
+}
+
 /** Google's brand mark, inlined so the button needs no network request to render. */
 function GoogleMark() {
   return (
@@ -39,9 +54,13 @@ function GoogleMark() {
  * the browser to Google and control comes back at `/api/auth/callback/google`,
  * which drops the user at `callbackURL`. So there is no success path to handle
  * here, and the button stays disabled while the redirect is in flight.
- * Failures come back as `?error=` on the sign-in page — see AuthCard's caller.
+ * Failures come back as `?error=` — see {@link useOAuthErrorMessage}.
+ *
+ * Takes no sign-in/sign-up mode because Google has none: an unrecognised
+ * Google account is signed up either way, which is why the label reads
+ * "Continue with" on both pages.
  */
-export function GoogleButton({ mode }: { mode: "sign-in" | "sign-up" }) {
+export function GoogleButton() {
   const { redirectTo } = useAuthRedirect();
   const [isRedirecting, setIsRedirecting] = useState(false);
 
@@ -56,9 +75,8 @@ export function GoogleButton({ mode }: { mode: "sign-in" | "sign-up" }) {
           callbackURL: redirectTo,
           // Where better-auth sends the browser when Google denies the request
           // or the callback fails; it appends `?error=...`, which the form
-          // reads back to show a message instead of a bare bounce to the
-          // sign-in page.
-          errorCallbackURL: mode === "sign-up" ? "/sign-up" : "/sign-in",
+          // reads back to show a message instead of a bare bounce.
+          errorCallbackURL: currentPathWithoutError(),
         });
       }}
       className={buttonClasses({
@@ -87,12 +105,17 @@ export function AuthDivider() {
  * The message to show after a failed Google round-trip, or null.
  *
  * better-auth bounces the browser back to `errorCallbackURL` with an
- * `?error=<code>` it chose (`access_denied`, `state_mismatch`, …). Those codes
+ * `?error=<code>` it chose (`access_denied`, `state_not_found`, …). Those codes
  * are internal and mean nothing to the person reading them, so they collapse
  * into one sentence that also points at the way in that still works.
+ *
+ * Gated on `googleEnabled` because `?error=` is not ours alone: on a
+ * deployment with no Google provider, some unrelated link landing on
+ * `/sign-in?error=…` would otherwise be answered with a message about a
+ * sign-in method the page doesn't even offer.
  */
-export function useOAuthErrorMessage(): string | null {
+export function useOAuthErrorMessage(googleEnabled: boolean): string | null {
   const error = useSearchParams().get("error");
-  if (!error) return null;
+  if (!googleEnabled || !error) return null;
   return "Google sign-in didn't complete. Try again, or use an email code instead.";
 }

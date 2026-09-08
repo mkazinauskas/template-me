@@ -13,7 +13,8 @@ const LOCAL_MODE = clientEnv.NEXT_PUBLIC_LOCAL_MODE;
  * and passed down rather than read from a `NEXT_PUBLIC_*` var, so turning
  * Google sign-in on or off is a plain environment change on the deployment —
  * no rebuild, unlike the LOCAL_MODE flag above, which is baked into the
- * bundle.
+ * bundle. It still takes a restart for better-auth to pick up the provider
+ * itself, which every deployment path here does when its environment changes.
  */
 export function AuthForm({
   mode,

@@ -5,6 +5,16 @@ import { logAuthEvent, toAuthEvent } from "@/lib/auth-events";
 const headers = (init: Record<string, string> = { "x-forwarded-for": "203.0.113.7" }) =>
   new Headers(init);
 
+/**
+ * What better-auth leaves in `context.returned` for a redirect: `c.redirect()`
+ * builds a 302 APIError carrying the target in a `location` header, and the
+ * OAuth callback throws one on both success and failure.
+ */
+const redirect = (location: string) => ({
+  statusCode: 302,
+  headers: new Headers({ location }),
+});
+
 /** What better-auth leaves in `context.returned` when an endpoint fails. */
 const apiError = (statusCode: number, code?: string) => ({
   statusCode,
@@ -44,17 +54,44 @@ describe("toAuthEvent", () => {
     const event = toAuthEvent({
       path: "/callback/google",
       headers: headers(),
-      // A successful OAuth callback answers with a redirect, not a 4xx.
-      returned: { statusCode: 302 },
+      returned: redirect("/client/dashboard"),
       newSession: { user: { id: "user-1" } },
     });
 
     expect(event).toMatchObject({
       event: "sign_in",
       outcome: "success",
+      status: 302,
       userId: "user-1",
     });
     expect(event?.email).toBeUndefined();
+  });
+
+  it("records a rejected Google sign-in as a failure, despite the 302", () => {
+    // The callback redirects either way, so the status code can't tell the two
+    // apart — only the absent session can.
+    const event = toAuthEvent({
+      path: "/callback/google",
+      headers: headers(),
+      returned: redirect("/sign-in?error=access_denied"),
+    });
+
+    expect(event).toMatchObject({
+      outcome: "failure",
+      status: 302,
+      code: "access_denied",
+    });
+    expect(event?.userId).toBeUndefined();
+  });
+
+  it("reads the failure code out of an absolute error redirect too", () => {
+    const event = toAuthEvent({
+      path: "/callback/google",
+      headers: headers(),
+      returned: redirect("https://example.com/api/auth/error?error=state_not_found"),
+    });
+
+    expect(event).toMatchObject({ outcome: "failure", code: "state_not_found" });
   });
 
   it("ignores the social sign-in kickoff, which only issues a redirect URL", () => {

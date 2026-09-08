@@ -340,9 +340,10 @@ Sign-in is email codes by default. Setting `GOOGLE_CLIENT_ID` and
 form; leaving them unset removes both the button and the underlying
 `/api/auth/sign-in/social` endpoint. One function decides both —
 [`isGoogleAuthEnabled()`](src/lib/auth-providers.ts) — so the button can never
-point at a provider that isn't registered. The pages read it per request, so
-adding or removing the credentials takes effect on the next page load rather
-than the next build.
+point at a provider that isn't registered. The sign-in pages read it per
+request rather than at build time, so a credential change needs no rebuild —
+but it does need a restart, because better-auth registers its providers once
+when the server starts.
 
 To set it up:
 

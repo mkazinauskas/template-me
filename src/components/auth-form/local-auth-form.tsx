@@ -25,7 +25,7 @@ export function LocalAuthForm({
   googleEnabled: boolean;
 }) {
   const { goToApp } = useAuthRedirect();
-  const oauthError = useOAuthErrorMessage();
+  const oauthError = useOAuthErrorMessage(googleEnabled);
   const [email, setEmail] = useState(LOCAL_EMAIL);
   const [password, setPassword] = useState(LOCAL_PASSWORD);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,7 +58,7 @@ export function LocalAuthForm({
     >
       {googleEnabled && (
         <>
-          <GoogleButton mode={mode} />
+          <GoogleButton />
           <AuthDivider />
         </>
       )}

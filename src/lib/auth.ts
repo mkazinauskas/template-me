@@ -86,6 +86,12 @@ export const auth = betterAuth({
       // password is accepted — but the seeded demo account's password is
       // guessable, so keep the published demo image throttled too.
       "/sign-in/email": { window: 10, max: 3 },
+      // Not a guessing surface, but it is unauthenticated and every call
+      // persists an OAuth state row for 10 minutes before the browser has gone
+      // anywhere, so it is worth a bound. Pinned at better-auth's own default
+      // for `/sign-in/*` for the same reason as the paths above: so a version
+      // bump can't loosen it without showing up as a diff here.
+      "/sign-in/social": { window: 10, max: 3 },
     },
   },
   advanced: {

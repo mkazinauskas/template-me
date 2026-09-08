@@ -73,6 +73,26 @@ export type AuthHookInput = {
   newSession?: { user?: { id?: string } } | null;
 };
 
+/**
+ * The `?error=<code>` a redirect carries in its `location` header, if any.
+ *
+ * This is the only place the OAuth callback reports why it failed — unlike the
+ * OTP endpoints, it puts no code in a response body, it redirects the browser
+ * to the error URL with the code in the query string.
+ */
+function redirectErrorCode(returned: unknown): string | undefined {
+  const headers = (returned as { headers?: unknown })?.headers;
+  const location = headers instanceof Headers ? headers.get("location") : undefined;
+  if (!location) return undefined;
+  try {
+    // `location` may be absolute or relative; the base only satisfies the
+    // parser for the relative case and never appears in the result.
+    return new URL(location, "http://redirect.invalid").searchParams.get("error") ?? undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 function readString(source: unknown, key: string): string | undefined {
   if (typeof source !== "object" || source === null) return undefined;
   const value = (source as Record<string, unknown>)[key];
@@ -96,18 +116,30 @@ export function toAuthEvent(input: AuthHookInput): AuthEvent | null {
   const status = typeof (input.returned as { statusCode?: unknown })?.statusCode === "number"
     ? (input.returned as { statusCode: number }).statusCode
     : undefined;
-  const outcome = status !== undefined && status >= 400 ? "failure" : "success";
+  const userId = input.newSession?.user?.id;
+
+  // ...except on the OAuth callback, where the status code says nothing about
+  // the outcome: `c.redirect()` builds a 302 APIError and the callback throws
+  // one on *both* paths — the hop to `callbackURL` when sign-in worked, and the
+  // hop to the error URL when it didn't. Reading 302 as "not >= 400" would log
+  // every rejected Google sign-in as a success. A session is what separates
+  // them: `setSessionCookie()` is the last thing the callback does before
+  // redirecting on success, and it is what populates `newSession`.
+  const isRedirect = status !== undefined && status >= 300 && status < 400;
+  const failed = (status !== undefined && status >= 400) || (isRedirect && !userId);
 
   return {
     tag: TAG,
     event,
-    outcome,
+    outcome: failed ? "failure" : "success",
     path: input.path,
     ip: clientIp(input.headers ?? new Headers()),
     email: readString(input.body, "email"),
-    userId: input.newSession?.user?.id,
+    userId,
     status,
-    code: readString((input.returned as { body?: unknown })?.body, "code"),
+    code:
+      readString((input.returned as { body?: unknown })?.body, "code") ??
+      redirectErrorCode(input.returned),
   };
 }
 
