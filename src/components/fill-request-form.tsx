@@ -87,16 +87,12 @@ export function FillRequestForm({
     <div className="flex w-full max-w-xl flex-col gap-6">
       <div>
         <h1 className="text-xl font-semibold tracking-tight">{title || templateName}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Fill in the information below. This link can only be used once.
+        {/* The owner's own note is the subtitle when they wrote one — it says
+            more about this particular link than the generic instruction. */}
+        <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
+          {message || "Fill in the information below. This link can only be used once."}
         </p>
       </div>
-
-      {message && (
-        <p className="whitespace-pre-wrap rounded-lg border border-border bg-black/[0.02] p-4 text-sm dark:bg-white/[0.03]">
-          {message}
-        </p>
-      )}
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <FieldGroups
