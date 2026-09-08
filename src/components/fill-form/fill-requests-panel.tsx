@@ -210,7 +210,7 @@ function EditFilledData({
       >
         <div
           style={{ "--fields-width": `${fieldsWidth}px` } as CSSProperties}
-          className="flex flex-col gap-4 overflow-y-auto lg:w-[var(--fields-width)] lg:shrink-0"
+          className="flex flex-col gap-4 overflow-y-auto py-1 lg:w-[var(--fields-width)] lg:shrink-0 lg:pr-4"
         >
           <FieldGroups
             fields={fields}
