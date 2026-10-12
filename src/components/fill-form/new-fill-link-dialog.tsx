@@ -60,23 +60,33 @@ function FieldCheckbox({
  */
 export function NewFillLinkDialog({
   fields,
+  initial,
   isCreating,
   error,
   onCancel,
   onCreate,
 }: {
   fields: TemplateField[];
+  /**
+   * An existing link to edit instead of starting blank. Its `fieldKeys` is
+   * null when it asks for everything, same as on the stored row.
+   */
+  initial?: Omit<FillLinkDraft, "fieldKeys" | "theme"> & {
+    fieldKeys: string[] | null;
+    theme: FillLinkThemeColors | null;
+  };
   isCreating: boolean;
   error: string | null;
   onCancel: () => void;
   onCreate: (draft: FillLinkDraft) => void;
 }) {
+  const isEditing = initial !== undefined;
   const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(fields.map((f) => f.key)),
+    () => new Set(initial?.fieldKeys ?? fields.map((f) => f.key)),
   );
-  const [title, setTitle] = useState("");
-  const [message, setMessage] = useState("");
-  const [theme, setTheme] = useState<FillLinkThemeColors | null>(null);
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [message, setMessage] = useState(initial?.message ?? "");
+  const [theme, setTheme] = useState<FillLinkThemeColors | null>(initial?.theme ?? null);
   const [isManagingPresets, setIsManagingPresets] = useState(false);
   const presets = useFillLinkPresets();
   const titleRef = useRef<HTMLInputElement>(null);
@@ -153,11 +163,12 @@ export function NewFillLinkDialog({
               id="new-fill-link-heading"
               className="text-base font-semibold tracking-tight"
             >
-              New fill link
+              {isEditing ? "Edit fill link" : "New fill link"}
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Choose what to ask for, write a title and message to go with it,
-              and pick how the page looks.
+              {isEditing
+                ? "Changes apply to the link you already sent — its URL stays the same."
+                : "Choose what to ask for, write a title and message to go with it, and pick how the page looks."}
             </p>
           </div>
 
@@ -278,7 +289,13 @@ export function NewFillLinkDialog({
               disabled={isCreating || !canCreate}
               className={buttonClasses({ size: "sm" })}
             >
-              {isCreating ? "Creating…" : "Create link"}
+              {isEditing
+                ? isCreating
+                  ? "Saving…"
+                  : "Save changes"
+                : isCreating
+                  ? "Creating…"
+                  : "Create link"}
             </button>
           </div>
         </form>

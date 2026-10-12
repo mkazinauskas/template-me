@@ -138,3 +138,40 @@ describe("FillRequestForm themed", () => {
     expect(screen.getByRole("button", { name: /submit/i }).className).toContain("--fill-button");
   });
 });
+
+describe("editing a link's page theme", () => {
+  it("opens on the link's own colors as custom colors", async () => {
+    vi.mocked(orpc.fillRequests.list).mockResolvedValue({
+      fillRequests: [
+        {
+          id: "req-1",
+          templateId: "tpl-1",
+          code: "abc123",
+          fieldKeys: null,
+          title: "Details",
+          message: "Thanks.",
+          theme: brand,
+          data: null,
+          createdAt: new Date("2026-01-01T10:00:00Z"),
+          filledAt: null,
+          revokedAt: null,
+        },
+      ],
+    } as never);
+    vi.mocked(orpc.fillRequests.update)
+      .mockReset()
+      .mockResolvedValue({ fillRequest: {} } as never);
+    const user = userEvent.setup();
+    render(<FillRequestsPanel templateId="tpl-1" templateName="Contract" fields={fields} />);
+
+    await user.click(await screen.findByRole("button", { name: /^edit$/i }));
+    await screen.findByRole("option", { name: "Brand" });
+    expect(themeSelect()).toHaveValue("custom");
+
+    await user.selectOptions(themeSelect(), "");
+    await user.click(screen.getByRole("button", { name: /save changes/i }));
+    expect(orpc.fillRequests.update).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "req-1", theme: null })
+    );
+  });
+});

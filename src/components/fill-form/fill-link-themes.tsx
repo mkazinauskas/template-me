@@ -110,13 +110,14 @@ export function FillLinkThemePicker({
   colors,
   onChange,
 }: {
-  /** The colors the link will be created with; null for the app's own look. */
+  /** The colors the link will be shown in; null for the app's own look. */
   colors: FillLinkThemeColors | null;
   onChange: (colors: FillLinkThemeColors | null) => void;
 }) {
   const { themes, loadError, create, update, remove } = useFillLinkThemes();
   // "" is the app's own look, "custom" is unsaved colors, anything else a saved theme's id.
-  const [selectedId, setSelectedId] = useState("");
+  // Editing a link that already has colors starts on them as custom colors.
+  const [selectedId, setSelectedId] = useState(() => (colors ? "custom" : ""));
   const [isNaming, setIsNaming] = useState(false);
   const [name, setName] = useState("");
   const [isSaving, setIsSaving] = useState(false);

@@ -151,4 +151,47 @@ describe("pending link rows", () => {
     expect(await screen.findByText("Onboarding details")).toBeInTheDocument();
     expect(screen.getByText(/asks for 1 of 3 questions/i)).toBeInTheDocument();
   });
+
+  it("edits an open link in place, starting from what it already asks", async () => {
+    const pending = {
+      id: "req-1",
+      templateId: "tpl-1",
+      code: "abc123",
+      fieldKeys: ["email"],
+      title: "Onboarding details",
+      message: "Thanks.",
+      theme: null,
+      data: null,
+      createdAt: new Date("2026-01-01T10:00:00Z"),
+      filledAt: null,
+      revokedAt: null,
+    } as unknown as FillRequest;
+    vi.mocked(orpc.fillRequests.list).mockResolvedValue({ fillRequests: [pending] } as never);
+    vi.mocked(orpc.fillRequests.update)
+      .mockReset()
+      .mockResolvedValue({ fillRequest: { ...pending, title: "Updated" } } as never);
+    const user = userEvent.setup();
+    renderPanel();
+
+    await user.click(await screen.findByRole("button", { name: /^edit$/i }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+    expect(screen.getByLabelText(/title/i)).toHaveValue("Onboarding details");
+    expect(screen.getByRole("checkbox", { name: /email/i })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: /full name/i })).not.toBeChecked();
+
+    await user.clear(screen.getByLabelText(/title/i));
+    await user.type(screen.getByLabelText(/title/i), "Updated");
+    await user.click(screen.getByRole("button", { name: /save changes/i }));
+
+    expect(orpc.fillRequests.update).toHaveBeenCalledWith({
+      id: "req-1",
+      fieldKeys: ["email"],
+      title: "Updated",
+      message: "Thanks.",
+      theme: null,
+    });
+    expect(orpc.fillRequests.create).not.toHaveBeenCalled();
+    expect(await screen.findByText("Updated")).toBeInTheDocument();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
 });

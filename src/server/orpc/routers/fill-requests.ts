@@ -176,6 +176,49 @@ export const fillRequestsRouter = {
       return { fillRequests: rows };
     }),
 
+  /**
+   * Owner-only: changes what a still-open link asks for — its fields, title,
+   * note and colors. The code stays the same, so the URL already sent keeps
+   * working. Rejected once the link is filled or revoked: the submitted data
+   * was answered against the old ask.
+   */
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        fieldKeys: z.array(z.string()).optional(),
+        title: requiredTitle,
+        message: requiredMessage,
+        theme: fillLinkThemeColors.nullish(),
+      })
+    )
+    .handler(async ({ input, context }) => {
+      const { template } = await loadOwnedFillRequest(input.id, context.session.user.id);
+      const db = getDb();
+      const [updated] = await db
+        .update(fillRequests)
+        .set({
+          fieldKeys: resolveFieldKeys(template, input.fieldKeys),
+          title: input.title,
+          message: input.message,
+          theme: input.theme ?? null,
+        })
+        .where(
+          and(
+            eq(fillRequests.id, input.id),
+            isNull(fillRequests.filledAt),
+            isNull(fillRequests.revokedAt)
+          )
+        )
+        .returning();
+      if (!updated) {
+        throw new ORPCError("BAD_REQUEST", {
+          message: "This link has already been used and can't be edited",
+        });
+      }
+      return { fillRequest: updated };
+    }),
+
   /** Owner-only: cancels a link that hasn't been filled in yet. A no-op if it's already filled or revoked. */
   revoke: protectedProcedure
     .input(z.object({ id: z.string() }))

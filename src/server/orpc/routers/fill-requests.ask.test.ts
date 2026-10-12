@@ -198,3 +198,75 @@ describe("fillRequests.submit — the per-link ask", () => {
     ).rejects.toBeInstanceOf(ORPCError);
   });
 });
+
+describe("fillRequests.update — editing an open link", () => {
+  beforeEach(resetState);
+
+  it("replaces the ask on a link that hasn't been filled in yet", async () => {
+    state.joinedRows = [{ fillRequest: makeFillRequest(ask), template: multiFieldTemplate() }];
+    state.updateReturns = [makeFillRequest({ title: "New title" })];
+    const router = await importRouter();
+
+    const result = await call(
+      router.update,
+      { id: "fr1", title: " New title ", message: "New note", fieldKeys: ["city", "email"], theme },
+      ctx()
+    );
+
+    expect(state.updateSets[0]).toEqual({
+      fieldKeys: ["email", "city"],
+      title: "New title",
+      message: "New note",
+      theme,
+    });
+    expect(result.fillRequest.title).toBe("New title");
+  });
+
+  it("clears the theme and field selection when they're left out", async () => {
+    state.joinedRows = [
+      {
+        fillRequest: makeFillRequest({ ...ask, fieldKeys: ["email"], theme }),
+        template: multiFieldTemplate(),
+      },
+    ];
+    state.updateReturns = [makeFillRequest()];
+    const router = await importRouter();
+
+    await call(router.update, { id: "fr1", ...ask }, ctx());
+    expect(state.updateSets[0]).toMatchObject({ fieldKeys: null, theme: null });
+  });
+
+  it("refuses a link that's already been filled or revoked", async () => {
+    state.joinedRows = [
+      { fillRequest: makeFillRequest({ filledAt: new Date() }), template: multiFieldTemplate() },
+    ];
+    state.updateReturns = [];
+    const router = await importRouter();
+    await expect(call(router.update, { id: "fr1", ...ask }, ctx())).rejects.toBeInstanceOf(
+      ORPCError
+    );
+  });
+
+  it("refuses someone else's link", async () => {
+    state.joinedRows = [
+      {
+        fillRequest: makeFillRequest(),
+        template: makeTemplate({ fields, userId: "someone-else" }),
+      },
+    ];
+    const router = await importRouter();
+    await expect(call(router.update, { id: "fr1", ...ask }, ctx())).rejects.toBeInstanceOf(
+      ORPCError
+    );
+    expect(state.updateSets).toHaveLength(0);
+  });
+
+  it("rejects a blank title", async () => {
+    state.joinedRows = [{ fillRequest: makeFillRequest(), template: multiFieldTemplate() }];
+    const router = await importRouter();
+    await expect(
+      call(router.update, { id: "fr1", title: " ", message: "Hi" }, ctx())
+    ).rejects.toBeInstanceOf(ORPCError);
+    expect(state.updateSets).toHaveLength(0);
+  });
+});

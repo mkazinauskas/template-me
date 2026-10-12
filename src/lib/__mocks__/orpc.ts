@@ -19,6 +19,7 @@ export const orpc = {
   fillRequests: {
     create: vi.fn(),
     list: vi.fn(),
+    update: vi.fn(),
     revoke: vi.fn(),
     updateData: vi.fn(),
     delete: vi.fn(),

@@ -369,17 +369,40 @@ function RevokedRow({
 
 function PendingRow({
   request,
-  fieldCount,
+  fields,
+  onUpdated,
   onRevoked,
 }: {
   request: FillRequest;
-  /** How many fields the template has, for the "3 of 8 questions" summary. */
-  fieldCount: number;
+  fields: TemplateField[];
+  onUpdated: (request: FillRequest) => void;
   onRevoked: (id: string) => void;
 }) {
   const { copiedId, copy } = useCopyLink();
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
   const path = fillLinkPath(request.code);
+  const fieldCount = fields.length;
   const asked = request.fieldKeys?.length ?? fieldCount;
+
+  async function handleSave(draft: FillLinkDraft) {
+    setIsSaving(true);
+    setEditError(null);
+    try {
+      const { fillRequest } = await orpc.fillRequests.update({
+        id: request.id,
+        ...draft,
+        theme: draft.theme ?? null,
+      });
+      onUpdated(fillRequest);
+      setIsEditing(false);
+    } catch (err) {
+      setEditError(orpcErrorMessage(err, "Failed to save the fill link"));
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   async function handleRevoke() {
     await orpc.fillRequests.revoke({ id: request.id });
@@ -401,6 +424,16 @@ function PendingRow({
         <div className="flex shrink-0 items-center gap-2">
           <button
             type="button"
+            onClick={() => {
+              setEditError(null);
+              setIsEditing(true);
+            }}
+            className={buttonClasses({ variant: "secondary", size: "sm" })}
+          >
+            Edit
+          </button>
+          <button
+            type="button"
             onClick={() => copy(request.id, path)}
             className={buttonClasses({ variant: "secondary", size: "sm" })}
           >
@@ -409,6 +442,21 @@ function PendingRow({
           <InlineConfirm label="Revoke" pendingLabel="Revoking…" onConfirm={handleRevoke} />
         </div>
       </div>
+      {isEditing && (
+        <NewFillLinkDialog
+          fields={fields}
+          initial={{
+            fieldKeys: request.fieldKeys,
+            title: request.title ?? "",
+            message: request.message ?? "",
+            theme: request.theme,
+          }}
+          isCreating={isSaving}
+          error={editError}
+          onCancel={() => setIsEditing(false)}
+          onCreate={handleSave}
+        />
+      )}
     </li>
   );
 }
@@ -524,7 +572,8 @@ export function FillRequestsPanel({ templateId, templateName, fields }: FillRequ
                 <PendingRow
                   key={r.id}
                   request={r}
-                  fieldCount={fields.length}
+                  fields={fields}
+                  onUpdated={handleDataUpdated}
                   onRevoked={handleRevoked}
                 />
               ))}
