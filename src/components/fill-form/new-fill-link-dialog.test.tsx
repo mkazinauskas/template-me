@@ -16,6 +16,7 @@ const fields: TemplateField[] = [
 beforeEach(() => {
   vi.mocked(orpc.fillRequests.list).mockReset().mockResolvedValue({ fillRequests: [] } as never);
   vi.mocked(orpc.fillRequests.create).mockReset().mockResolvedValue({} as never);
+  vi.mocked(orpc.fillLinkPresets.list).mockReset().mockResolvedValue({ presets: [] } as never);
 });
 
 function renderPanel() {
@@ -26,6 +27,11 @@ function renderPanel() {
 async function openDialog(user: ReturnType<typeof userEvent.setup>) {
   await user.click(await screen.findByRole("button", { name: /new link/i }));
   return await screen.findByRole("dialog");
+}
+
+async function fillTitleAndMessage(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(screen.getByLabelText(/title/i), "Details");
+  await user.type(screen.getByLabelText(/message/i), "Thanks.");
 }
 
 describe("NewFillLinkDialog", () => {
@@ -46,13 +52,14 @@ describe("NewFillLinkDialog", () => {
     await openDialog(user);
 
     await user.click(screen.getByRole("checkbox", { name: /full name/i }));
+    await fillTitleAndMessage(user);
     await user.click(screen.getByRole("button", { name: /create link/i }));
 
     expect(orpc.fillRequests.create).toHaveBeenCalledWith({
       templateId: "tpl-1",
       fieldKeys: ["email", "person.city"],
-      title: "",
-      message: "",
+      title: "Details",
+      message: "Thanks.",
     });
   });
 
@@ -73,10 +80,24 @@ describe("NewFillLinkDialog", () => {
     );
   });
 
+  it("requires a title and a message", async () => {
+    const user = userEvent.setup();
+    renderPanel();
+    await openDialog(user);
+
+    const create = screen.getByRole("button", { name: /create link/i });
+    expect(create).toBeDisabled();
+    await user.type(screen.getByLabelText(/title/i), "Details");
+    expect(create).toBeDisabled();
+    await user.type(screen.getByLabelText(/message/i), "Thanks.");
+    expect(create).toBeEnabled();
+  });
+
   it("won't create a link with nothing on it", async () => {
     const user = userEvent.setup();
     renderPanel();
     await openDialog(user);
+    await fillTitleAndMessage(user);
 
     await user.click(screen.getByRole("button", { name: /clear all/i }));
     expect(screen.getByRole("button", { name: /create link/i })).toBeDisabled();
@@ -99,6 +120,7 @@ describe("NewFillLinkDialog", () => {
     renderPanel();
     await openDialog(user);
 
+    await fillTitleAndMessage(user);
     await user.click(screen.getByRole("button", { name: /create link/i }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("Template is gone");

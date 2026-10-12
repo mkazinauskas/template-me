@@ -221,3 +221,37 @@ export const fillRequestsRelations = relations(fillRequests, ({ one }) => ({
 
 export type FillRequest = typeof fillRequests.$inferSelect;
 export type NewFillRequest = typeof fillRequests.$inferInsert;
+
+// A reusable title + message an owner saves once and picks from when creating
+// a fill link, so the same intro doesn't have to be retyped per link. Owned by
+// a user rather than a template: the same wording usually fits several
+// templates. Picking a preset copies its text into the new link — editing or
+// deleting the preset later never changes links already sent.
+export const fillLinkPresets = pgTable(
+  "fill_link_presets",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    title: text("title").notNull(),
+    message: text("message").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [index("fill_link_presets_userId_name_idx").on(table.userId, table.name)]
+);
+
+export const fillLinkPresetsRelations = relations(fillLinkPresets, ({ one }) => ({
+  owner: one(user, {
+    fields: [fillLinkPresets.userId],
+    references: [user.id],
+  }),
+}));
+
+export type FillLinkPreset = typeof fillLinkPresets.$inferSelect;
+export type NewFillLinkPreset = typeof fillLinkPresets.$inferInsert;

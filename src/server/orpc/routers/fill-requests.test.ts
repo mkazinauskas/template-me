@@ -13,6 +13,8 @@ import {
 
 mockFillRequestsRouterDeps();
 
+const ask = { title: "Your details", message: "Fill these in, please." };
+
 async function expectORPCError(promise: Promise<unknown>, code: string): Promise<ORPCError<string, unknown>> {
   try {
     await promise;
@@ -32,13 +34,13 @@ describe("fillRequests.create", () => {
   it("rejects with UNAUTHORIZED when there is no session", async () => {
     state.session = null;
     const router = await importRouter();
-    await expectORPCError(call(router.create, { templateId: "t1" }, ctx()), "UNAUTHORIZED");
+    await expectORPCError(call(router.create, { templateId: "t1", ...ask }, ctx()), "UNAUTHORIZED");
   });
 
   it("rejects with NOT_FOUND when the caller doesn't own the template", async () => {
     state.templateRows = [makeTemplate({ userId: "someone-else" })];
     const router = await importRouter();
-    await expectORPCError(call(router.create, { templateId: "t1" }, ctx()), "NOT_FOUND");
+    await expectORPCError(call(router.create, { templateId: "t1", ...ask }, ctx()), "NOT_FOUND");
     expect(state.insertedValues).toBeNull();
   });
 
@@ -46,7 +48,7 @@ describe("fillRequests.create", () => {
     state.templateRows = [makeTemplate()];
     state.nextCode = "fresh-code";
     const router = await importRouter();
-    const { fillRequest } = await call(router.create, { templateId: "t1" }, ctx());
+    const { fillRequest } = await call(router.create, { templateId: "t1", ...ask }, ctx());
     expect(fillRequest.code).toBe("fresh-code");
     expect(fillRequest.templateId).toBe("t1");
     expect(fillRequest.filledAt).toBeNull();
@@ -57,7 +59,7 @@ describe("fillRequests.create", () => {
     state.templateRows = [makeTemplate()];
     state.insertFailTimes = 2;
     const router = await importRouter();
-    const { fillRequest } = await call(router.create, { templateId: "t1" }, ctx());
+    const { fillRequest } = await call(router.create, { templateId: "t1", ...ask }, ctx());
     expect(fillRequest.templateId).toBe("t1");
     expect(state.insertedValues).not.toBeNull();
   });
@@ -69,20 +71,20 @@ describe("fillRequests.list", () => {
   it("rejects with UNAUTHORIZED when there is no session", async () => {
     state.session = null;
     const router = await importRouter();
-    await expectORPCError(call(router.list, { templateId: "t1" }, ctx()), "UNAUTHORIZED");
+    await expectORPCError(call(router.list, { templateId: "t1", ...ask }, ctx()), "UNAUTHORIZED");
   });
 
   it("rejects with NOT_FOUND when the caller doesn't own the template", async () => {
     state.templateRows = [makeTemplate({ userId: "someone-else" })];
     const router = await importRouter();
-    await expectORPCError(call(router.list, { templateId: "t1" }, ctx()), "NOT_FOUND");
+    await expectORPCError(call(router.list, { templateId: "t1", ...ask }, ctx()), "NOT_FOUND");
   });
 
   it("returns the template's fill requests for the owner", async () => {
     state.templateRows = [makeTemplate()];
     state.fillRequestRows = [makeFillRequest({ id: "fr1" }), makeFillRequest({ id: "fr2" })];
     const router = await importRouter();
-    const { fillRequests } = await call(router.list, { templateId: "t1" }, ctx());
+    const { fillRequests } = await call(router.list, { templateId: "t1", ...ask }, ctx());
     expect(fillRequests).toHaveLength(2);
   });
 });

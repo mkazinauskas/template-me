@@ -21,10 +21,17 @@ const MAX_MESSAGE_LENGTH = 2000;
 
 const rowData = z.record(z.string(), z.unknown());
 
-function trimmedOrNull(value: string | undefined): string | null {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : null;
-}
+/** A link's heading and note: both required, trimmed, never blank. */
+export const requiredTitle = z
+  .string()
+  .trim()
+  .min(1, "Enter a title")
+  .max(MAX_TITLE_LENGTH);
+export const requiredMessage = z
+  .string()
+  .trim()
+  .min(1, "Enter a message")
+  .max(MAX_MESSAGE_LENGTH);
 
 /**
  * Narrows the requested field keys to ones the template actually has, in
@@ -128,24 +135,24 @@ async function enforcePublicLinkRateLimit(headers: Headers): Promise<void> {
 export const fillRequestsRouter = {
   /**
    * Owner-only: creates a new one-time fill link for a template. The owner
-   * picks which fields the link asks for (omitted means all of them) and can
-   * attach a title and note shown to whoever opens it.
+   * picks which fields the link asks for (omitted means all of them) and
+   * writes the title and note shown to whoever opens it.
    */
   create: protectedProcedure
     .input(
       z.object({
         templateId: z.string(),
         fieldKeys: z.array(z.string()).optional(),
-        title: z.string().max(MAX_TITLE_LENGTH).optional(),
-        message: z.string().max(MAX_MESSAGE_LENGTH).optional(),
+        title: requiredTitle,
+        message: requiredMessage,
       })
     )
     .handler(async ({ input, context }) => {
       const template = await loadOwnedTemplate(input.templateId, context.session.user.id);
       const fillRequest = await insertFillRequest(input.templateId, {
         fieldKeys: resolveFieldKeys(template, input.fieldKeys),
-        title: trimmedOrNull(input.title),
-        message: trimmedOrNull(input.message),
+        title: input.title,
+        message: input.message,
       });
       return { fillRequest };
     }),

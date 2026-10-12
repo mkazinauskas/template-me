@@ -25,6 +25,12 @@ export const orpc = {
     getByCode: vi.fn(),
     submit: vi.fn(),
   },
+  fillLinkPresets: {
+    list: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
 };
 
 export class ORPCError extends Error {

@@ -14,6 +14,8 @@ import {
 
 mockFillRequestsRouterDeps();
 
+const ask = { title: "Your details", message: "Fill these in, please." };
+
 const fields: TemplateField[] = [
   { key: "full_name", label: "Full name", type: "string", params: [] },
   { key: "email", label: "Email", type: "email", params: [] },
@@ -30,15 +32,15 @@ describe("fillRequests.create — the per-link ask", () => {
   it("stores the picked field keys in template order, not the order they were sent", async () => {
     state.templateRows = [multiFieldTemplate()];
     const router = await importRouter();
-    await call(router.create, { templateId: "t1", fieldKeys: ["city", "full_name"] }, ctx());
+    await call(router.create, { templateId: "t1", ...ask, fieldKeys: ["city", "full_name"] }, ctx());
     expect(state.insertedValues).toMatchObject({ fieldKeys: ["full_name", "city"] });
   });
 
   it("stores null — ask for everything — when no selection is given", async () => {
     state.templateRows = [multiFieldTemplate()];
     const router = await importRouter();
-    await call(router.create, { templateId: "t1" }, ctx());
-    expect(state.insertedValues).toMatchObject({ fieldKeys: null, title: null, message: null });
+    await call(router.create, { templateId: "t1", ...ask }, ctx());
+    expect(state.insertedValues).toMatchObject({ fieldKeys: null });
   });
 
   it("collapses a select-all to null rather than pinning today's field list", async () => {
@@ -46,7 +48,7 @@ describe("fillRequests.create — the per-link ask", () => {
     const router = await importRouter();
     await call(
       router.create,
-      { templateId: "t1", fieldKeys: ["full_name", "email", "city"] },
+      { templateId: "t1", ...ask, fieldKeys: ["full_name", "email", "city"] },
       ctx()
     );
     expect(state.insertedValues).toMatchObject({ fieldKeys: null });
@@ -55,7 +57,7 @@ describe("fillRequests.create — the per-link ask", () => {
   it("ignores keys the template doesn't have", async () => {
     state.templateRows = [multiFieldTemplate()];
     const router = await importRouter();
-    await call(router.create, { templateId: "t1", fieldKeys: ["email", "nope"] }, ctx());
+    await call(router.create, { templateId: "t1", ...ask, fieldKeys: ["email", "nope"] }, ctx());
     expect(state.insertedValues).toMatchObject({ fieldKeys: ["email"] });
   });
 
@@ -63,20 +65,32 @@ describe("fillRequests.create — the per-link ask", () => {
     state.templateRows = [multiFieldTemplate()];
     const router = await importRouter();
     await expect(
-      call(router.create, { templateId: "t1", fieldKeys: ["nope"] }, ctx())
+      call(router.create, { templateId: "t1", ...ask, fieldKeys: ["nope"] }, ctx())
     ).rejects.toBeInstanceOf(ORPCError);
     expect(state.insertedValues).toBeNull();
   });
 
-  it("trims the title and message, storing blank ones as null", async () => {
+  it("trims the title and message", async () => {
     state.templateRows = [multiFieldTemplate()];
     const router = await importRouter();
     await call(
       router.create,
-      { templateId: "t1", title: "  Onboarding  ", message: "   " },
+      { templateId: "t1", title: "  Onboarding  ", message: "  Hi there " },
       ctx()
     );
-    expect(state.insertedValues).toMatchObject({ title: "Onboarding", message: null });
+    expect(state.insertedValues).toMatchObject({ title: "Onboarding", message: "Hi there" });
+  });
+
+  it("rejects a blank title or message", async () => {
+    state.templateRows = [multiFieldTemplate()];
+    const router = await importRouter();
+    await expect(
+      call(router.create, { templateId: "t1", title: "Onboarding", message: "   " }, ctx())
+    ).rejects.toBeInstanceOf(ORPCError);
+    await expect(
+      call(router.create, { templateId: "t1", title: "", message: "Hi" }, ctx())
+    ).rejects.toBeInstanceOf(ORPCError);
+    expect(state.insertedValues).toBeNull();
   });
 });
 
