@@ -130,4 +130,69 @@ describe("fill link presets", () => {
     await user.click(within(dialog).getByRole("button", { name: /back to link/i }));
     expect(screen.getByRole("button", { name: /create link/i })).toBeInTheDocument();
   });
+
+  it("only offers Update preset once the picked preset's text has changed", async () => {
+    const user = userEvent.setup();
+    await openDialog(user);
+
+    await user.selectOptions(screen.getByLabelText(/^preset$/i), "Onboarding");
+    expect(screen.queryByRole("button", { name: /update preset/i })).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText(/^message/i), " Thanks");
+    expect(screen.getByRole("button", { name: /update preset/i })).toBeInTheDocument();
+  });
+
+  it("shows the server's error when saving fails, and keeps the typed text", async () => {
+    vi.mocked(orpc.fillLinkPresets.create).mockRejectedValue(new Error("Enter a title"));
+    const user = userEvent.setup();
+    await openDialog(user);
+
+    await user.type(screen.getByLabelText(/^title/i), "T");
+    await user.type(screen.getByLabelText(/^message/i), "M");
+    await user.click(screen.getByRole("button", { name: /save as new/i }));
+    await user.type(screen.getByLabelText(/new preset name/i), "X{Enter}");
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Enter a title");
+    expect(screen.getByLabelText(/new preset name/i)).toHaveValue("X");
+    expect(screen.getByLabelText(/^title/i)).toHaveValue("T");
+  });
+
+  it("creates a preset from the manager and offers it back in the picker", async () => {
+    vi.mocked(orpc.fillLinkPresets.create).mockResolvedValue({
+      preset: preset({ id: "p-2", name: "Contractors", title: "Hi", message: "Thanks" }),
+    } as never);
+    const user = userEvent.setup();
+    await openDialog(user);
+
+    await user.click(screen.getByRole("button", { name: /manage presets/i }));
+    await user.click(screen.getByRole("button", { name: /new preset/i }));
+    const create = screen.getByRole("button", { name: /create preset/i });
+    expect(create).toBeDisabled();
+    await user.type(screen.getByLabelText(/^preset name/i), "Contractors");
+    await user.type(screen.getByLabelText(/^preset title/i), "Hi");
+    expect(create).toBeDisabled();
+    await user.type(screen.getByLabelText(/^preset message/i), "Thanks");
+    await user.click(create);
+
+    expect(orpc.fillLinkPresets.create).toHaveBeenCalledWith({
+      name: "Contractors",
+      title: "Hi",
+      message: "Thanks",
+    });
+    await user.click(await screen.findByRole("button", { name: /back to link/i }));
+    await user.selectOptions(screen.getByLabelText(/^preset$/i), "Contractors");
+    expect(screen.getByLabelText(/^title/i)).toHaveValue("Hi");
+  });
+
+  it("shows why a delete failed and keeps the preset", async () => {
+    vi.mocked(orpc.fillLinkPresets.delete).mockRejectedValue(new Error("Preset not found"));
+    const user = userEvent.setup();
+    await openDialog(user);
+
+    await user.click(screen.getByRole("button", { name: /manage presets/i }));
+    await user.click(screen.getByRole("button", { name: /^delete$/i }));
+    await user.click(screen.getByRole("button", { name: /^confirm$/i }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("Preset not found");
+    expect(screen.getByText("Onboarding")).toBeInTheDocument();
+  });
 });
