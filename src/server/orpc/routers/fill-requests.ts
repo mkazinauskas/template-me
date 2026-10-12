@@ -5,6 +5,7 @@ import { nanoid } from "nanoid";
 import { getDb } from "@/db";
 import { fillRequests, templates, type FillRequest, type Template } from "@/db/schema";
 import { isTemplateOwner } from "@/lib/template-access";
+import { fillLinkThemeColors, type FillLinkThemeColors } from "@/lib/fill-link-theme";
 import { requestedFields, templateForRequest } from "@/lib/fill-request-fields";
 import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 import { toFieldStrings, validateRow } from "@/server/generate/row-validation";
@@ -62,6 +63,7 @@ type FillRequestAsk = {
   fieldKeys: string[] | null;
   title: string | null;
   message: string | null;
+  theme: FillLinkThemeColors | null;
 };
 
 /**
@@ -136,7 +138,8 @@ export const fillRequestsRouter = {
   /**
    * Owner-only: creates a new one-time fill link for a template. The owner
    * picks which fields the link asks for (omitted means all of them) and
-   * writes the title and note shown to whoever opens it.
+   * writes the title and note shown to whoever opens it, optionally with the
+   * page colors to show them in.
    */
   create: protectedProcedure
     .input(
@@ -145,6 +148,7 @@ export const fillRequestsRouter = {
         fieldKeys: z.array(z.string()).optional(),
         title: requiredTitle,
         message: requiredMessage,
+        theme: fillLinkThemeColors.nullish(),
       })
     )
     .handler(async ({ input, context }) => {
@@ -153,6 +157,7 @@ export const fillRequestsRouter = {
         fieldKeys: resolveFieldKeys(template, input.fieldKeys),
         title: input.title,
         message: input.message,
+        theme: input.theme ?? null,
       });
       return { fillRequest };
     }),
@@ -241,6 +246,7 @@ export const fillRequestsRouter = {
         fields: requestedFields(template.fields, fillRequest.fieldKeys),
         title: fillRequest.title,
         message: fillRequest.message,
+        theme: fillRequest.theme,
       };
     }),
 

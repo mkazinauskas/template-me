@@ -1,5 +1,6 @@
 import { pgTable, text, timestamp, jsonb, uuid, boolean, integer, bigint, index, uniqueIndex } from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
+import type { FillLinkThemeColors } from "@/lib/fill-link-theme";
 
 export type TemplateFieldType =
   | "string"
@@ -199,6 +200,9 @@ export const fillRequests = pgTable(
     // link, shown above the form in place of the bare template name.
     title: text("title"),
     message: text("message"),
+    // The page colors the recipient sees, copied from the owner's pick at
+    // creation time. Null means the app's own look.
+    theme: jsonb("theme").$type<FillLinkThemeColors>(),
     // The submitted values, once filled — same shape as a template-generate
     // request's `data`. Null until `filledAt` is set.
     data: jsonb("data").$type<Record<string, string>>(),
@@ -255,3 +259,33 @@ export const fillLinkPresetsRelations = relations(fillLinkPresets, ({ one }) => 
 
 export type FillLinkPreset = typeof fillLinkPresets.$inferSelect;
 export type NewFillLinkPreset = typeof fillLinkPresets.$inferInsert;
+
+// A named set of page colors an owner saves to dress their fill links in.
+// Private to its owner, like presets. Picking one copies its colors onto the
+// new link, so editing or deleting the theme never restyles links already sent.
+export const fillLinkThemes = pgTable(
+  "fill_link_themes",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    colors: jsonb("colors").$type<FillLinkThemeColors>().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [index("fill_link_themes_userId_name_idx").on(table.userId, table.name)]
+);
+
+export const fillLinkThemesRelations = relations(fillLinkThemes, ({ one }) => ({
+  owner: one(user, {
+    fields: [fillLinkThemes.userId],
+    references: [user.id],
+  }),
+}));
+
+export type FillLinkTheme = typeof fillLinkThemes.$inferSelect;

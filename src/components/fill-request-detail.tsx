@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { fillRequests, templates, type TemplateField } from "@/db/schema";
 import { requestedFields } from "@/lib/fill-request-fields";
+import type { FillLinkThemeColors } from "@/lib/fill-link-theme";
 
 export type FillRequestStatus =
   | { status: "not_found" }
@@ -14,6 +15,8 @@ export type FillRequestStatus =
       title: string | null;
       /** A free-text note from the owner, shown above the fields. */
       message: string | null;
+      /** The page colors the owner picked; null for the app's own look. */
+      theme: FillLinkThemeColors | null;
     };
 
 /**
@@ -39,5 +42,6 @@ export async function getFillRequestStatus(code: string): Promise<FillRequestSta
     fields: requestedFields(row.template.fields, row.fillRequest.fieldKeys),
     title: row.fillRequest.title,
     message: row.fillRequest.message,
+    theme: row.fillRequest.theme,
   };
 }

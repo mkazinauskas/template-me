@@ -177,6 +177,7 @@ describe("fillRequests.getByCode", () => {
       fields: makeTemplate().fields,
       title: null,
       message: null,
+      theme: null,
     });
     expect(result).not.toHaveProperty("userId");
     expect(result).not.toHaveProperty("blobUrl");

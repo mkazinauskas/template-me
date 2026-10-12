@@ -31,6 +31,14 @@ export const orpc = {
     update: vi.fn(),
     delete: vi.fn(),
   },
+  fillLinkThemes: {
+    // Resolves by default so dialogs that load themes work in tests that
+    // never think about them.
+    list: vi.fn(() => Promise.resolve({ themes: [] })),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  },
 };
 
 export class ORPCError extends Error {

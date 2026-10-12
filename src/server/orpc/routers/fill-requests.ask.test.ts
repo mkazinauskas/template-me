@@ -16,6 +16,16 @@ mockFillRequestsRouterDeps();
 
 const ask = { title: "Your details", message: "Fill these in, please." };
 
+const theme = {
+  background: "#000000",
+  card: "#111111",
+  heading: "#ffffff",
+  text: "#eeeeee",
+  field: "#222222",
+  button: "#ff0000",
+  buttonText: "#ffffff",
+};
+
 const fields: TemplateField[] = [
   { key: "full_name", label: "Full name", type: "string", params: [] },
   { key: "email", label: "Email", type: "email", params: [] },
@@ -92,6 +102,29 @@ describe("fillRequests.create — the per-link ask", () => {
     ).rejects.toBeInstanceOf(ORPCError);
     expect(state.insertedValues).toBeNull();
   });
+
+  it("stores the picked page theme, and null when none is picked", async () => {
+    state.templateRows = [multiFieldTemplate()];
+    const router = await importRouter();
+    await call(router.create, { templateId: "t1", ...ask, theme }, ctx());
+    expect(state.insertedValues).toMatchObject({ theme });
+
+    await call(router.create, { templateId: "t1", ...ask }, ctx());
+    expect(state.insertedValues).toMatchObject({ theme: null });
+  });
+
+  it("rejects a theme color that isn't a hex value", async () => {
+    state.templateRows = [multiFieldTemplate()];
+    const router = await importRouter();
+    await expect(
+      call(
+        router.create,
+        { templateId: "t1", ...ask, theme: { ...theme, background: "url(x)" } },
+        ctx()
+      )
+    ).rejects.toBeInstanceOf(ORPCError);
+    expect(state.insertedValues).toBeNull();
+  });
 });
 
 describe("fillRequests.getByCode — the per-link ask", () => {
@@ -113,6 +146,15 @@ describe("fillRequests.getByCode — the per-link ask", () => {
     expect(result.fields.map((f) => f.key)).toEqual(["email"]);
     expect(result.title).toBe("Your contact details");
     expect(result.message).toBe("Use the address you check daily.");
+  });
+
+  it("returns the link's page theme", async () => {
+    state.joinedRows = [
+      { fillRequest: makeFillRequest({ ...ask, theme }), template: multiFieldTemplate() },
+    ];
+    const router = await importRouter();
+    const result = await call(router.getByCode, { code: "abc123" }, ctx());
+    expect(result.theme).toEqual(theme);
   });
 });
 

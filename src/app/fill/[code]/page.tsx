@@ -4,6 +4,7 @@ import { AppHeader } from "@/components/app-header";
 import { Logo } from "@/components/logo";
 import { getFillRequestStatus } from "@/components/fill-request-detail";
 import { FillRequestForm } from "@/components/fill-request-form";
+import { themeStyle } from "@/lib/fill-link-theme";
 
 export const metadata: Metadata = {
   title: "Fill in requested information",
@@ -17,11 +18,18 @@ export default async function FillLinkPage({
 }) {
   const { code } = await params;
   const result = await getFillRequestStatus(code);
+  const theme = result.status === "ok" ? result.theme : null;
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black flex flex-col">
       <AppHeader />
-      <main className="flex flex-1 items-center justify-center px-6 py-10">
+      <main
+        // The owner's colors re-skin only the page body; the header stays the
+        // app's so the recipient still knows where they are.
+        data-fill-theme={theme ? "" : undefined}
+        style={theme ? themeStyle(theme) : undefined}
+        className="flex flex-1 items-center justify-center px-6 py-10"
+      >
         {result.status === "ok" ? (
           <FillRequestForm
             code={code}
@@ -29,6 +37,7 @@ export default async function FillLinkPage({
             fields={result.fields}
             title={result.title}
             message={result.message}
+            themed={theme !== null}
           />
         ) : (
           <div className="flex flex-col items-center gap-6 text-center max-w-md">

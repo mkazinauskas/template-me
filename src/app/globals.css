@@ -156,3 +156,9 @@ body {
     animation: none;
   }
 }
+
+/* Fill links can carry the owner's page colors (see `themeStyle`): give the
+ * recipient's text fields the chosen field background. */
+[data-fill-theme] :is(input:not([type="checkbox"]):not([type="radio"]):not([type="color"]), select, textarea) {
+  background-color: var(--fill-field);
+}

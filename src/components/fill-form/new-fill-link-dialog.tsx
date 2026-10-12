@@ -10,6 +10,8 @@ import {
   FillLinkPresetPicker,
   useFillLinkPresets,
 } from "@/components/fill-form/fill-link-presets";
+import { FillLinkThemePicker } from "@/components/fill-form/fill-link-themes";
+import type { FillLinkThemeColors } from "@/lib/fill-link-theme";
 
 /** What the owner is asking for on a new link. */
 export type FillLinkDraft = {
@@ -17,6 +19,8 @@ export type FillLinkDraft = {
   fieldKeys: string[];
   title: string;
   message: string;
+  /** The recipient page's colors; omitted for the app's own look. */
+  theme?: FillLinkThemeColors;
 };
 
 function FieldCheckbox({
@@ -72,6 +76,7 @@ export function NewFillLinkDialog({
   );
   const [title, setTitle] = useState("");
   const [message, setMessage] = useState("");
+  const [theme, setTheme] = useState<FillLinkThemeColors | null>(null);
   const [isManagingPresets, setIsManagingPresets] = useState(false);
   const presets = useFillLinkPresets();
   const titleRef = useRef<HTMLInputElement>(null);
@@ -109,6 +114,7 @@ export function NewFillLinkDialog({
       fieldKeys: fields.filter((f) => selected.has(f.key)).map((f) => f.key),
       title,
       message,
+      ...(theme && { theme }),
     });
   }
 
@@ -150,7 +156,8 @@ export function NewFillLinkDialog({
               New fill link
             </h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Choose what to ask for, and write a title and message to go with it.
+              Choose what to ask for, write a title and message to go with it,
+              and pick how the page looks.
             </p>
           </div>
 
@@ -196,6 +203,8 @@ export function NewFillLinkDialog({
               className={`${inputClasses} resize-y`}
             />
           </div>
+
+          <FillLinkThemePicker colors={theme} onChange={setTheme} />
 
           <fieldset className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-4">

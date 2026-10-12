@@ -1,6 +1,7 @@
 import { templatesRouter } from "@/server/orpc/routers/templates";
 import { fillRequestsRouter } from "@/server/orpc/routers/fill-requests";
 import { fillLinkPresetsRouter } from "@/server/orpc/routers/fill-link-presets";
+import { fillLinkThemesRouter } from "@/server/orpc/routers/fill-link-themes";
 
 /**
  * The application's entire API surface. Every endpoint the browser calls is a
@@ -15,6 +16,7 @@ export const router = {
   templates: templatesRouter,
   fillRequests: fillRequestsRouter,
   fillLinkPresets: fillLinkPresetsRouter,
+  fillLinkThemes: fillLinkThemesRouter,
 };
 
 export type AppRouter = typeof router;

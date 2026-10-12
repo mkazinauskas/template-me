@@ -7,6 +7,12 @@ import { orpc, orpcErrorMessage } from "@/lib/orpc";
 import { blankValues } from "@/components/fill-form/field-grouping";
 import { FieldGroups } from "@/components/fill-form/field-groups";
 
+// Owner-themed variants, reading the `--fill-*` variables `themeStyle` sets on the page.
+const cardClasses = "rounded-xl bg-[var(--fill-card)] p-6 shadow-sm sm:p-8";
+const headingClasses = "text-[var(--fill-heading)]";
+const themedButtonClasses =
+  "!bg-[var(--fill-button)] !text-[var(--fill-button-text)] hover:opacity-90";
+
 function CheckIcon() {
   return (
     <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-emerald-500/10">
@@ -38,6 +44,7 @@ export function FillRequestForm({
   fields,
   title = null,
   message = null,
+  themed = false,
 }: {
   code: string;
   templateName: string;
@@ -46,6 +53,8 @@ export function FillRequestForm({
   title?: string | null;
   /** The owner's note to the recipient, shown above the fields. */
   message?: string | null;
+  /** Rendered inside an owner-themed page: sit on a card and use its `--fill-*` colors. */
+  themed?: boolean;
 }) {
   const [values, setValues] = useState<Record<string, string>>(() => blankValues(fields));
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -68,10 +77,12 @@ export function FillRequestForm({
 
   if (submitted) {
     return (
-      <div className="flex w-full max-w-md flex-col items-center gap-6 text-center">
+      <div
+        className={`flex w-full max-w-md flex-col items-center gap-6 text-center ${themed ? cardClasses : ""}`}
+      >
         <CheckIcon />
         <div className="flex flex-col gap-2">
-          <h1 className="text-xl font-semibold tracking-tight">
+          <h1 className={`text-xl font-semibold tracking-tight ${themed ? headingClasses : ""}`}>
             Thanks — your response was submitted
           </h1>
           <p className="text-sm text-muted-foreground">
@@ -84,9 +95,9 @@ export function FillRequestForm({
   }
 
   return (
-    <div className="flex w-full max-w-xl flex-col gap-6">
+    <div className={`flex w-full max-w-xl flex-col gap-6 ${themed ? cardClasses : ""}`}>
       <div>
-        <h1 className="text-xl font-semibold tracking-tight">{title || templateName}</h1>
+        <h1 className={`text-xl font-semibold tracking-tight ${themed ? headingClasses : ""}`}>{title || templateName}</h1>
         {/* The owner's own note is the subtitle when they wrote one — it says
             more about this particular link than the generic instruction. */}
         <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
@@ -108,7 +119,11 @@ export function FillRequestForm({
             {error}
           </p>
         )}
-        <button type="submit" disabled={isSubmitting} className={buttonClasses()}>
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className={buttonClasses({ className: themed ? themedButtonClasses : "" })}
+        >
           {isSubmitting ? "Submitting…" : "Submit"}
         </button>
       </form>
