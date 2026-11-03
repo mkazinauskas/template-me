@@ -28,7 +28,7 @@
     "@orpc/server": "^1.15.0",
     "@vercel/blob": "^2.8.0",
     "@vercel/sandbox": "^3.2.1",
-    "better-auth": "^1.7.2",
+    "better-auth": "^1.7.15",
     "docxtemplater": "^3.69.3",
     "drizzle-orm": "^0.45.2",
     "nanoid": "^6.0.1",
